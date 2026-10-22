@@ -13,4 +13,4 @@ model: 书生大模型 InternVL（谱图解析）+ Intern-S1（流程规划）
 ---
 # 谱图预处理技能（Spectrum Preprocess）
 
-将原始谱图转为可用于回归/分类的干净特征。命中赛题「Agent Skills 技能化封装」加分项。
+将原始谱图转为可用于回归/分类的干净特征。

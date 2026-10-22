@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" font-family="-apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif">
+  <!-- background -->
+  <rect width="960" height="540" fill="#ffffff"/>
+  <!-- browser chrome -->
+  <rect x="0" y="0" width="960" height="44" rx="0" fill="#e2e8f0"/>
+  <circle cx="22" cy="22" r="6" fill="#ef4444"/>
+  <circle cx="42" cy="22" r="6" fill="#f59e0b"/>
+  <circle cx="62" cy="22" r="6" fill="#22c55e"/>
+  <rect x="84" y="12" width="780" height="20" rx="10" fill="#ffffff"/>
+  <text x="100" y="26" font-size="12" fill="#64748b">http://localhost:3000  ·  格物 Gewu 控制台</text>
+
+  <!-- app header -->
+  <rect x="0" y="44" width="960" height="52" fill="#0f172a"/>
+  <text x="24" y="78" font-size="20" font-weight="700" fill="#ffffff">格物 <tspan fill="#93c5fd">Gewu</tspan></text>
+  <rect x="700" y="60" width="236" height="24" rx="12" fill="#1e293b"/>
+  <circle cx="720" cy="72" r="5" fill="#22c55e"/>
+  <text x="734" y="76" font-size="13" fill="#e2e8f0">阶段 ② 读论文找 idea</text>
+
+  <!-- left column: 7 stages -->
+  <rect x="0" y="96" width="232" height="444" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="16" y="120" font-size="13" font-weight="700" fill="#0f172a">科研七阶段</text>
+  <g font-size="13" fill="#334155">
+    <rect x="10" y="132" width="212" height="30" rx="6" fill="#ffffff" stroke="#e2e8f0"/>
+    <text x="22" y="152">① 定方向 · director</text>
+    <rect x="10" y="168" width="212" height="30" rx="6" fill="#2563eb"/>
+    <text x="22" y="188" fill="#ffffff">② 找 idea · ideation</text>
+    <rect x="10" y="204" width="212" height="30" rx="6" fill="#ffffff" stroke="#e2e8f0"/>
+    <text x="22" y="224">③ 复现 · reproduction</text>
+    <rect x="10" y="240" width="212" height="30" rx="6" fill="#ffffff" stroke="#e2e8f0"/>
+    <text x="22" y="260">④ 改进 · improver</text>
+    <rect x="10" y="276" width="212" height="30" rx="6" fill="#ffffff" stroke="#e2e8f0"/>
+    <text x="22" y="296">⑤ 写论文 · writer</text>
+    <rect x="10" y="312" width="212" height="30" rx="6" fill="#ffffff" stroke="#e2e8f0"/>
+    <text x="22" y="332">⑥ 发表 · publication</text>
+    <rect x="10" y="348" width="212" height="30" rx="6" fill="#ffffff" stroke="#e2e8f0"/>
+    <text x="22" y="368">⑦ 沉淀 · distillation</text>
+  </g>
+  <text x="16" y="416" font-size="12" fill="#94a3b8">可见编排：派发给谁、</text>
+  <text x="16" y="434" font-size="12" fill="#94a3b8">调用了哪个工具、当前阶段</text>
+
+  <!-- center column: conversation -->
+  <rect x="232" y="96" width="456" height="444" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="248" y="120" font-size="13" font-weight="700" fill="#0f172a">对话流（SSE 实时）</text>
+  <!-- user bubble -->
+  <rect x="248" y="132" width="380" height="44" rx="10" fill="#2563eb"/>
+  <text x="264" y="159" font-size="13" fill="#ffffff">调研并复现 LIBS 煤热值预测的 MIL 方法</text>
+  <!-- assistant streaming -->
+  <rect x="248" y="188" width="380" height="120" rx="10" fill="#f1f5f9"/>
+  <text x="264" y="212" font-size="13" fill="#334155">已检索 42 篇，按 PRISMA 筛入 12 篇…</text>
+  <text x="264" y="234" font-size="13" fill="#334155">候选 idea：LSE-Pool 聚合优于均值池化</text>
+  <text x="264" y="256" font-size="13" fill="#334155">FINER 评分 4.2/5 · 7-mode 自检：CLEAR</text>
+  <rect x="264" y="276" width="120" height="8" rx="4" fill="#cbd5e1"/>
+  <rect x="264" y="276" width="64" height="8" rx="4" fill="#2563eb"/>
+  <!-- tool call card -->
+  <rect x="248" y="320" width="380" height="56" rx="10" fill="#fff7ed" stroke="#fed7aa"/>
+  <circle cx="268" cy="348" r="6" fill="#f59e0b"/>
+  <text x="284" y="344" font-size="13" font-weight="700" fill="#9a3412">mcp__paper-search__search_papers</text>
+  <text x="284" y="364" font-size="12" fill="#9a3412">arXiv · Semantic Scholar · Crossref → 42 hits</text>
+  <rect x="248" y="384" width="380" height="56" rx="10" fill="#f0fdf4" stroke="#bbf7d0"/>
+  <circle cx="268" cy="412" r="6" fill="#22c55e"/>
+  <text x="284" y="408" font-size="13" font-weight="700" fill="#166534">mcp__sci-compute__cross_validate</text>
+  <text x="284" y="428" font-size="12" fill="#166534">5-fold · RMSE 0.38 MJ/kg</text>
+
+  <!-- right column: tool status -->
+  <rect x="688" y="96" width="272" height="444" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="704" y="120" font-size="13" font-weight="700" fill="#0f172a">MCP 工具服务</text>
+  <g font-size="13" fill="#334155">
+    <rect x="704" y="132" width="240" height="34" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+    <circle cx="722" cy="149" r="5" fill="#22c55e"/><text x="736" y="154">sci-compute</text>
+    <rect x="704" y="172" width="240" height="34" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+    <circle cx="722" cy="189" r="5" fill="#22c55e"/><text x="736" y="194">sci-data</text>
+    <rect x="704" y="212" width="240" height="34" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+    <circle cx="722" cy="229" r="5" fill="#22c55e"/><text x="736" y="234">mil-model (OpenVINO)</text>
+    <rect x="704" y="252" width="240" height="34" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+    <circle cx="722" cy="269" r="5" fill="#22c55e"/><text x="736" y="274">report</text>
+    <rect x="704" y="292" width="240" height="34" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+    <circle cx="722" cy="309" r="5" fill="#22c55e"/><text x="736" y="314">paper-search</text>
+  </g>
+  <rect x="704" y="344" width="240" height="160" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="720" y="368" font-size="12" font-weight="700" fill="#0f172a">质量护栏</text>
+  <text x="720" y="390" font-size="12" fill="#475569">· 7-mode 失败自检</text>
+  <text x="720" y="410" font-size="12" fill="#475569">· PRISMA 文献筛选</text>
+  <text x="720" y="430" font-size="12" fill="#475569">· 引用 / 声明审计</text>
+  <text x="720" y="450" font-size="12" fill="#475569">· handoff schema 契约</text>
+  <text x="720" y="470" font-size="12" fill="#475569">· repro_lock 复现门控</text>
+
+  <text x="24" y="528" font-size="11" fill="#94a3b8">界面示意（UI schematic，非真实数据截图）· 移动端为单栏概览，PC 端为三区驾驶舱</text>
+</svg>

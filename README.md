@@ -1,14 +1,54 @@
+<div align="center">
+
 # 格物 (Gewu) — 通用学术科学智能体
 
-> 基于 **书生大模型（Intern-S2 系列）** + **OpenClaw 原生编排** 的科研全生命周期智能体。
-> 覆盖 **定方向 → 读论文找 idea → 复现 → 改进 → 写论文 → 发表追踪 → 沉淀** 七个阶段，
-> 并把沉淀下的方法固化为可复用 Skill 与长周期记忆，让系统越用越强。
+基于 **书生大模型（Intern-S2 系列）** + **OpenClaw 原生编排** 的科研全生命周期智能体：
+覆盖 **定方向 → 读论文找 idea → 复现 → 改进 → 写论文 → 发表追踪 → 沉淀**，
+并把沉淀的方法固化为可复用 Skill，让系统越用越强。
+
+![license](https://img.shields.io/badge/license-Apache%202.0-blue)
+![status](https://img.shields.io/badge/status-alpha-orange)
+![node](https://img.shields.io/badge/node-%3E%3D24.16%20%7C%20%3E%3D26.1-green)
+![python](https://img.shields.io/badge/python-3.10%2B-blue)
+![model](https://img.shields.io/badge/model-Intern--S2-8b5cf6)
+![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen)
+
+简体中文
+
+</div>
+
+> 最近更新：**2026-10-22** · 仓库地址：<https://github.com/fresshman/gewu-sciagent>
+
+## 目录
+
+- [特性](#特性)
+- [项目定位](#项目定位)
+- [界面概览](#界面概览)
+- [架构](#架构)
+- [七阶段与 Agent 分工](#七阶段与-agent-分工)
+- [MCP 工具服务](#mcp-工具服务)
+- [目录结构](#目录结构)
+- [快速开始](#快速开始)
+- [Web 界面（可选）](#web-界面可选)
+- [配置与隐私](#配置与隐私)
+- [常见问题](#常见问题)
+- [文档](#文档)
+- [贡献](#贡献)
+- [联系与社区](#联系与社区)
+- [许可证](#许可证)
+- [致谢](#致谢)
 
 ---
 
-## 项目定位
+## 特性
 
-格物不是一个"论文阅读 / 翻译 / 管理"工具，而是一条**科研生产流**：
+- **科研全生命周期**：从选题到沉淀串联科研每个环节，而非单点辅助工具。
+- **通用内核 + 可插拔领域包**：换领域只需替换 `gewu/domain_packs/` 下的领域包，流程不变。
+- **可见的编排**：Web 界面能看见 Director 派发给谁、调用了哪个工具、处于哪一阶段。
+- **质量护栏**：7-mode 失败自检、PRISMA 式文献筛选、引用与声明审计，主动抑制幻觉与自欺。
+- **沉淀复利闭环**：第 ⑦ 阶段把方法与踩坑固化为 OpenClaw Skill + 长周期记忆。
+
+## 项目定位
 
 | 维度 | 说明 |
 |---|---|
@@ -18,7 +58,13 @@
 | **可见的编排** | Web 界面能看见 Director 派发给谁、调用了哪个工具、当前处于哪一阶段 |
 | **质量护栏** | 7-mode 失败自检、PRISMA 式文献筛选、引用与声明审计，主动抑制幻觉与自欺 |
 
----
+## 界面概览
+
+自研轻量 Web 前端（移动优先概览面 + PC 三区驾驶舱），经本地 Node 代理接入 OpenClaw Gateway：
+
+![格物 Web 界面示意](docs/images/ui-overview.svg)
+
+> 上方为界面示意图（UI schematic），展示 PC 端三区布局：左侧科研七阶段、中间 SSE 实时对话流与工具调用卡片、右侧 MCP 服务状态与质量护栏。
 
 ## 架构
 
@@ -29,9 +75,7 @@
 | 格物层 | 科研能力 | 7 个阶段 Agent + 5 个 Python MCP 工具服务 + 领域包 + Skills |
 
 **不自己写控制流编排器**：7 阶段流程交由 OpenClaw 原生多智能体编排，
-Python 侧只保留"科学工具层"（MCP Server），通过 MCP 被 OpenClaw 调用。
-
----
+Python 侧只保留「科学工具层」（MCP Server），通过 MCP 被 OpenClaw 调用。
 
 ## 七阶段与 Agent 分工
 
@@ -47,9 +91,7 @@ Python 侧只保留"科学工具层"（MCP Server），通过 MCP 被 OpenClaw �
 
 各阶段产出写入 `handoff_<stage>.json`，下游按 schema 消费，避免上下文丢失。
 
----
-
-## MCP 工具服务（Python 侧）
+## MCP 工具服务
 
 | 服务 | 能力 |
 |---|---|
@@ -58,8 +100,6 @@ Python 侧只保留"科学工具层"（MCP Server），通过 MCP 被 OpenClaw �
 | `mil-model` | MIL 模型推理（支持 OpenVINO 本地推理） |
 | `report` | 报告与图表产出 |
 | `paper-search` | 多源论文检索（arXiv / Semantic Scholar / Crossref / OpenAlex / PubMed） |
-
----
 
 ## 目录结构
 
@@ -72,7 +112,8 @@ gewu-sciagent/
 ├── .env.example               # 环境变量示例（真实值填 .env，已被 Git 忽略）
 ├── .gitignore
 ├── docs/
-│   └── architecture.md        # 架构设计与落地路线图
+│   ├── architecture.md        # 架构设计与落地路线图
+│   └── images/ui-overview.svg # 界面示意图
 ├── data/                      # 数据集（大文件建议放网盘，仅留索引）
 ├── web/                       # 自研轻量 Web 前端 + 本地代理
 │   ├── src/                   # React + Vite + TypeScript 前端
@@ -89,39 +130,43 @@ gewu-sciagent/
     └── domain_packs/          # 可插拔领域包：coal_libs（LIBS 煤热值参考实现）
 ```
 
----
-
 ## 快速开始
 
 ### 前置要求
 
-- **Node.js** ≥ 24.16（且 < 25）或 ≥ 26.1 —— OpenClaw 的硬性要求
-- **Python** 3.10+ —— MCP 工具层（注意需 `mcp` **1.x**，2.x 会重命名 `FastMCP` 导致导入失败）
-- **书生大模型 API Key** —— 见下方「配置与隐私」
+| 依赖 | 最低版本 | 说明 |
+|---|---|---|
+| **Node.js** | ≥ 24.16（且 < 25）或 ≥ 26.1 | OpenClaw 的硬性要求 |
+| **Python** | 3.10+ | MCP 工具层 |
+| **书生大模型 API Key** | — | 见下方「配置与隐私」 |
 
-### 1. 安装 OpenClaw
+> ⚠️ Python 侧需 `mcp` **1.x**：`mcp` 2.x 重命名了 `FastMCP`，会导致 MCP 服务导入失败。
+
+### 1. 安装 OpenClaw（Node 全局）
 
 ```bash
 npm i -g openclaw@2026.10.5
 ```
 
-### 2. 安装 Python 依赖
+### 2. 安装 Python 依赖（建议独立 venv）
 
 ```bash
-pip install -r requirements.txt
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt  # 注意需 mcp 1.x
 ```
 
 ### 3. 配置模型与凭据
 
 ```bash
-cp .env.example .env      # 填入你的 INTERN_API_KEY
-export INTERN_API_KEY=... # 或直接写入 ~/.openclaw/openclaw.json
+cp .env.example .env             # 填入你的 INTERN_API_KEY
+# 真实 Key 也可直接写入 ~/.openclaw/openclaw.json（位于用户目录，不进 Git）
 ```
 
 将 `openclaw/openclaw.json` 的内容合并进 `~/.openclaw/openclaw.json`
 （该模板中的 API Key 为 `${INTERN_API_KEY}` 占位符，不会泄露密钥）。
 
-### 4. 启动网关
+### 4. 启动网关并验证
 
 ```bash
 openclaw gateway run --force     # 常驻，默认 127.0.0.1:18789
@@ -137,8 +182,6 @@ openclaw agent --agent gewu-director \
   -m "调研并复现大颗粒原煤 LIBS 光谱热值预测的 MIL 方法，给出 5 折交叉验证指标"
 ```
 
----
-
 ## Web 界面（可选）
 
 自研轻量前端，统一体验入口：移动优先（概览面）+ PC 三区驾驶舱（全量面）。
@@ -150,8 +193,6 @@ npm run dev        # 开发：前端 :5173 （/api 反代到本机代理 :3000�
 npm run build && npm start   # 生产：单端口 :3000 同时提供前端与 API
 ```
 
----
-
 ## 配置与隐私
 
 本项目对凭据处理遵循以下原则，**仓库中不含任何真实密钥或个人身份信息**：
@@ -162,7 +203,7 @@ npm run build && npm start   # 生产：单端口 :3000 同时提供前端与 AP
 | **配置模板占位** | `openclaw/openclaw.json` 中写作 `${INTERN_API_KEY}`，提交到仓库的只是占位符 |
 | **真实凭据不入库** | 真实 Key 只写入 `~/.openclaw/openclaw.json`（位于用户目录，不进 Git） |
 | **`.env` 已忽略** | `.gitignore` 忽略 `.env` 与 `.env.*`，仅提交 `.env.example` 占位示例 |
-| **无个人信息** | 仓库不含姓名、手机号、邮箱等个人身份信息 |
+| **运行时文件不入库** | `.gitignore` 忽略 OpenClaw 的 `SOUL.md` / `IDENTITY.md` / `USER.md` / `agents/*/MEMORY.md`，避免个人信息与本地状态误提交 |
 
 提交前建议自查：
 
@@ -173,7 +214,22 @@ grep -rInE "sk-[A-Za-z0-9]{16,}|1[3-9][0-9]{9}" --exclude-dir=node_modules --exc
 > ⚠️ `openclaw/openclaw.json` 中的 MCP `command` 路径为 `<user>` 占位符，
 > **换机部署时**需替换为本机的 Python venv 绝对路径。
 
----
+## 常见问题
+
+**Q1：安装 OpenClaw 时报 Node 版本不满足？**
+A：OpenClaw 要求 Node ≥ 24.16（且 < 25）或 ≥ 26.1。若本机只有 22 / 24.13，需单独安装 Node 26.x 并让 `openclaw` 命令指向它（见 `docs/architecture.md`）。
+
+**Q2：启动 MCP 服务报 `cannot import name 'FastMCP'`？**
+A：需 `mcp` 1.x；`mcp` 2.x 把 `FastMCP` 重命名为 `MCPServer` 导致导入失败。新建 venv 并执行 `pip install "mcp<2"`。
+
+**Q3：调用书生 API 返回 `API token scope forbidden for this domain`？**
+A：书生 API **调用**的 baseUrl 必须是 `https://chat.intern-ai.org.cn/api/v1`，而非 `internlm.intern-ai.org.cn` 域；令牌本身有效，是域 scope 不匹配。
+
+**Q4：真实 API Key 应该放在哪里？**
+A：只写入用户目录的 `~/.openclaw/openclaw.json`；仓库内的 `openclaw/openclaw.json` 用 `${INTERN_API_KEY}` 占位，不进 Git，可安全公开。
+
+**Q5：如何切换到其他科研领域？**
+A：替换 `gewu/domain_packs/` 下的领域包即可，通用内核与七阶段流程不变。当前内置参考实现为 LIBS 大颗粒原煤热值预测（`coal_libs`）。
 
 ## 文档
 
@@ -181,7 +237,20 @@ grep -rInE "sk-[A-Za-z0-9]{16,}|1[3-9][0-9]{9}" --exclude-dir=node_modules --exc
 |---|---|
 | [`docs/architecture.md`](docs/architecture.md) | 架构设计、配置要点与分阶段落地路线图 |
 
----
+## 贡献
+
+欢迎提交 Issue 与 Pull Request 参与完善。提交前请：
+
+- 运行上方「提交前自查」命令，确认无密钥/个人信息泄露；
+- 保持 `openclaw/openclaw.json` 中的 API Key 为 `${INTERN_API_KEY}` 占位；
+- 新增领域包请放在 `gewu/domain_packs/` 下，遵循现有结构。
+
+Issue 入口：<https://github.com/fresshman/gewu-sciagent/issues>
+
+## 联系与社区
+
+- 问题反馈与讨论：<https://github.com/fresshman/gewu-sciagent/issues>
+- 功能建议与路线图：欢迎在 Issues 中开题，标签 `enhancement`
 
 ## 许可证
 

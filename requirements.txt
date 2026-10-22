@@ -1,8 +1,6 @@
-# 书生大模型客户端（Intern-S1 通常兼容 OpenAI 协议，用 openai 客户端 + base_url）
+# 书生大模型客户端（Intern 系列兼容 OpenAI 协议，用 openai 客户端 + base_url）
 openai>=1.30
-# 执行框架（赛题指定 OpenClaw；如 PyPI 包名不同请按官方文档调整）
-openclaw
-# MCP 工具服务
+# MCP 工具服务（注意：需 mcp 1.x；2.x 重命名 FastMCP 会导致导入失败）
 mcp>=1.0
 # 科学计算
 numpy>=1.26

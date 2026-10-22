@@ -49,11 +49,11 @@ flowchart LR
     H -.复用.-> A
     H -.复用.-> C
 ```
-- **内循环（假设—实验—验证—迭代）**：①→②→③→④，④ 不达标则回到 ③ 再迭代（命中赛题"端到端科学发现闭环"）。
+- **内循环（假设—实验—验证—迭代）**：①→②→③→④，④ 不达标则回到 ③ 再迭代，构成端到端科学发现闭环。
 - **终态阶段**：⑤→⑥→⑦，产出论文、发表追踪与可复用资产。
 - **复利**：⑦ 的沉淀在后续课题的 ①/③ 被复用。
 
-> 赛题的「搜、读、算、做、写」是上述生命周期中 **②读 → ③复现 → ④改进 → ⑤写** 的子链；
+> 「搜、读、算、做、写」是上述生命周期中 **②读 → ③复现 → ④改进 → ⑤写** 的子链；
 > 格物在其前后补齐了 ①定方向、⑥发表追踪、⑦沉淀，构成完整科研生产流。
 
 ## 3. 原生多智能体编排（OpenClaw 实现）
@@ -89,7 +89,7 @@ lobster 实际支持的是 `when/condition`（条件**跳过**步骤）、`retry
 因此改用更鲁棒的两层方案（**不使用 lobster 原生回路**）：
 - **`for_each` 固定 N 轮迭代（首选）**：把"一轮复现→改进→校验"封装为一个步骤组，用 `for_each`
   跑 K 轮（如 5 轮），每轮质量分写入 Memory，末位由 `improver/writer` 汇总选优。
-  这恰好契合赛题"假设—实验—验证—迭代"的多轮闭环，且不依赖 LLM 每次自己想起来回退。
+  这恰好契合"假设—实验—验证—迭代"的多轮闭环，且不依赖 LLM 每次自己想起来回退。
 - **Agent 层控制（动态加码）**：当 `director` 判定还需打磨，由它在会话内再 `sessions_spawn`
   一轮 `reproduction` 子智能体（在 `director` 的 system prompt 写明"最多 N 轮"作为护栏）。
 - **不保留独立 Python 控制器**——循环逻辑交给 lobster(`for_each`) 或 OpenClaw 原生多智能体即可，
@@ -104,7 +104,7 @@ lobster 实际支持的是 `when/condition`（条件**跳过**步骤）、`retry
 | `mil_model` | OpenVINO 量化后的 MIL 热值预测模型 | 领域专属（标准封装） |
 | `report` | 报告 / 论文草稿生成 | 通用 |
 
-> MCP 语言无关，是打通 OpenClaw(TS) 网关与 Python 科学引擎的桥；亦是赛题点名协议。
+> MCP 语言无关，是打通 OpenClaw(TS) 网关与 Python 科学引擎的桥，也是本项目采用的工具调用协议。
 
 ### 4.1 `paper-search` 接入要点（已踩坑）
 - 仓库：`https://github.com/openags/paper-search-mcp`（MIT，0.1.4）。**独立 venv** 安装，避免与 gewu 既有 `mcp<2` 服务混装：
@@ -124,7 +124,7 @@ lobster 实际支持的是 `when/condition`（条件**跳过**步骤）、`retry
 - `tools.py`：用**通用工具组合**出「LIBS 谱图 → 预处理 → MIL 预测」的领域工作流，而非写死。
 - 换领域只需新增一个 `domain_packs/<domain>/`，不影响内核。
 
-## 6. Agent Skills（即 OpenClaw Skills，命中赛题加分项）
+## 6. Agent Skills（即 OpenClaw Skills）
 技能源文件位于 `gewu/skills/` 与 `openclaw/skills/`，已复制到每个 Agent 工作区的 `skills/`
 目录，**由 OpenClaw 从工作区自动发现加载**（无需在 config 显式列名）：
 - `spectrum_preprocess/SKILL.md`：谱图预处理技能。
@@ -139,7 +139,7 @@ lobster 实际支持的是 `when/condition`（条件**跳过**步骤）、`retry
 ### 8.1 需要克隆 OpenClaw 源码吗？
 **不需要。** OpenClaw 是"你运行的一个平台"（MIT，本地优先），不是 import 的库。
 正确做法是 **安装 OpenClaw（npm / 官方安装脚本）**，再在**本项目工作区**放置我们自己的
-Skills / Agents 配置 / MCP 服务 / 领域知识——这些才是提交赛题的"关键代码"。
+Skills / Agents 配置 / MCP 服务 / 领域知识——这些才是本项目自有的核心代码。
 仅在"改 OpenClaw 核心源码 / 给它提 PR"时才需要 `git clone https://github.com/openclaw/openclaw`。
 
 ### 8.2 目标目录结构（本项目 = OpenClaw 之上的科研智能体层）

@@ -13,4 +13,4 @@ model: 书生大模型 Intern-S1（实验设计/分析）+ OpenVINO 本地推理
 ---
 # MIL 校准技能（MIL Calibration）
 
-端到端多示例学习热值校准。命中赛题「Agent Skills 技能化封装」「工具自主调用」加分项。
+端到端多示例学习热值校准。
