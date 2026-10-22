@@ -1,5 +1,5 @@
 /* 格物 Web · 设计 Token（明/暗双主题 + 光谱主题色）
-   来源：docs/ui-design-plan.md §5 配色 / §6 字体 / 8px 栅格 */
+   来源：格物设计系统（配色 / 字体 / 8px 栅格），见 README 与 docs/architecture.md */
 
 :root {
   /* 中性（纸感暖白，沿用 OpenClaw 生态） */

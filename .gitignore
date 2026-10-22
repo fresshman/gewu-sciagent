@@ -29,3 +29,12 @@ credentials.json
 # 本地运行产物（可能含本机绝对路径）
 gw.log
 *.local.json
+
+# ── OpenClaw 运行时 / 本地身份与偏好文件 ──────────
+# 这些是 OpenClaw 生成的工作区模板与运行时记忆：
+# 占位模板无实际内容，USER.md 会存放用户偏好（属个人信息），
+# 各 Agent 的 MEMORY.md 会在运行时被持续写入，均不应纳入版本控制。
+SOUL.md
+IDENTITY.md
+USER.md
+openclaw/workspace/agents/*/MEMORY.md

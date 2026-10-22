@@ -72,9 +72,7 @@ gewu-sciagent/
 ├── .env.example               # 环境变量示例（真实值填 .env，已被 Git 忽略）
 ├── .gitignore
 ├── docs/
-│   ├── architecture.md        # 架构设计与落地路线图
-│   ├── ui-design-plan.md      # Web 前端界面设计规格
-│   └── borrowed-patterns.md   # 外部方法论借鉴分析（含合规声明）
+│   └── architecture.md        # 架构设计与落地路线图
 ├── data/                      # 数据集（大文件建议放网盘，仅留索引）
 ├── web/                       # 自研轻量 Web 前端 + 本地代理
 │   ├── src/                   # React + Vite + TypeScript 前端
@@ -182,8 +180,6 @@ grep -rInE "sk-[A-Za-z0-9]{16,}|1[3-9][0-9]{9}" --exclude-dir=node_modules --exc
 | 文档 | 内容 |
 |---|---|
 | [`docs/architecture.md`](docs/architecture.md) | 架构设计、配置要点与分阶段落地路线图 |
-| [`docs/ui-design-plan.md`](docs/ui-design-plan.md) | Web 前端界面设计规格（移动优先 + PC 驾驶舱） |
-| [`docs/borrowed-patterns.md`](docs/borrowed-patterns.md) | 外部方法论借鉴分析与合规声明 |
 
 ---
 

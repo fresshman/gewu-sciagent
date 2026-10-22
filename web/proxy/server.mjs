@@ -6,7 +6,7 @@
 // 为什么走 CLI 而不是直接连 Gateway WS：Gateway 是 loopback + 同源鉴权 +
 // 设备鉴权，浏览器直连会被 CORS/鉴权双重拦截；而 `openclaw agent` 本身就是
 // Gateway 的官方客户端（已验证可跑通 intern-s2）。M1 用 CLI 桥接即可稳定打通，
-// 后续可平滑替换为直连 Gateway WS（升级路径见 docs/ui-design-plan.md §2）。
+// 后续可平滑替换为直连 Gateway WS（升级路径见 docs/architecture.md）。
 
 import http from "node:http";
 import { spawn } from "node:child_process";
