@@ -1,0 +1,27 @@
+# 书生大模型客户端（Intern-S1 通常兼容 OpenAI 协议，用 openai 客户端 + base_url）
+openai>=1.30
+# 执行框架（赛题指定 OpenClaw；如 PyPI 包名不同请按官方文档调整）
+openclaw
+# MCP 工具服务
+mcp>=1.0
+# 科学计算
+numpy>=1.26
+pandas>=2.0
+scikit-learn>=1.4
+scipy>=1.12
+# 实验 / 超参寻优
+optuna>=3.6
+# 可视化
+matplotlib>=3.8
+# 文献检索
+arxiv>=2.1
+# PDF / 论文解析
+pdfplumber>=0.11
+# 图像（多模态解析用）
+pillow>=10.0
+# 本地推理（MIL 模型 MCP）
+openvino>=2024.0
+# 配置
+pyyaml>=6.0
+# HTTP
+requests>=2.31

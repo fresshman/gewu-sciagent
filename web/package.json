@@ -1,0 +1,27 @@
+{
+  "name": "gewu-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "格物 (Gewu) 科研智能体 · 轻量 Web 前端（接入 OpenClaw Gateway）",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "vite",
+    "dev:proxy": "node proxy/server.mjs",
+    "build": "vite build",
+    "preview": "vite preview --port 5173",
+    "start": "node proxy/server.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}

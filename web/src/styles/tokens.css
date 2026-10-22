@@ -1,0 +1,74 @@
+/* 格物 Web · 设计 Token（明/暗双主题 + 光谱主题色）
+   来源：docs/ui-design-plan.md §5 配色 / §6 字体 / 8px 栅格 */
+
+:root {
+  /* 中性（纸感暖白，沿用 OpenClaw 生态） */
+  --bg-page: #FAF9F7;
+  --bg-surface: #FFFFFF;
+  --bg-sunken: #F1EFE8;
+
+  /* 文字 */
+  --text-primary: #1A1A1A;
+  --text-secondary: #5F5E5A;
+  --text-tertiary: #888780;
+
+  /* 描边 */
+  --border: rgba(0, 0, 0, 0.12);
+
+  /* 品牌 / 强调（靛蓝 + 光谱青→紫） */
+  --brand: #185FA5;
+  --brand-soft: #E6F1FB;
+  --accent-teal: #0F6E56;
+  --accent-violet: #534AB7;
+  --danger: #A32D2D;
+
+  /* 字体栈（零外部依赖） */
+  --font-sans: "PingFang SC", "Microsoft YaHei", "Source Han Sans SC",
+    "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, "Cascadia Code",
+    Consolas, monospace;
+
+  /* 间距（8px 基准） */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* 圆角 */
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-pill: 999px;
+
+  /* 字号阶梯 */
+  --fs-h1: 20px;
+  --fs-h2: 17px;
+  --fs-h3: 15px;
+  --fs-body: 15px;
+  --fs-cap: 13px;
+  --fs-micro: 12px;
+
+  /* 布局尺寸 */
+  --topbar-h: 52px;
+  --left-w: 280px;
+  --right-w: 360px;
+}
+
+[data-theme="dark"] {
+  --bg-page: #0E1015;
+  --bg-surface: #161922;
+  --bg-sunken: #0E1015;
+
+  --text-primary: #F1EFE8;
+  --text-secondary: #B4B2A9;
+  --text-tertiary: #8A8881;
+
+  --border: rgba(255, 255, 255, 0.12);
+
+  --brand: #85B7EB;
+  --brand-soft: #0C447C;
+  --accent-teal: #5DCAA5;
+  --accent-violet: #AFA9EC;
+  --danger: #E07A7A;
+}

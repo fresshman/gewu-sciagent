@@ -1,0 +1,127 @@
+// =============================================================
+// 格物 (Gewu) — OpenClaw 配置（正确 schema，可合并进 ~/.openclaw/openclaw.json）
+//
+// 【重要·书生 API 的两个域，不要搞混】
+//   1) 令牌管理 / 模型列表页（浏览器）: https://internlm.intern-ai.org.cn/api/document
+//   2) API 调用 baseUrl（代码/OpenClaw）: https://chat.intern-ai.org.cn/api/v1
+//  若误用 internlm.intern-ai.org.cn/api/v1 调用，会返回：
+//  {"msgCode":"C1114","msg":"API token scope forbidden for this domain"}
+//
+// 【凭据】本模板用 ${INTERN_API_KEY} 占位，避免密钥进 Git。
+//   本机已生效配置 ~/.openclaw/openclaw.json 内已写入真实 key；
+//   换机部署时：设置环境变量 INTERN_API_KEY 或直接替换该值。
+//
+// 【Python 解释器路径】下方 mcp.servers[*].command 里的 Python 绝对路径是本机 WorkBuddy
+//   托管 venv（<user> 为占位，需替换为你本机用户目录）；换机部署请指向你本机的 venv
+//   （任意装有 mcp<2 + numpy/scikit-learn/scipy 等的 Python 即可）。
+//
+// OpenClaw 配置为 JSON5（支持注释与 ${ENV} 展开），Gateway 做严格 schema 校验
+// （未知键会拒绝启动）。schema 以 `openclaw config validate` 为准。
+// =============================================================
+
+{
+  // ---------- 1. 书生大模型（自定义 OpenAI 兼容 provider）----------
+  // 模型引用格式 = provider/model，例如 "sheng/intern-s2"
+  models: {
+    mode: "merge",                 // merge=合并默认目录 | replace=仅用下方定义
+    providers: {
+      sheng: {
+        baseUrl: "https://chat.intern-ai.org.cn/api/v1",   // ← 必须是 chat. 域
+        apiKey: "${INTERN_API_KEY}",
+        api: "openai-completions",  // 书生兼容 OpenAI Chat Completions
+        models: [
+          // 官方模型列表（2026-10 更新）。intern-s2 = 397B/256K，科学多模态推理
+          // + 通用智能体 + 长程复杂任务，作为格物默认大脑。
+          { id: "intern-s2",              name: "书生·Intern-S2 (397B/256K)",
+            reasoning: false, input: ["text", "image"], contextWindow: 262144, maxTokens: 8192 },
+          // 科学多模态推理，256K
+          { id: "intern-s1-pro",          name: "书生·Intern-S1-Pro (科学多模态推理/256K)",
+            reasoning: false, input: ["text", "image"], contextWindow: 262144, maxTokens: 8192 },
+          // 轻量科学推理，32K（成本低，适合子智能体批量调用）
+          { id: "intern-s1",              name: "书生·Intern-S1 (32K)",
+            reasoning: false, input: ["text", "image"], contextWindow: 32768, maxTokens: 8192 },
+          // 多模态视觉：谱图/曲线/分子式/论文版面理解
+          { id: "internvl3.5-241b-a28b",  name: "书生·InternVL3.5-241B-A28B (多模态/32K)",
+            reasoning: false, input: ["text", "image"], contextWindow: 32768, maxTokens: 8192 },
+        ],
+      },
+    },
+  },
+
+  // ---------- 2. 智能体（OpenClaw 原生多智能体编排）----------
+  // 注意：是 agents.entries（不是 agents.list），且需 ownership: "explicit"。
+  // 角色铁律/分工写在工作区 AGENTS.md（OpenClaw 原生"员工手册"机制）。
+  agents: {
+    ownership: "explicit",
+    defaults: {
+      model: { primary: "sheng/intern-s2" },
+      models: {
+        "sheng/intern-s2":             { alias: "Intern-S2" },
+        "sheng/intern-s1-pro":         { alias: "Intern-S1-Pro" },
+        "sheng/intern-s1":             { alias: "Intern-S1" },
+        "sheng/internvl3.5-241b-a28b": { alias: "InternVL3.5" },
+      },
+      workspace: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/openclaw/workspace",
+      modelPolicy: {
+        allow: [
+          "sheng/intern-s2",
+          "sheng/intern-s1-pro",
+          "sheng/intern-s1",
+          "sheng/internvl3.5-241b-a28b",
+        ],
+      },
+      // 7 阶段科研生命周期由 research_lifecycle Skill + Director 的 sessions_spawn 驱动。
+    },
+    entries: {
+      "gewu-director":      { identity: { name: "格物·主编"   }, workspace: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/openclaw/workspace/agents/gewu-director" },
+      "gewu-ideation":      { identity: { name: "格物·探员"   }, workspace: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/openclaw/workspace/agents/gewu-ideation" },
+      "gewu-reproduction":  { identity: { name: "格物·复现员" }, workspace: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/openclaw/workspace/agents/gewu-reproduction" },
+      "gewu-improver":      { identity: { name: "格物·改进员" }, workspace: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/openclaw/workspace/agents/gewu-improver" },
+      "gewu-writer":        { identity: { name: "格物·写手"   }, workspace: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/openclaw/workspace/agents/gewu-writer" },
+      "gewu-publication":   { identity: { name: "格物·发表官" }, workspace: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/openclaw/workspace/agents/gewu-publication" },
+      "gewu-distillation":  { identity: { name: "格物·沉淀师" }, workspace: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/openclaw/workspace/agents/gewu-distillation" },
+    },
+  },
+
+  // ---------- 3. MCP 工具层（Python Server，被 OpenClaw 经 MCP 调用）----------
+  // 注意：是 mcp.servers（不是顶层 mcpServers）。工具命名 mcp__<server>__<tool>。
+  // 解释器指向 managed venv（已装 mcp/numpy/sklearn/scipy）。
+  mcp: {
+    servers: {
+      "sci-compute": {
+        command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
+        args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/sci_compute.py"],
+        cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
+      },
+      "paper-search": {
+        command: "C:/Users/<user>/.workbuddy/binaries/python/envs/paper-search/Scripts/python.exe",
+        args: ["-m", "paper_search_mcp.server"],
+        cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
+      },
+      "sci-data": {
+        command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
+        args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/sci_data.py"],
+        cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
+      },
+      "mil-model": {
+        command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
+        args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/mil_model.py"],
+        cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
+      },
+      "report": {
+        command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
+        args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/report.py"],
+        cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
+      },
+    },
+  },
+
+  // ---------- 4. Gateway（本地模式）----------
+  gateway: {
+    mode: "local",
+    auth: { mode: "token", token: "${OPENCLAW_GATEWAY_TOKEN}" },
+  },
+
+  // ---------- 5. 渠道（本地演示可先不接；接微信/飞书/Slack 时在此配置）----------
+  // channels: { wechat: { ... }, feishu: { ... } }
+}

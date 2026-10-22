@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+config/settings.yaml
+data/raw/
+data/large/
+*.onnx
+*.bin
+model_links.txt
+.DS_Store
+
+# 前端（格物 Web）
+web/node_modules/
+web/dist/
+*.log
