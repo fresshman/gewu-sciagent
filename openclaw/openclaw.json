@@ -113,6 +113,11 @@
         args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/report.py"],
         cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
       },
+      "sci-plot": {
+        command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
+        args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/sci_plot.py"],
+        cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
+      },
     },
   },
 
