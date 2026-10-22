@@ -1,6 +1,6 @@
 # 格物 (Gewu) Web 前端 · 界面设计规格
 
-> 目标：自研一个**轻量 Web 前端**，接入 OpenClaw Gateway API，作为「格物」科研智能体的统一体验入口与参赛演示面板。
+> 目标：自研一个**轻量 Web 前端**，接入 OpenClaw Gateway API，作为「格物」科研智能体的统一体验入口与演示面板。
 > 设计原则：**移动优先 (mobile-first)**、**科研驾驶舱 (research cockpit)** 心智模型、**扁平克制的科学美学**。
 
 ---
@@ -14,7 +14,7 @@
 四条设计主线：
 
 1. **设备内容分层（不同设备，不同信息量）**——手机=概览/监控面（工具调用与图表默认折叠/后置）；PC=全量操作面（一切细节内联展开）。详见第 4、8 节。
-2. **可见的编排（Visible Orchestration）**——用户能看见 Director 派发给哪个子 Agent、调用了哪个 MCP 工具、处在 7 阶段哪一步。这是参赛"创新性/实用性"最直观的卖点。
+2. **可见的编排（Visible Orchestration）**——用户能看见 Director 派发给哪个子 Agent、调用了哪个 MCP 工具、处在 7 阶段哪一步。这是产品"可观测性与可信度"最直观的卖点。
 3. **科研质感（Lab-grade）**——科学产出是第一类公民，而非聊天附属（PC 全量呈现，手机概览呈现）。
 4. **移动优先**——先保证手机端完整可用（单栏 + 底部 Tab + 内容折叠），再向 PC 扩展为三区驾驶舱。
 
@@ -41,7 +41,7 @@ OpenClaw Gateway (:18789, loopback)
 ```
 
 - 轻代理职责：① 托管静态前端；② 反向代理 `/api/*` 到 Gateway 并注入鉴权；③ 把 Gateway 的 **SSE 流式消息**透传为前端 EventSource/stream；④ 统一错误处理与重连。
-- 参赛演示：代理可一键 `npm run dev` 启动，本地 `http://localhost:3000` 即为体验链接；对外发布时由部署平台（或内网穿透）暴露代理端口即可，Gateway 始终留在内网。
+- 本地演示：代理可一键 `npm run dev` 启动，本地 `http://localhost:3000` 即为体验链接；对外发布时由部署平台（或内网穿透）暴露代理端口即可，Gateway 始终留在内网。
 
 **技术栈建议（轻量）：** React + Vite + TypeScript；状态用 Zustand；图表用轻量 `uPlot`（光谱/回归曲线高性能）；流式用原生 EventSource / fetch-stream。整个前端 < 200KB gzipped。
 
@@ -257,7 +257,7 @@ PC 是"坐下来做科研"的**主工作台**，手机是"路上看进度"的**�
 2. **M2 移动对话核心**：Composer + 对话流 + AgentBadge + ToolCallCard 折叠；阶段胶囊条。
 3. **M3 科学组件（⚠️ 暂缓）**：SpectrumChart（uPlot）+ MetricCard + 工具/数据面板；接 `mil_model` / `sci_compute` 真实数据。**用户明确：先由用户把整体框架骨架搭好，再进入测试案例（LIBS demo），届时再实现频谱图等 demo 内容——目前不碰光谱/案例相关实现。**
 4. **M4 桌面双栏 + 管线页**：响应式到 md/lg，阶段时间线可下钻。
-5. **M5 打磨**：暗色主题、空态/错误态、参赛演示数据预置、一键 `npm run dev`。
+5. **M5 打磨**：暗色主题、空态/错误态、演示数据预置、一键 `npm run dev`。
 
 ---
 

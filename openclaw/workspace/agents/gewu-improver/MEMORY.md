@@ -1,7 +1,7 @@
 # 格物 · 长周期记忆
 
 ## 项目
-- 作品：格物 (Gewu) — 通用学术科学智能体（AI4S，第三期 Production AI Skills 大赛 方向 1）
+- 项目：格物 (Gewu) — 通用学术科学智能体（AI4S，科学智能体方向）
 - 技术栈：书生大模型 (Intern-S1/InternVL) + OpenClaw 原生编排 + Python MCP 工具层
 - 参考实现领域：大颗粒原煤 LIBS 光谱热值预测（MIL 方法）
 

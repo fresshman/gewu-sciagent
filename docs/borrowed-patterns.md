@@ -7,12 +7,12 @@
 
 ## 0. 合规声明（重要）
 
-本项目（格物 / Gewu）是**参赛项目**，可能进入评奖/潜在商用场景。源仓库许可证为
+本项目（格物 / Gewu）是**科研产品**，存在潜在商用场景。源仓库许可证为
 **CC-BY-NC 4.0（非商用 + 署名）**，因此：
 
 - **不复制其代码、SKILL.md 文本、提示词原文**（NC 禁止商用、BY 要求署名）。
 - 本文档**仅借鉴其"设计思想/工作流模式"**（方法论层面，属于思想而非表达），并改写为格物自己的表述与实现。
-- 若参赛材料引用其思路，需按 CC-BY-NC 标注来源作者 `Imbad0202` 与仓库链接。
+- 若对外文档或产品中引用其思路，需按 CC-BY-NC 标注来源作者 `Imbad0202` 与仓库链接。
 - 其 7-mode 失败清单的**学术出处**为 Lu et al. (2026) *Nature* 651:914-919（源仓库 `ai_research_failure_modes.md` 明确引用），该论文本身可正常引用。
 - 源项目强绑定 `ANTHROPIC_API_KEY`（Claude）+ Claude Code 子代理编排，**与格物技术栈不兼容**，故只取方法论，不取运行层。
 
@@ -102,7 +102,7 @@ Review Report、Revision Roadmap（另有 Material Passport / Traceability 等�
 
 ### 2.9 协作深度观察 · pipeline（advisory only）
 `collaboration_depth_agent` 在 checkpoint 观察用户协作模式（委派强度/认知警觉/认知再分配），
-**永不阻塞**；维度基于 Wang & Zhang (2026)。对参赛 demo 的"人机协作质量"展示有价值。
+**永不阻塞**；维度基于 Wang & Zhang (2026)。对产品 demo 的"人机协作质量"展示有价值。
 
 ### 2.10 预算透明 · pipeline
 启动时估算 token 成本 + **交互轮次预算**（round-trip caps：2 轮修订 + 8+5 Socratic + 完整性修复循环），
@@ -127,7 +127,7 @@ checkpoint 报告累计轮次；仅 advisory 不阻塞。长任务防"文档腐�
 | Socratic 引导 (2.7) | **director**（①） | 接收课题后用 Socratic 式提问澄清研究问题/约束，再 spawn 子 agent |
 | FINER + 证据层级 (2.7) | **ideation**（②） | 用 FINER 给选题打分；引用按证据层级标注 |
 | three-way-scan (2.8) | **ideation**（②） | 快速对比候选论文用 WHY/HOW/WHAT 框架产出对比表 |
-| 协作深度观察 (2.9) | **distillation**（⑦） | 长任务记录人机协作质量（advisory），决赛 demo 可展示 |
+| 协作深度观察 (2.9) | **distillation**（⑦） | 长任务记录人机协作质量（advisory），产品 demo 可展示 |
 | 预算透明 (2.10) | **director** | 启动时提示预估 token / 阶段轮次预算，防长任务失控 |
 | 反模式表 (2.4/2.3/2.7) | **全阶段** | 提炼格物版反模式（跳验证/自动跳过门控/质量退化/静默丢弃/泛泛反馈等）写入 SKILL.md |
 

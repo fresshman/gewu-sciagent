@@ -13,3 +13,19 @@ model_links.txt
 web/node_modules/
 web/dist/
 *.log
+
+# ── 环境变量与凭据（切勿提交） ──
+.env
+.env.*
+!.env.example
+
+# 私钥 / 证书 / 本地密钥文件
+*.pem
+*.key
+*.p12
+secrets/
+credentials.json
+
+# 本地运行产物（可能含本机绝对路径）
+gw.log
+*.local.json
