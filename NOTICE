@@ -1,0 +1,13 @@
+gewu-sciagent
+Copyright 2026 gewu-sciagent contributors
+
+This product was built using the Apache License, Version 2.0.
+
+Third-party methodology attribution:
+This project adopts design methodology inspired by the
+academic-research-skills project (https://github.com/Imbad0202/academic-research-skills),
+which is licensed under CC-BY-NC 4.0. Only its methodology (e.g. PRISMA-style
+literature screening, the 7-mode AI research failure checklist, handoff schemas,
+model tiering) was adopted and re-implemented in Gewu's own expression. No source
+code or SKILL.md text was copied. See docs/borrowed-patterns.md for the full
+attribution and compliance note.
