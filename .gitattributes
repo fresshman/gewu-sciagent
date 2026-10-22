@@ -1,0 +1,11 @@
+# 统一文本换行符为 LF（跨平台协作，避免 Windows CRLF churn）
+* text=auto eol=lf
+
+# 二进制资源（如以后加入图标/模型文件）不转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.woff2 binary
+*.onnx binary
+*.bin binary
