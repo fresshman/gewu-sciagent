@@ -101,7 +101,7 @@ lobster 实际支持的是 `when/condition`（条件**跳过**步骤）、`retry
 | `sci_compute` | PCA / PLS / 曲线拟合 / 交叉验证 / 超参寻优 | 通用 |
 | `paper-search` | arXiv/Crossref/OpenAlex/Semantic Scholar/PubMed 多源检索（paper-search-mcp，零 key 即可用） | 通用 |
 | `sci_data` | 科学文件与图表载入解析（InternVL 视觉） | 通用 |
-| `mil_model` | OpenVINO 量化后的 MIL 热值预测模型 | 领域专属（标准封装） |
+| `mil_model` | **真实** MIL 热值预测（4 工具：`predict_calorific_value` / `list_val_bags` / `reproduce_fold` / `cv_summary`）；经 `coal_infer.py` 按路径引用外部未发表项目的 `.pt`/`.pkl` 做真实前向推理，可逐 bag 复现 5 折交叉验证（见 §4.5） | 领域专属（真实推理） |
 | `report` | 报告 / 论文草稿生成；并含「本地写 LaTeX」工具族（`write_local_file` / `write_latex_project` / `copy_local_file`），把 .tex/.bib 源文件落盘本机，不依赖 Overleaf | 通用 |
 | `sci_plot` | 含实验数据的统计图（本地 matplotlib 渲染，PDF 矢量 + PNG 300dpi，17 工具） | 通用 |
 | `chart-cloud` | 纯结构/概念图（Node 包装 @antv/mcp-server-chart 云端出图：思维导/桑基/鱼骨/组织架构/地图等 12 工具；已用 `DISABLED_TOOLS` 禁用全部含数据图类型） | 通用 |
@@ -196,6 +196,46 @@ lobster 实际支持的是 `when/condition`（条件**跳过**步骤）、`retry
 - **模型路由铁律**：原页/图/公式 → `sheng/intern-s2`（多模态）；机械任务 → `intern-s1-mini`；
   判断/规划/写作 → `intern-s2`/`intern-s1-pro`。书生在格物里既是"长程科研智能体调度器"，
   也是"通专融合可插拔"的内核，更是"科学多模态原页理解"的唯一承载者——三者同时被功能化使用。
+
+### 4.5 领域模型接入：真实模型 × 未发表数据的「路径引用」机制
+
+格物的领域建模能力（`mil-model`）此前是占位实现（返回硬编码 demo 值），现改为**真实推理**。
+核心设计是**路径引用（path reference）而非复制入库**——这是「未发表论文项目」接入的通用解法。
+
+#### 要解决的问题
+用户的 MIL+LIBS 煤热值项目**尚未发表**，模型权重（`.pt`）、PLSR 模型（`.pkl`）、
+LIBS 光谱数据（CSV）与 5 折交叉验证结果均属未公开资产，**不能进入格物仓库、更不能上云**。
+但格物又必须跑出**真实、可复现**的预测，否则整个智能体只是演示外壳。
+
+#### 解法：三层隔离
+
+| 层 | 位置 | 是否入库 |
+|---|---|---|
+| 胶水代码 | `gewu/mcp/coal_infer.py`（纯代码，零模型零数据） | ✅ 入库 |
+| MCP 封装 | `gewu/mcp/mil_model.py`（subprocess 调胶水，解析 JSON） | ✅ 入库 |
+| 模型 + 数据 | 用户原项目目录（如 `coal-calorific-value/`） | ❌ 永不入库 |
+
+运行时通过 `COAL_PROJECT_ROOT`（或 gitignore 的 `.coal_project_root` 文件）定位外部项目，
+**仓库内不写死任何机器绝对路径**。新增领域模型只需换一个根目录，机制通用。
+
+#### 推理链（严格对齐训练脚本，保证可复现）
+```
+bag(多张 LIBS 谱 CSV)
+  → parse + is_valid_spectrum 过滤
+  → 预处理 sg → als → mms
+  → 袋均谱 → PLSR(n=7) 预测                 → plsr_pred
+  → 实例矩阵 → MIL(ResNet1D+TransMIL_attn + FiLM) → 残差 → mil_res
+  → hybrid(kcal/kg) = plsr_pred + mil_res   → ×0.004184 → MJ/kg
+```
+模型重建超参、`kfold_split_bags(seed=42)` 划分、`spec_len` 裁剪均与训练脚本逐项对齐，
+因此 `reproduce_fold` 能**逐 bag 复现**原项目 5 折交叉验证的预测值。
+
+#### 暴露的工具
+`predict_calorific_value`（单 bag 真实预测）/ `list_val_bags` / `reproduce_fold`（复现某折）
+/ `cv_summary`（5 折指标 + 与官方 summary.json 交叉校验）。
+
+> **设计原则**：模型权重与未发表实验数据**始终留在用户本机原目录**，格物只按路径读取；
+> 换领域 = 换 `COAL_PROJECT_ROOT`，内核零改动。
 
 ## 5. 领域包（参考实现：coal_libs）
 - `knowledge.md`：LIBS 原理、煤质热值背景、MIL 方法说明（供 RAG / 长周期记忆）。
@@ -295,5 +335,8 @@ gewu-sciagent/
 3. **迁入 MCP 工具层** ✓：6 个 `gewu/mcp/*.py`（sci_compute/sci_data/mil_model/report/sci_plot）+ 1 个 Node 包装 `chart_cloud.mjs` 本就是合法 FastMCP/stdio server；Python 侧 venv 内 `mcp` 固定为 1.x 后导入正常，经 `openclaw mcp add` 注册到 `mcp.servers`，`openclaw mcp probe` 实测 8 个服务全部拉起并列出工具（`sci_compute` 含 PCA/PLS/拟合/交叉验证 4 工具；`sci-plot` 17 工具；`chart-cloud` 12 工具）。
 4. **写 7 个 Agent 角色** ✓：`agents.ownership="explicit"`，7 个 `agents.entries` 各指向独立工作区，角色写在工作区 `AGENTS.md`，技能从 `skills/` 自动发现；`config validate` 通过、Gateway 识别 7 个 Agent。
 5. **Skills 化** ✓：`spectrum_preprocess` / `mil_calibration` / `research_lifecycle` 三个 Skill 已就位并复制到各工作区。
-6. **参考实现跑实**（进行中）：需将 MIL 模型导出为 OpenVINO(`.xml/.bin`) 置入 `data/models/`、接入真实 LIBS 数据，使 `mil_model` 产出真实热值预测，并在煤热值上产出 5 折交叉验证可复现指标。
+6. **参考实现跑实** ✓：领域模型不再依赖 OpenVINO 导出，改为**按路径引用外部未发表项目**做真实推理
+   （`coal_infer.py` 复用原项目 `src/` 的解析/预处理/模型结构，逐项对齐训练脚本）。
+   `mil_model` 已能产出**真实热值预测**并逐 bag 复现 5 折交叉验证指标；
+   模型权重与 LIBS 数据始终留在用户本机原目录，不入库、不上云（见 §4.5）。
 7. **沉淀闭环 + 文档**（待做）：`distillation` 真正写盘 Skill + 更新长周期记忆；完善技术文档与演示材料，提供可访问体验。
