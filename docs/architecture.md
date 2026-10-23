@@ -7,7 +7,7 @@
 ### 当前落地状态（2026-10-22 已验证）
 - ✅ OpenClaw v2026.10.5 安装并常驻运行（Gateway `gateway probe` 连通，`config validate` 通过）。
 - ✅ 书生模型 provider `sheng`（Intern-S1 / InternVL）已配置。
-- ✅ 6 个 Python MCP 服务经 `openclaw mcp add` 注册到 `mcp.servers`，`mcp probe` 实测全部拉起并暴露工具。
+- ✅ 7 个 MCP 服务（6 个 Python + 1 个 Node 包装）经 `openclaw mcp add` 注册到 `mcp.servers`，`mcp probe` 实测全部拉起并暴露工具。
 - ✅ 7 个科研 Agent（`agents.ownership="explicit"`）已注册，各用独立工作区 `AGENTS.md` 承载角色，技能自动发现。
 - ⏳ 待办：填 `INTERN_API_KEY` 跑真实规划；导出 OpenVINO MIL 模型 + 接真实 LIBS 数据跑实参考实现；完善技术文档与演示材料。
 
@@ -95,7 +95,7 @@ lobster 实际支持的是 `when/condition`（条件**跳过**步骤）、`retry
 - **不保留独立 Python 控制器**——循环逻辑交给 lobster(`for_each`) 或 OpenClaw 原生多智能体即可，
   与"控制流全交给 OpenClaw"的架构原则一致。
 
-## 4. MCP 工具层（Python Server，被 OpenClaw 经 MCP 调用）
+## 4. MCP 工具层（Python / Node Server，被 OpenClaw 经 MCP 调用）
 | 服务 | 职责 | 通用/领域 |
 |---|---|---|
 | `sci_compute` | PCA / PLS / 曲线拟合 / 交叉验证 / 超参寻优 | 通用 |
@@ -103,7 +103,8 @@ lobster 实际支持的是 `when/condition`（条件**跳过**步骤）、`retry
 | `sci_data` | 科学文件与图表载入解析（InternVL 视觉） | 通用 |
 | `mil_model` | OpenVINO 量化后的 MIL 热值预测模型 | 领域专属（标准封装） |
 | `report` | 报告 / 论文草稿生成 | 通用 |
-| `sci_plot` | 科研插图（本地 matplotlib 渲染，PDF 矢量 + PNG 300dpi） | 通用 |
+| `sci_plot` | 含实验数据的统计图（本地 matplotlib 渲染，PDF 矢量 + PNG 300dpi，17 工具） | 通用 |
+| `chart-cloud` | 纯结构/概念图（Node 包装 @antv/mcp-server-chart 云端出图：思维导/桑基/鱼骨/组织架构/地图等 12 工具；已用 `DISABLED_TOOLS` 禁用全部含数据图类型） | 通用 |
 
 > MCP 语言无关，是打通 OpenClaw(TS) 网关与 Python 科学引擎的桥，也是本项目采用的工具调用协议。
 
@@ -120,25 +121,31 @@ lobster 实际支持的是 `when/condition`（条件**跳过**步骤）、`retry
 - 主工具：`mcp__paper-search__search_papers`（统一多源，`sources` 默认 `all`，建议 Agent 传 `arxiv,semantic,crossref,openalex,pubmed` 避开 google_scholar 反爬与需 key 源）。
 - 旧占位 `lit-search` 已退役（删 `gewu/mcp/lit_search.py`、移出 config、改 `ideation/AGENTS.md`）。
 
-### 4.2 `sci-plot` 本地出图（为什么不用云端出图 MCP）
+### 4.2 混合出图策略（本地 `sci-plot` + 云端 `chart-cloud`）
 
-- **对比方案**：`mcp-server-chart`（AntV，MIT，26+ 图表类型）的出图流程是**把数据 POST 到
-  `https://antv-studio.alipay.com/api/gpt-vis` 公有云渲染，返回一个远程图片 URL**，再由客户端
-  自行下载——工具实际只返回 URL 文本，并不代下载，图片本身也存在对方服务器上。
-- **不采用的理由**：① **数据出域**——格物定位本地优先，未发表实验数据不宜上传公有云；
-  ② 产物是**远程栅格图**，而非投稿所需的矢量图。
-- **自建方案**：`gewu/mcp/sci_plot.py` 用 matplotlib 本地渲染，每次同时输出
-  **PDF（矢量，投稿用）+ PNG（300 dpi，嵌入 docx 用）**，返回两者绝对路径；
-  依赖 `matplotlib>=3.8`（`requirements.txt` 已列）。
-- **踩坑**：
-  - 无 GUI 环境必须先 `matplotlib.use("Agg")` 再导入 `pyplot`，否则启动即失败。
-  - 中文标签默认会渲染成方块字 → 已内置 `Microsoft YaHei` / `SimHei` 字体回退，
-    并设 `axes.unicode_minus=False` 避免负号变方块。
-  - `boxplot` 的 `labels` 参数在 matplotlib 3.9+ 已改名为 `tick_labels`。
-- **能力边界**：只做科研统计类插图（光谱 / 散点 / 预测-真实 / 残差 / 柱状 / 箱线 /
-  小提琴 / 直方 / 热力 / 多曲线）。思维导图、桑基、鱼骨、组织架构、地图等不在范围内——
-  这些恰是云端方案的优势项，如确需引入须单独评估数据出域风险
-  （云端方案支持 `VIS_REQUEST_SERVER` 指向自建 GPT-Vis-SSR 做私有化）。
+- **核心原则**：**含实验测量数据的图 → 本地；纯结构/概念图 → 云端。**
+  - 含数据的统计图若走云端，需把数据 POST 到公有云渲染（见下），对「本地优先、含未发表
+    实验数据」的格物是**数据出域**硬伤，且产物是栅格图而非出版级矢量图。
+  - 思维导图/桑基/鱼骨/组织架构/地图等**不含测量值**，无出域风险，且 matplotlib 天生
+    不擅长，故交给云端方案更省力。
+- **本地一半 —— `gewu/mcp/sci_plot.py`（Python，matplotlib）**：
+  - 覆盖全部含数据统计图（光谱/折线/面积/散点/预测-真实/残差/柱/箱线/小提琴/直方/热力/
+    多曲线/饼/雷达/双轴/瀑布，共 17 工具），每次同时输出 **PDF（矢量，投稿用）+ PNG（300 dpi，嵌入 docx 用）**，
+    返回两者绝对路径；依赖 `matplotlib>=3.8`（`requirements.txt` 已列）。
+  - 踩坑：无 GUI 须先 `matplotlib.use("Agg")`；中文标签内置 `Microsoft YaHei`/`SimHei` 回退 +
+    `axes.unicode_minus=False`；`boxplot` 标签参数在 3.9+ 为 `tick_labels`。
+- **云端一半 —— `gewu/mcp/chart_cloud.mjs`（Node 包装 @antv/mcp-server-chart）**：
+  - `mcp-server-chart`（AntV，MIT，26+ 图）的出图流程是**把数据 POST 到
+    `https://antv-studio.alipay.com/api/gpt-vis` 公有云渲染，返回远程图片 URL**——工具只返回
+    URL 文本，不代下载，图片存于对方服务器。
+  - 我们用一个**包装脚本**在启动前注入 `DISABLED_TOOLS`，**关掉全部 15 个含数据的图类型**
+    （line/area/scatter/column/bar/dual_axes/boxplot/violin/histogram/pie/radar/waterfall/venn/
+    liquid/spreadsheet），**只保留 12 种结构图**（mind_map/fishbone/flow/sankey/network_graph/
+    organization/funnel/treemap/word_cloud/三类中国地图）。这样从配置层面**强制实验数据无法
+    经云端离开本机**。
+  - 换机操作：先 `npm install -g @antv/mcp-server-chart`，包装脚本会经 `npm root -g` 动态定位入口。
+- **分工边界**：agent 需要画折线/散点/柱状/饼/雷达等统计图 → 一律 `sci-plot`；需要思维导/
+  桑基/鱼骨/组织架构/地图 → `chart-cloud`。若把真实实验数据塞进 chart-cloud 的图即违反此边界。
 
 ## 5. 领域包（参考实现：coal_libs）
 - `knowledge.md`：LIBS 原理、煤质热值背景、MIL 方法说明（供 RAG / 长周期记忆）。
@@ -172,7 +179,7 @@ gewu-sciagent/
 │   └── workspace/             # 共享 MEMORY.md / 数据 / 产出
 │       └── agents/<role>/     # 7 个 Agent 各自工作区，各含 AGENTS.md + skills/ + MEMORY.md
 ├── gewu/                      # Python 工具/技能/领域源码（被 OpenClaw 经 MCP 调用）
-│   ├── mcp/                   # 6 个 stdio MCP Server（sci_compute 等，已注册到 mcp.servers）
+│   ├── mcp/                   # 7 个 stdio MCP Server（sci_compute/sci_data/mil_model/report/sci_plot 为 Python；chart_cloud.mjs 为 Node 包装）
 │   ├── skills/  domain_packs/
 ├── docs/  data/  README.md
 ```
@@ -235,7 +242,7 @@ gewu-sciagent/
 ## 10. 分阶段落地路线图（已验证进展 ✓）
 1. **安装 OpenClaw + 建项目骨架** ✓：OpenClaw v2026.10.5 经独立 **Node 26.9.0**（因要求 Node ≥24.16/<25 或 ≥26.1，本机 22/24 不满足）全局安装；`openclaw/openclaw.json` 已合并进 `~/.openclaw/openclaw.json` 并通过 `config validate`，Gateway 常驻运行、`gateway probe` 连通。
 2. **接书生大模型**：配置 `models.providers.sheng`（OpenAI 兼容 baseUrl）✓；待填 `INTERN_API_KEY` 后跑通真实规划（缺 key 时 config 仅 warning，不阻断启动）。
-3. **迁入 MCP 工具层** ✓：6 个 `gewu/mcp/*.py` 本就是合法 FastMCP stdio server；venv 内 `mcp` 固定为 1.x 后导入正常，经 `openclaw mcp add` 注册到 `mcp.servers`，`openclaw mcp probe` 实测 6 个服务全部拉起并列出工具（`sci_compute` 含 PCA/PLS/拟合/交叉验证 4 工具）。
+3. **迁入 MCP 工具层** ✓：6 个 `gewu/mcp/*.py`（sci_compute/sci_data/mil_model/report/sci_plot）+ 1 个 Node 包装 `chart_cloud.mjs` 本就是合法 FastMCP/stdio server；Python 侧 venv 内 `mcp` 固定为 1.x 后导入正常，经 `openclaw mcp add` 注册到 `mcp.servers`，`openclaw mcp probe` 实测 7 个服务全部拉起并列出工具（`sci_compute` 含 PCA/PLS/拟合/交叉验证 4 工具；`sci-plot` 17 工具；`chart-cloud` 12 工具）。
 4. **写 7 个 Agent 角色** ✓：`agents.ownership="explicit"`，7 个 `agents.entries` 各指向独立工作区，角色写在工作区 `AGENTS.md`，技能从 `skills/` 自动发现；`config validate` 通过、Gateway 识别 7 个 Agent。
 5. **Skills 化** ✓：`spectrum_preprocess` / `mil_calibration` / `research_lifecycle` 三个 Skill 已就位并复制到各工作区。
 6. **参考实现跑实**（进行中）：需将 MIL 模型导出为 OpenVINO(`.xml/.bin`) 置入 `data/models/`、接入真实 LIBS 数据，使 `mil_model` 产出真实热值预测，并在煤热值上产出 5 折交叉验证可复现指标。

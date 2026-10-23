@@ -8,22 +8,34 @@
     - PDF（矢量，投稿 / 出版用，期刊更认）
     - PNG（300 dpi 预览，便于嵌入 docx 与快速查看）
 
-工具（11 个，按论文插图场景收口）：
+工具（17 个，按论文插图场景收口；其中含数据的图类型与 chart-cloud 云端禁用项一一对应）：
   plot_spectrum   光谱 / 时序曲线（LIBS 等一维信号）
+  plot_line       折线图（趋势 / 时序 / 随参数变化）
+  plot_area       面积图（累积 / 占比趋势）
   plot_scatter    散点图（可带线性拟合线与 R²）
   plot_pred_true  预测值 vs 真实值（回归论文核心图，自动标注 R²/RMSE/MAE）
   plot_residuals  残差图（检验异方差 / 系统偏差）
-  plot_bar        柱状对比（可带误差棒，适合消融实验）
+  plot_bar        柱状对比（可带误差棒 / 支持横向，适合消融实验）
   plot_boxplot    多组箱线图（适合交叉验证折间对比）
   plot_violin     多组小提琴图（分布形态对比）
   plot_histogram  直方图（单变量分布）
   plot_heatmap    热力图（相关系数矩阵 / 混淆矩阵，自动标注数值）
   plot_curves     多曲线（训练 / 验证损失、学习曲线）
+  plot_pie        饼图（构成 / 占比）
+  plot_radar      雷达图（多维指标对比）
+  plot_dual_axes  双 Y 轴图（两个量纲不同的序列同图）
+  plot_waterfall  瀑布图（从基准逐步增减到终值，如误差分解）
   list_figures    列出已生成的图片文件
 
 字体：自动启用中文字体（Windows 走 Microsoft YaHei / SimHei），
 并关闭 unicode 减号，避免中文标题/标签渲染成方块。
 输出目录：环境变量 GEWU_FIG_DIR，默认 output/figures（相对项目根）。
+
+混合绘图策略（与 chart-cloud 分工）：
+  本 server 负责**所有含实验数据的统计图**——它们必须本地渲染、数据不出本机。
+  思维导图 / 桑基 / 鱼骨 / 组织架构 / 地图等**纯结构/概念图（不含实验数据）**
+  走 chart-cloud（包装 @antv/mcp-server-chart，云端出图）。为强制隔离，chart-cloud
+  已通过 DISABLED_TOOLS 关掉下面这些含数据的图类型，使其只能在本地由本 server 出。
 """
 from __future__ import annotations
 
@@ -291,6 +303,7 @@ def plot_bar(
     yerr: Optional[Sequence[float]] = None,
     title: str = "对比",
     ylabel: str = "数值",
+    orientation: str = "vertical",
     stem: str = "bar",
 ) -> dict:
     """柱状对比图，可带误差棒（消融实验 / 多模型对比用）。
@@ -299,6 +312,7 @@ def plot_bar(
         labels: 每个柱的类别名。
         values: 对应数值。
         yerr: 可选的误差棒（标准差 / 置信区间），长度与 values 一致。
+        orientation: "vertical"（默认，柱形）或 "horizontal"（条形）。
     """
     vals = _arr(values, "values")
     names = _labels_for(vals.size, labels)
@@ -309,11 +323,17 @@ def plot_bar(
             raise ValueError(f"yerr({err.size}) 与 values({vals.size}) 长度不一致。")
 
     fig, ax = plt.subplots(figsize=(7, 4.5))
-    ax.bar(names, vals, yerr=err, capsize=4, color="#4c72b0", edgecolor="black", linewidth=0.5)
+    horiz = orientation == "horizontal"
+    if horiz:
+        ax.barh(names, vals, xerr=err, capsize=4, color="#4c72b0", edgecolor="black", linewidth=0.5)
+        ax.set_xlabel(ylabel)
+        ax.grid(axis="x", alpha=0.3)
+    else:
+        ax.bar(names, vals, yerr=err, capsize=4, color="#4c72b0", edgecolor="black", linewidth=0.5)
+        ax.set_ylabel(ylabel)
+        ax.grid(axis="y", alpha=0.3)
+        fig.autofmt_xdate(rotation=0)
     ax.set_title(title)
-    ax.set_ylabel(ylabel)
-    ax.grid(axis="y", alpha=0.3)
-    fig.autofmt_xdate(rotation=0)
     return _save(fig, stem)
 
 
@@ -464,6 +484,179 @@ def plot_curves(
     ax.set_ylabel(ylabel)
     ax.legend()
     ax.grid(alpha=0.3)
+    return _save(fig, stem)
+
+
+@mcp.tool()
+def plot_line(
+    x: Sequence[float],
+    y: Sequence[float],
+    title: str = "折线图",
+    xlabel: str = "X",
+    ylabel: str = "Y",
+    markers: bool = False,
+    stem: str = "line",
+) -> dict:
+    """折线图（趋势 / 时序 / 随参数变化）。
+
+    Args:
+        x / y: 两组等长数值序列。
+        markers: 是否在数据点画标记。
+    """
+    xa = _arr(x, "x")
+    ya = _arr(y, "y")
+    if xa.size != ya.size:
+        raise ValueError(f"x({xa.size}) 与 y({ya.size}) 长度不一致。")
+    fig, ax = plt.subplots(figsize=(7.5, 4.5))
+    ax.plot(xa, ya, linewidth=1.6, marker="o" if markers else None, color="#1f77b4")
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.grid(alpha=0.3)
+    return _save(fig, stem)
+
+
+@mcp.tool()
+def plot_area(
+    x: Sequence[float],
+    y: Sequence[float],
+    title: str = "面积图",
+    xlabel: str = "X",
+    ylabel: str = "Y",
+    stem: str = "area",
+) -> dict:
+    """面积图（累积 / 占比趋势）。"""
+    xa = _arr(x, "x")
+    ya = _arr(y, "y")
+    if xa.size != ya.size:
+        raise ValueError(f"x({xa.size}) 与 y({ya.size}) 长度不一致。")
+    fig, ax = plt.subplots(figsize=(7.5, 4.5))
+    ax.fill_between(xa, ya, alpha=0.35, color="#1f77b4")
+    ax.plot(xa, ya, linewidth=1.4, color="#1f77b4")
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.grid(alpha=0.3)
+    return _save(fig, stem)
+
+
+@mcp.tool()
+def plot_dual_axes(
+    x: Sequence[float],
+    y1: Sequence[float],
+    y2: Sequence[float],
+    label1: str = "系列1",
+    label2: str = "系列2",
+    title: str = "双轴图",
+    xlabel: str = "X",
+    ylabel1: str = "Y1",
+    ylabel2: str = "Y2",
+    stem: str = "dual_axes",
+) -> dict:
+    """双 Y 轴图（两个量纲不同的序列同图对比，如温度 vs 产量）。
+
+    Args:
+        x: 横轴；y1 / y2: 两条序列，均须与 x 等长。
+        label1 / label2: 两条曲线的图例名。
+    """
+    xa = _arr(x, "x")
+    a1 = _arr(y1, "y1")
+    a2 = _arr(y2, "y2")
+    if not (xa.size == a1.size == a2.size):
+        raise ValueError(f"x({xa.size})、y1({a1.size})、y2({a2.size}) 长度须一致。")
+    fig, ax1 = plt.subplots(figsize=(7.5, 4.5))
+    ax1.plot(xa, a1, color="#1f77b4", linewidth=1.6, label=label1)
+    ax1.set_xlabel(xlabel)
+    ax1.set_ylabel(ylabel1, color="#1f77b4")
+    ax1.tick_params(axis="y", labelcolor="#1f77b4")
+    ax2 = ax1.twinx()
+    ax2.plot(xa, a2, color="#d62728", linewidth=1.6, label=label2)
+    ax2.set_ylabel(ylabel2, color="#d62728")
+    ax2.tick_params(axis="y", labelcolor="#d62728")
+    ax1.set_title(title)
+    ax1.grid(alpha=0.3)
+    return _save(fig, stem)
+
+
+@mcp.tool()
+def plot_pie(
+    labels: Sequence[str],
+    values: Sequence[float],
+    title: str = "饼图",
+    stem: str = "pie",
+) -> dict:
+    """饼图（构成 / 占比，如样本类别分布）。"""
+    vals = _arr(values, "values")
+    names = _labels_for(vals.size, labels)
+    if (vals < 0).any():
+        raise ValueError("饼图数值不能为负。")
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.pie(vals, labels=names, autopct="%1.1f%%", startangle=90)
+    ax.axis("equal")
+    ax.set_title(title)
+    return _save(fig, stem)
+
+
+@mcp.tool()
+def plot_radar(
+    labels: Sequence[str],
+    values: Sequence[float],
+    title: str = "雷达图",
+    stem: str = "radar",
+) -> dict:
+    """雷达图（多维指标对比，如方法在多维度评分）。
+
+    Args:
+        labels: 各维度名称。
+        values: 各维度数值（与 labels 等长）。
+    """
+    vals = _arr(values, "values")
+    names = _labels_for(vals.size, labels)
+    n = vals.size
+    if n < 3:
+        raise ValueError("雷达图至少需要 3 个维度。")
+    angles = np.linspace(0, 2 * np.pi, n, endpoint=False).tolist()
+    vals_c = np.concatenate([vals, [vals[0]]])
+    angles_c = angles + [angles[0]]
+    names_c = names + [names[0]]
+    fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+    ax.plot(angles_c, vals_c, linewidth=1.5, color="#1f77b4")
+    ax.fill(angles_c, vals_c, alpha=0.25, color="#1f77b4")
+    ax.set_xticks(angles)
+    ax.set_xticklabels(names)
+    ax.set_title(title)
+    return _save(fig, stem)
+
+
+@mcp.tool()
+def plot_waterfall(
+    labels: Sequence[str],
+    values: Sequence[float],
+    title: str = "瀑布图",
+    ylabel: str = "累计值",
+    stem: str = "waterfall",
+) -> dict:
+    """瀑布图（从基准逐步增减到终值，如误差分解 / 贡献分解）。
+
+    Args:
+        labels: 每一步名称。
+        values: 每一步的增量（可正可负），自动从 0 累加。
+    """
+    vals = _arr(values, "values")
+    names = _labels_for(vals.size, labels)
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    running = 0.0
+    for i, (name, v) in enumerate(zip(names, vals)):
+        bottom = running if v >= 0 else running + v
+        color = "#4c72b0" if v >= 0 else "#d62728"
+        ax.bar(i, abs(v), bottom=bottom, color=color, edgecolor="black", linewidth=0.5)
+        running += v
+    ax.set_xticks(range(vals.size))
+    ax.set_xticklabels(names)
+    ax.axhline(0, color="black", linewidth=0.8)
+    ax.set_title(title)
+    ax.set_ylabel(ylabel)
+    ax.grid(axis="y", alpha=0.3)
     return _save(fig, stem)
 
 

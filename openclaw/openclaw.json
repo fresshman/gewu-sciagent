@@ -118,6 +118,13 @@
         args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/sci_plot.py"],
         cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
       },
+      // chart-cloud：包装 @antv/mcp-server-chart，只暴露「不含实验数据」的结构/概念图。
+      // 含数据的统计图一律走本地 sci-plot（数据不出本机）。换机需先 npm install -g @antv/mcp-server-chart。
+      "chart-cloud": {
+        command: "C:/Users/<user>/tools/node26/node-v26.9.0-win-x64/node.exe",
+        args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/chart_cloud.mjs"],
+        cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
+      },
     },
   },
 

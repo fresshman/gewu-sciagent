@@ -72,7 +72,7 @@
 |---|---|---|
 | 书生大模型（Intern-S2 / Intern-S1 / InternVL） | 大脑 | OpenAI 兼容接口接入 OpenClaw model provider |
 | OpenClaw | 执行框架 | 原生多智能体编排、Skills、长周期记忆、A2A |
-| 格物层 | 科研能力 | 7 个阶段 Agent + 6 个 Python MCP 工具服务 + 领域包 + Skills |
+| 格物层 | 科研能力 | 7 个阶段 Agent + 7 个 MCP 工具服务（6 Python + 1 Node 包装）+ 领域包 + Skills |
 
 **不自己写控制流编排器**：7 阶段流程交由 OpenClaw 原生多智能体编排，
 Python 侧只保留「科学工具层」（MCP Server），通过 MCP 被 OpenClaw 调用。
@@ -99,7 +99,8 @@ Python 侧只保留「科学工具层」（MCP Server），通过 MCP 被 OpenCl
 | `sci-data` | 光谱等科学数据的读取与预处理 |
 | `mil-model` | MIL 模型推理（支持 OpenVINO 本地推理） |
 | `report` | 报告与论文草稿生成 |
-| `sci-plot` | 科研插图生成（本地 matplotlib 渲染，PDF 矢量 + PNG 300dpi，数据不出本机） |
+| `sci-plot` | 含实验数据的统计图（本地 matplotlib 渲染，PDF 矢量 + PNG 300dpi，数据不出本机，17 工具） |
+| `chart-cloud` | 纯结构/概念图（包装 @antv/mcp-server-chart，云端出图：思维导/桑基/鱼骨/组织架构/地图等 12 工具；已禁用全部含数据图类型） |
 | `paper-search` | 多源论文检索（arXiv / Semantic Scholar / Crossref / OpenAlex / PubMed） |
 
 ## 目录结构
@@ -126,7 +127,7 @@ gewu-sciagent/
 │       ├── MEMORY.md          # 共享长周期记忆
 │       └── agents/<role>/     # 7 个 Agent 工作区（AGENTS.md + skills/ + MEMORY.md）
 └── gewu/                      # Python 工具层（经 MCP 被 OpenClaw 调用）
-    ├── mcp/                   # 6 个 stdio MCP Server
+    ├── mcp/                   # 7 个 stdio MCP Server（sci_compute/sci_data/mil_model/report/sci_plot 为 Python；chart_cloud.mjs 为 Node 包装）
     ├── skills/                # OpenClaw Skills 源（SKILL.md）
     └── domain_packs/          # 可插拔领域包：coal_libs（LIBS 煤热值参考实现）
 ```
@@ -173,7 +174,7 @@ cp .env.example .env             # 填入你的 INTERN_API_KEY
 openclaw gateway run --force     # 常驻，默认 127.0.0.1:18789
 openclaw gateway probe           # 验证连通
 openclaw config validate         # 校验配置
-openclaw mcp probe               # 验证 6 个 MCP 服务
+openclaw mcp probe               # 验证 7 个 MCP 服务
 ```
 
 ### 5. 发起科研目标
