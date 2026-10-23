@@ -53,3 +53,7 @@ SOUL.md
 IDENTITY.md
 USER.md
 openclaw/workspace/agents/*/MEMORY.md
+
+# ── Web 右栏真实案例数据（由 scripts/export_case_bundle.py 生成本机私有文件） ──
+# 含未发表实验数值与本机路径，仅本机可读，绝不入库。
+web/.local/

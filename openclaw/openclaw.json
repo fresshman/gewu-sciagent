@@ -62,6 +62,9 @@
         "sheng/internvl3.5-241b-a28b": { alias: "InternVL3.5" },
       },
       workspace: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/openclaw/workspace",
+      // 默认 600s 不够：一轮科研闭环要串起检索→核验→原页理解→真实推理→绘图，
+      // intern-s2 每轮推理本身也慢。实测单步 MIL 复现就要 1~2 分钟，故放宽到 30 分钟。
+      timeoutSeconds: 1800,
       modelPolicy: {
         allow: [
           "sheng/intern-s2",
@@ -98,25 +101,32 @@
         args: ["-m", "paper_search_mcp.server"],
         cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
       },
+      // 请求超时（实测必需）：领域模型 5 折推理单次可达数十秒，绘图/PDF 解析也会跑满
+      // 一个 CPU 核，OpenClaw 默认请求超时会在中途判 -32001 超时。重活服务单独放宽。
       "sci-data": {
         command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
         args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/sci_data.py"],
         cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
+        requestTimeoutMs: 600000,
       },
       "mil-model": {
         command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
         args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/mil_model.py"],
         cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
+        requestTimeoutMs: 900000,
+        connectionTimeoutMs: 60000,
       },
       "report": {
         command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
         args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/report.py"],
         cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
+        requestTimeoutMs: 600000,
       },
       "sci-plot": {
         command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
         args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/sci_plot.py"],
         cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
+        requestTimeoutMs: 600000,
       },
       // chart-cloud：包装 @antv/mcp-server-chart，只暴露「不含实验数据」的结构/概念图。
       // 含数据的统计图一律走本地 sci-plot（数据不出本机）。换机需先 npm install -g @antv/mcp-server-chart。

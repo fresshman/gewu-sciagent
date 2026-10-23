@@ -1,4 +1,4 @@
-import type { Agent, Stage, ModelOption, ChatMessage } from "../types";
+import type { Agent, Stage, ModelOption, ChatMessage, CaseBundle } from "../types";
 
 async function getJSON<T>(url: string): Promise<T> {
   const r = await fetch(url);
@@ -17,6 +17,10 @@ export function getModels(): Promise<{ models: ModelOption[] }> {
 }
 export function getHealth(): Promise<{ ok: boolean; gateway: { reachable: boolean; status: string } }> {
   return getJSON("/api/health");
+}
+
+export function getCase(): Promise<CaseBundle> {
+  return getJSON("/api/case");
 }
 
 export interface ChatCallbacks {

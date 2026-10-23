@@ -93,6 +93,26 @@ const server = http.createServer(async (req, res) => {
   if (p === "/api/models") return sendJSON(res, 200, { models: MODELS });
   if (p === "/api/topic") return sendJSON(res, 200, { topic: RESEARCH_TOPIC });
 
+  // 真实案例数据：来自 scripts/export_case_bundle.py 生成的本机私有文件。
+  // 该文件在 .gitignore 中（含未发表实验数值），缺失时返回 available:false，
+  // 前端降级为占位提示，绝不用假数据顶替。
+  if (p === "/api/case") {
+    const caseFile = process.env.GEWU_CASE_FILE
+      ? path.resolve(process.env.GEWU_CASE_FILE)
+      : join(ROOT, ".local", "case.json");
+    try {
+      const txt = await readFile(caseFile, "utf8");
+      const data = JSON.parse(txt);
+      return sendJSON(res, 200, data);
+    } catch {
+      return sendJSON(res, 200, {
+        available: false,
+        reason: "本机尚未生成案例数据（运行 scripts/export_case_bundle.py）",
+        hint: "python scripts/export_case_bundle.py",
+      });
+    }
+  }
+
   if (p === "/api/chat" && req.method === "POST") {
     let raw = "";
     for await (const chunk of req) raw += chunk;

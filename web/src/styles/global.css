@@ -201,6 +201,35 @@ button { font-family: inherit; cursor: pointer; }
 .right__placeholder { color: var(--text-tertiary); font-size: var(--fs-micro); line-height: 1.7; }
 .right__empty-note { margin: auto; padding: var(--space-4); color: var(--text-tertiary); font-size: var(--fs-cap); text-align: center; }
 
+/* ---- 右栏真实案例数据（光谱 / 指标 / 文献产出物） ---- */
+.right__title { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.case-stamp { font-size: var(--fs-micro); color: var(--text-tertiary); font-weight: 400; font-family: var(--font-mono); }
+.case-spectrum svg, .case-folds svg, .case-scatter svg { width: 100%; height: auto; display: block; }
+.case-svg-label { font-size: 7px; fill: var(--text-secondary); font-family: var(--font-mono); }
+.case-svg-axis { font-size: 7.5px; fill: var(--text-tertiary); font-family: var(--font-mono); }
+.case-meta { margin-top: var(--space-1); font-size: var(--fs-micro); color: var(--text-tertiary); line-height: 1.6; }
+.case-meta code { font-family: var(--font-mono); font-size: 11px; }
+.case-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); margin-bottom: var(--space-3); }
+.case-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); }
+.case-card--brand { border-left: 3px solid var(--brand); }
+.case-card--muted { border-left: 3px solid var(--accent-teal); }
+.case-card__label { font-size: var(--fs-micro); color: var(--text-tertiary); }
+.case-card__value { font-size: var(--fs-h2); font-weight: 600; font-family: var(--font-mono); }
+.case-card__sub { font-size: 10.5px; color: var(--text-tertiary); font-family: var(--font-mono); }
+.case-legend { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-1); font-size: var(--fs-micro); color: var(--text-secondary); }
+.case-legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+.case-legend__unit { margin-left: auto; color: var(--text-tertiary); font-family: var(--font-mono); }
+.case-scatter { margin-top: var(--space-3); }
+.case-list { list-style: none; margin: 0 0 var(--space-2); padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.case-list li { font-size: var(--fs-micro); color: var(--text-secondary); line-height: 1.55; }
+.case-list__title { color: var(--text-primary); font-size: var(--fs-cap); }
+.case-list--tight li { display: flex; align-items: center; gap: var(--space-1); }
+.case-list--tight .case-meta { margin-top: 0; margin-left: auto; }
+.case-tag { display: inline-block; padding: 0 5px; border-radius: var(--radius-pill); background: var(--brand-soft); color: var(--brand); font-size: 10px; }
+.case-badge { display: inline-block; margin-left: 4px; padding: 0 5px; border-radius: var(--radius-pill); font-size: 10px; background: var(--bg-sunken); color: var(--text-tertiary); }
+.case-badge--verified { background: rgba(15, 110, 86, 0.12); color: var(--accent-teal); }
+.case-artifacts { margin-top: var(--space-3); border-top: 1px dashed var(--border); padding-top: var(--space-2); }
+
 /* ============ 底部 Tab（仅移动端） ============ */
 .tabbar {
   height: 56px; border-top: 1px solid var(--border); background: var(--bg-surface);
