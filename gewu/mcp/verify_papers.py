@@ -84,6 +84,7 @@ to reduce CrossRef rate-limit risk:
 from __future__ import annotations
 
 import argparse
+import difflib
 import hashlib
 import json
 import os
@@ -115,6 +116,12 @@ S2_MIN_INTERVAL_SEC = 1.05
 # 429 is the expected answer under that ceiling, not a terminal failure.
 S2_ATTEMPTS = 3
 _s2_last_call = 0.0
+
+# CrossRef title-search fallback (layer 3.5). S2's fuzzy threshold is loose
+# because S2 search is noisy; CrossRef query.title returns a ranked list, so we
+# require a much tighter ratio before accepting a DOI as the same paper.
+CROSSREF_TITLE_ROWS = 3
+CROSSREF_TITLE_THRESHOLD = 0.82
 
 DEFAULT_BATCH_SIZE = 40
 DEFAULT_FUZZY_THRESHOLD = 0.6
@@ -382,6 +389,58 @@ def _s2_throttle() -> None:
     _s2_last_call = time.monotonic()
 
 
+def verify_title_crossref(
+    title: str,
+    user_email: str,
+    threshold: float = CROSSREF_TITLE_THRESHOLD,
+) -> tuple[str, dict[str, str] | None]:
+    """Return (status, identifiers|None) via CrossRef `query.title` search.
+
+    实测动机（2026-10-23，真实三篇 LIBS 论文）：只有标题、没有 DOI 的文献，
+    Layer 3 只能走 Semantic Scholar；而无 S2 key 时 S2 极易 429 → 全部落在
+    verify_pending，反幻觉校验对这批文献形同失效。同一篇在 CrossRef 标题检索里
+    却稳定命中（例：Talanta 2025 的 TSDD-SM 煤质论文，S2 pending，CrossRef 直接
+    给出 10.1016/j.talanta.2025.128106）。故在 S2 之后补这一层回退：宁可多一次
+    HTTP，也不能让"未验证"冒充"不存在"。
+    """
+    normalized = normalize_title(title or "")
+    if not normalized:
+        return "unverified", None
+
+    url = (
+        f"{CROSSREF_API}?rows={CROSSREF_TITLE_ROWS}"
+        f"&query.title={urllib.parse.quote(title or '')}"
+        f"&select=DOI,title,container-title"
+    )
+    headers = {"User-Agent": f"ARIS-verify-papers/1.0 (mailto:{user_email})"}
+    for attempt in range(2):
+        status, body = http_get(url, headers=headers, timeout=20)
+        if status == 200 and body:
+            try:
+                items = json.loads(body)["message"]["items"]
+            except Exception:
+                return "verify_pending", None
+            best_ratio, best_doi = 0.0, None
+            for it in items:
+                cand = normalize_title((it.get("title") or [""])[0])
+                if not cand:
+                    continue
+                ratio = difflib.SequenceMatcher(None, normalized, cand).ratio()
+                if ratio > best_ratio:
+                    best_ratio, best_doi = ratio, it.get("DOI")
+            if best_doi and best_ratio >= threshold:
+                return "verified", {"doi": best_doi, "crossref_title_ratio": f"{best_ratio:.3f}"}
+            return "unverified", None
+        if status == 404:
+            return "unverified", None
+        if is_refusal(status):
+            return "verify_pending", None
+        if not is_transient(status):
+            return "unverified", None
+        time.sleep(backoff(attempt))
+    return "verify_pending", None
+
+
 def verify_title_s2(title: str, fuzzy_threshold: float) -> tuple[str, dict[str, str] | None]:
     """Return (status, identifiers_dict_or_None)."""
     normalized = normalize_title(title)
@@ -534,17 +593,49 @@ def verify_papers(
                 "ts": now,
             }
 
-    # Layer 3: S2 title only
+    # Layer 3: S2 title only (+ layer 3.5 CrossRef title fallback)
     for p in to_verify_title:
         s2_status, s2_ids = verify_title_s2(p.title or "", fuzzy_threshold)
-        result = PaperResult(
-            id=p.id,
-            status=s2_status,
-            method="s2" if s2_status == "verified" else None,
-            confidence="medium" if s2_status == "verified" else None,
-            reason=None if s2_status == "verified" else f"s2_{s2_status}",
-            identifiers=s2_ids or {},
-        )
+        if s2_status != "verified":
+            # S2 限流/无 key 时不要把"查不到"当作"不存在"：换 CrossRef 标题检索再试
+            cr_status, cr_ids = verify_title_crossref(p.title or "", user_email)
+            if cr_status == "verified":
+                result = PaperResult(
+                    id=p.id,
+                    status="verified",
+                    method="crossref_title_fallback_from_s2",
+                    confidence="medium",
+                    reason=None,
+                    identifiers=cr_ids or {},
+                )
+                results[p.id] = result
+                if cache is not None:
+                    cache[f"title:{title_hash(normalize_title(p.title or ''))}"] = {
+                        "status": result.status,
+                        "method": result.method,
+                        "confidence": result.confidence,
+                        "reason": result.reason,
+                        "identifiers": result.identifiers,
+                        "ts": now,
+                    }
+                continue
+            result = PaperResult(
+                id=p.id,
+                status="unverified" if cr_status == "unverified" else "verify_pending",
+                method=None,
+                confidence=None,
+                reason=f"s2_{s2_status}_crossref_{cr_status}",
+                identifiers=s2_ids or {},
+            )
+        else:
+            result = PaperResult(
+                id=p.id,
+                status=s2_status,
+                method="s2" if s2_status == "verified" else None,
+                confidence="medium" if s2_status == "verified" else None,
+                reason=None if s2_status == "verified" else f"s2_{s2_status}",
+                identifiers=s2_ids or {},
+            )
         results[p.id] = result
         if cache is not None:
             cache[f"title:{title_hash(normalize_title(p.title or ''))}"] = {

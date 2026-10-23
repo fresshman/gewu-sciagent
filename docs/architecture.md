@@ -178,11 +178,16 @@ lobster 实际支持的是 `when/condition`（条件**跳过**步骤）、`retry
 这是格物"本地优先、功能化激发书生"的关键闭环，把 ARIS（Auto-claude-code-research-in-sleep）
 的成熟工程纪律移植过来，**挑着用、改着用**，不整库搬：
 
-- **① 反幻觉校验（`gewu/mcp/verify_papers.py`，移植 ARIS）**：纯标准库 CLI，零依赖、零改动。
-  三层校验 arXiv API 批量 → CrossRef DOI → Semantic Scholar 模糊标题匹配，在下游分析前
-  拦掉 LLM 编造的 arXiv ID/DOI/标题。与格物 `paper-search`（返回结构化
-  `arxiv_id/doi/title`）天然契合——检索后把候选写成 JSON，Bash 调脚本即得
-  `verified/unverified/verify_pending` 标记，绝不沉默丢弃未验证项。
+- **① 反幻觉校验（`gewu/mcp/verify_papers.py`，移植 ARIS + 一层实测补丁）**：纯标准库 CLI，
+  零依赖。校验链 arXiv API 批量 → CrossRef DOI → Semantic Scholar 模糊标题匹配
+  → **CrossRef 标题检索回退（本项目实测补的第 4 层）**，在下游分析前拦掉 LLM 编造的
+  arXiv ID/DOI/标题。与格物 `paper-search`（返回结构化 `arxiv_id/doi/title`）天然契合——
+  检索后把候选写成 JSON，Bash 调脚本即得 `verified/unverified/verify_pending` 标记，
+  绝不沉默丢弃未验证项。
+  第 4 层的由来：只有标题、没有 DOI 的文献原本一律落到 S2，**无 key 时几乎必然 429 →
+  全部 pending，校验形同失效**（2026-10-23 实测三篇英文 LIBS 论文时命中）。补
+  `verify_title_crossref()`（相似度 ≥0.82 才接受 DOI）后，真实论文稳定命中、
+  编造标题仍判 `unverified`。
 - **② 书生科学多模态原页理解（本项目的核心差异点）**：这是书生 intern-s2 相对纯文本模型的
   最大价值——直接在统一表征空间联合理解图/表/公式。落地方式：
   `render_pdf_pages`（sci-data，PyMuPDF 渲染）→ `image_to_data_uri`（转 base64）→
@@ -202,6 +207,19 @@ lobster 实际支持的是 `when/condition`（条件**跳过**步骤）、`retry
   无法做视觉判读"而非虚构坐标与趋势——这正是科研场景需要的品质。
 - **图表问答**：对自绘回归散点图，准确读出 `R²=0.8786 / RMSE=218.6113 / MAE=173.9017 / n=14`
   （与真实值完全一致），并指出高热值端（~5700）偏离最大。
+
+**实测验证②（三篇英文正式期刊论文，2026-10-23）**——完整记录见
+`docs/verification/2026-10-23-english-papers.md`：
+- **文本层近乎空白的页面也能读**：Talanta 2025 那篇 p5 的文本层只有 486 字符（仅图注），
+  书生仍完整读出 Fig.3 流程图的 Step 1–8 与分组标注、方法示意图的
+  `Position 1/k/n`、`Time 1/n`、`HOG feature`、矩阵 `A`、`C = A·f(I)` 等符号——
+  这些**只存在于图中**，是纯文本路线拿不到的增量。
+- **抗幻觉两面样本**：问"图中没有"的量（Fig.6 的 RMSE）时答"图中仅标注 R²，
+  RMSE 仅见于 Table 3"，未把表格数字冒充为图内读数；问渲染错页的图号时答
+  "本页只有 Fig.8，Fig.7 不可见"并拒答。同一批测试中亦发现两类风险：
+  **数字末位/位序误读**（`0.8851`→`0.8551`、`0.9616`→`0.9619`）与
+  **长输出前后自相矛盾**（同一回答中表格写 `/` 而结论段给出具体值）。
+  → 已固化为 SKILL 纪律：关键数字二次复读 + 与正文表格对照、结构化表格一次性输出。
 - **③ 评审循环（`gewu-review-loop` 技能，部署于 improver / publication）**：把 ARIS
   `auto-review-loop` 的"评分+最小修复+最多 N 轮"纪律移植，但**不依赖 Codex/Gemini 外部后端**——
   改用本机 `sheng/intern-s2` 当对抗评审（符合本地优先），`review-stage/AUTO_REVIEW.md`

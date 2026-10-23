@@ -34,6 +34,25 @@ PDF 原页（图+表+公式同帧）直接作为 `image_url` 喂给 `sheng/inter
 4. **多页联合推理能发现跨页 gap。** 实测把"结果页+方法页"两页一起给它，它指出：
    结果页把优势归因于"缓解分布差异"，但方法页损失函数并无域适应/分布鲁棒项，
    即**结论归因缺乏方法层显式支撑**。这类跨页矛盾是单页阅读发现不了的。
+5. **图中数值的末位/位序会读错，关键数字必须二次确认。**
+   实测（Talanta 2025 煤质论文）：Fig.4(b) 的 `R²_P=0.8851` 首次被读成 `0.8551`
+   （位序错），Fig.6(c) 的 `0.9616` 读成 `0.9619`（末位错）。
+   → **要写进综述/对比表的数字**，必须 (a) 二次复读，或 (b) 与正文表格对照；
+   两者冲突时**以文本层/表格为准**，并在表中标注"图中读数"与"表值"的差异。
+6. **同一回答内部会前后打架（长回答尤甚）。** 实测读综述 Fig.7 时，表里写 #12 的
+   After 为 `/`（无数据），结论段却写 `37.58%→8.73%`。
+   → 要求**一次性输出结构化表格**，并加约束："无数据写 `/`，结论段不得与表格冲突"。
+7. **要允许并期待它回答"图中没有"。** 实测问 Fig.6 的 RMSE，它答"图中仅标注 R²，
+   RMSE 仅见于 Table 3"——没有把正文表格数字冒充成图内读数。
+   → 提示词里保留"看不清就写看不清"，这是抗幻觉的正面机制，不要删。
+8. **长综合任务（跨文献 gap 分析）intern-s2 会先吐推理草稿。**
+   → 提示里写"只输出最终结论，不要输出推理过程"，且 `max_tokens ≥ 3000`，
+   否则被截断在草稿里，看起来像答非所问。
+9. **图号定位的双重坑：图号≠页码，且一页可能只含部分子图。**
+   实测综述 Fig.7 在 p13、Fig.8 在 p14；问 Fig.7 却渲染了 p14，模型直接指出
+   "本页只有 Fig.8"（拒答正确，但白花一次调用）。
+   → 除 `pdf_page_map` 外，**用图注所在页定位**（在文本层 grep `Fig. 7`），
+   或一次渲染 2–3 个相邻含图页。
 
 ## 流程
 
@@ -43,7 +62,8 @@ PDF 原页（图+表+公式同帧）直接作为 `image_url` 喂给 `sheng/inter
 `candidates = [{id, title, arxiv_id, doi, abstract, source, relevance}]`。
 
 ### Step 2 — 反幻觉校验（强制，不可跳过）
-把候选写成 candidate JSON，Bash 调脚本做三层校验（arXiv API → CrossRef → S2 模糊匹配）：
+把候选写成 candidate JSON，Bash 调脚本做四层校验
+（arXiv API → CrossRef DOI → S2 模糊标题 → **CrossRef 标题检索回退**）：
 ```bash
 cd <项目根>
 cat > /tmp/candidates.json <<'JSON'
@@ -56,6 +76,11 @@ JSON
 读 `/tmp/verified.json`：每条带 `verified | unverified | verify_pending` 标记。
 - **绝不沉默丢弃** unverified：在后续表格里保留 `[UNVERIFIED]` 标记，供用户审计。
 - `verify_pending`（多为 S2 无 key 限流）不要冒充 verified，原样展示并建议下轮重试。
+- **第 4 层是实测补的**：只有标题、没有 DOI 的文献原本一律走 S2，无 key 时几乎必然
+  429 → 全部 pending，校验形同失效。2026-10-23 实测三篇英文 LIBS 论文时，Talanta
+  那篇正是 S2 pending；加 CrossRef `query.title` 回退后稳定命中
+  （`10.1016/j.talanta.2025.128106`，标题相似度 1.000），而编造标题正确判为
+  `unverified`。方法字段为 `crossref_title_fallback_from_s2`。
 - 可选：设 `ARIS_VERIFY_EMAIL=you@institution.edu` 降低 CrossRef 限流。
 
 ### Step 3 — 下载全文 PDF（仅 top N）
