@@ -44,7 +44,7 @@ button { font-family: inherit; cursor: pointer; }
   }
   .col-left { grid-area: left; display: flex; min-height: 0; }
   .col-right { grid-area: right; display: flex; min-height: 0; }
-  .col-center { grid-area: center; display: flex; min-height: 0; }
+  .col-center { grid-area: center; display: flex; flex-direction: column; min-height: 0; }
   .col-main { display: none; }
   .tabbar { display: none; }
   .mobile-only { display: none !important; }
@@ -137,7 +137,7 @@ button { font-family: inherit; cursor: pointer; }
 .timeline__agent { margin-top: 6px; }
 
 /* ============ 对话区 ============ */
-.chat { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--bg-page); }
+.chat { display: flex; flex-direction: column; flex: 1; min-height: 0; background: var(--bg-page); }
 .chat__scroll { flex: 1; overflow-y: auto; padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4); }
 .chat__empty {
   margin: auto; text-align: center; color: var(--text-tertiary); font-size: var(--fs-cap);
@@ -252,3 +252,55 @@ button { font-family: inherit; cursor: pointer; }
 .pc-only { display: none; }
 @media (min-width: 1024px) { .pc-only { display: revert; } }
 .muted { color: var(--text-tertiary); }
+
+/* ============ A3: 执行进度 / 中间结果落盘 ============ */
+.runpanel {
+  flex: 0 0 auto;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-3) var(--space-4);
+  max-height: 42vh;
+  overflow-y: auto;
+}
+.runpanel__head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+.runpanel__title { font-size: var(--fs-cap); font-weight: 600; color: var(--text-primary); letter-spacing: .03em; }
+.runpanel__toggle {
+  margin-left: auto; background: transparent; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text-secondary);
+  font-size: var(--fs-micro); padding: 2px var(--space-2); height: 24px;
+}
+.runpanel__hint { font-size: var(--fs-micro); color: var(--text-tertiary); line-height: 1.5; }
+.runpanel__hint--resume { margin-top: var(--space-2); color: var(--accent-violet); }
+.runpanel__history { margin-top: var(--space-2); display: flex; flex-direction: column; gap: var(--space-2); }
+.runitem { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-micro); }
+.runitem__msg { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); }
+.runitem__meta { color: var(--text-tertiary); }
+.runitem__btn {
+  background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text-secondary); font-size: var(--fs-micro); padding: 2px var(--space-2); height: 22px;
+}
+.runitem__btn--resume { color: var(--accent-violet); border-color: var(--accent-violet); }
+.runpanel__detail { margin-top: var(--space-3); padding-top: var(--space-2); border-top: 1px dashed var(--border); }
+.runpanel__detail-head { display: flex; align-items: center; justify-content: space-between; font-size: var(--fs-micro); font-weight: 600; color: var(--text-secondary); margin-bottom: var(--space-2); }
+.runpanel__detail-msg { font-size: var(--fs-micro); color: var(--text-tertiary); margin-bottom: var(--space-2); }
+
+.runsteps { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 26vh; overflow-y: auto; }
+.runstep { font-size: var(--fs-micro); color: var(--text-secondary); line-height: 1.5; }
+.runstep code { font-family: var(--font-mono); font-size: .92em; background: var(--bg-sunken); border-radius: 4px; padding: 0 4px; color: var(--text-primary); }
+.runstep--running { color: var(--text-secondary); }
+.runstep--ok { color: var(--accent-teal); }
+.runstep--error { color: #d24b4b; }
+.runstep--end { color: var(--text-tertiary); }
+.runstep--muted { color: var(--text-tertiary); }
+.runstep--live { color: var(--accent-violet); animation: runpulse 1.4s ease-in-out infinite; }
+@keyframes runpulse { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
+
+.runbadge {
+  font-size: var(--fs-micro); padding: 1px var(--space-2); border-radius: 999px;
+  border: 1px solid var(--border); color: var(--text-secondary); background: var(--bg-sunken);
+}
+.runbadge.st-running { color: var(--accent-violet); border-color: var(--accent-violet); }
+.runbadge.st-success { color: var(--accent-teal); border-color: var(--accent-teal); }
+.runbadge.st-timeout { color: #d98a00; border-color: #d98a00; }
+.runbadge.st-error { color: #d24b4b; border-color: #d24b4b; }
+.runbadge.st-aborted { color: var(--text-tertiary); }

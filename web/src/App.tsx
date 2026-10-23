@@ -2,16 +2,40 @@ import { useEffect, useState, useCallback } from "react";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { useIsDesktop } from "./hooks/useMediaQuery";
 import { getAgents, getStages, getModels, getHealth, sendChat } from "./api/client";
-import type { Agent, Stage, ModelOption, ChatMessage } from "./types";
+import type { Agent, Stage, ModelOption, ChatMessage, RunStep, RunStatus } from "./types";
 import { TopBar } from "./components/TopBar";
 import { PipelinePanel } from "./components/PipelinePanel";
 import { ChatPanel } from "./components/ChatPanel";
 import { RightPanel } from "./components/RightPanel";
+import { RunPanel } from "./components/RunPanel";
 import { MobileTabBar, type MobileTab } from "./components/MobileTabBar";
 import { SettingsPanel } from "./components/SettingsPanel";
 
 let msgSeq = 0;
 const uid = () => `m${++msgSeq}`;
+
+// 工具结果回填到同工具、仍在运行的步骤，避免重复显示
+function mergeStep(prev: RunStep[], step: RunStep): RunStep[] {
+  if (step.kind === "tool" && step.phase === "result") {
+    for (let i = prev.length - 1; i >= 0; i--) {
+      const s = prev[i];
+      if (s.kind === "tool" && s.tool === step.tool && s.status === "running") {
+        const copy = [...prev];
+        copy[i] = { ...copy[i], status: step.status, result: step.result, endedTs: step.ts };
+        return copy;
+      }
+    }
+  }
+  return [...prev, step];
+}
+
+function dispositionToStatus(d: string | undefined): RunStatus {
+  const s = String(d || "").toLowerCase();
+  if (s.includes("timeout")) return "timeout";
+  if (s.includes("success")) return "success";
+  if (s.includes("error") || s.includes("abort") || s === "") return "error";
+  return "error";
+}
 
 export default function App() {
   const isDesktop = useIsDesktop();
@@ -26,6 +50,11 @@ export default function App() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>("chat");
   const [gatewayReachable, setGatewayReachable] = useState<boolean | null>(null);
+  // A3: 中间结果落盘 —— 实时步骤、当前运行 key、状态、续跑 key
+  const [runSteps, setRunSteps] = useState<RunStep[]>([]);
+  const [currentRunKey, setCurrentRunKey] = useState<string | null>(null);
+  const [runStatus, setRunStatus] = useState<RunStatus | null>(null);
+  const [pendingResumeKey, setPendingResumeKey] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -51,6 +80,10 @@ export default function App() {
   const handleSend = useCallback(
     (text: string) => {
       if (!selectedAgent || isStreaming) return;
+      // 续跑：复用上一轮 session-key 让 agent 承接上下文
+      const key = pendingResumeKey ?? undefined;
+      if (pendingResumeKey) setPendingResumeKey(null);
+
       const userMsg: ChatMessage = { id: uid(), role: "user", text, ts: Date.now() };
       const botId = uid();
       const botMsg: ChatMessage = {
@@ -60,9 +93,13 @@ export default function App() {
         text: "",
         ts: Date.now(),
         streaming: true,
+        runKey: key,
       };
       setMessages((prev) => [...prev, userMsg, botMsg]);
       setIsStreaming(true);
+      setRunSteps([]);
+      setCurrentRunKey(null);
+      setRunStatus("running");
 
       const finalize = () => {
         setMessages((prev) =>
@@ -72,6 +109,11 @@ export default function App() {
       };
 
       sendChat(selectedAgent.id, text, {
+        onStart: (_agent, rk) => setCurrentRunKey(rk),
+        onStep: (step) => {
+          if (step.kind === "ended" && step.disposition) setRunStatus(dispositionToStatus(step.disposition));
+          setRunSteps((prev) => mergeStep(prev, step));
+        },
         onDelta: (t) =>
           setMessages((prev) =>
             prev.map((x) => (x.id === botId ? { ...x, text: x.text + t } : x))
@@ -84,8 +126,12 @@ export default function App() {
                 : x
             )
           ),
-        onDone: finalize,
+        onDone: (status) => {
+          if (status) setRunStatus(status);
+          finalize();
+        },
       }).catch((e) => {
+        setRunStatus("error");
         setMessages((prev) =>
           prev.map((x) =>
             x.id === botId
@@ -96,8 +142,15 @@ export default function App() {
         setIsStreaming(false);
       });
     },
-    [selectedAgent, isStreaming]
+    [selectedAgent, isStreaming, pendingResumeKey]
   );
+
+  const handleResume = useCallback((key: string) => {
+    setPendingResumeKey(key);
+    setCurrentRunKey(key);
+    setRunSteps([]);
+    setRunStatus(null);
+  }, []);
 
   const gatewayHint =
     gatewayReachable === false
@@ -123,6 +176,13 @@ export default function App() {
               <PipelinePanel stages={stages} agents={agents} />
             </div>
             <div className="col-center">
+              <RunPanel
+                runSteps={runSteps}
+                runKey={currentRunKey}
+                status={runStatus}
+                onResume={handleResume}
+                resumeKey={pendingResumeKey}
+              />
               <ChatPanel
                 stages={stages}
                 messages={messages}
@@ -145,14 +205,23 @@ export default function App() {
                 </div>
               )}
               {mobileTab === "chat" && (
-                <ChatPanel
-                  stages={stages}
-                  messages={messages}
-                  agents={agents}
-                  selectedAgent={selectedAgent ?? ({ id: "", name: "", role: "", color: "#888", desc: "" } as Agent)}
-                  isStreaming={isStreaming}
-                  onSend={handleSend}
-                />
+                <>
+                  <RunPanel
+                    runSteps={runSteps}
+                    runKey={currentRunKey}
+                    status={runStatus}
+                    onResume={handleResume}
+                    resumeKey={pendingResumeKey}
+                  />
+                  <ChatPanel
+                    stages={stages}
+                    messages={messages}
+                    agents={agents}
+                    selectedAgent={selectedAgent ?? ({ id: "", name: "", role: "", color: "#888", desc: "" } as Agent)}
+                    isStreaming={isStreaming}
+                    onSend={handleSend}
+                  />
+                </>
               )}
               {mobileTab === "pipeline" && <PipelinePanel stages={stages} agents={agents} />}
               {mobileTab === "tools" && <RightPanel variant="mobile" />}

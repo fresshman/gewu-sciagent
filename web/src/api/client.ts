@@ -1,4 +1,4 @@
-import type { Agent, Stage, ModelOption, ChatMessage, CaseBundle } from "../types";
+import type { Agent, Stage, ModelOption, ChatMessage, CaseBundle, RunRecord, RunListEntry, RunStep, RunStatus } from "../types";
 
 async function getJSON<T>(url: string): Promise<T> {
   const r = await fetch(url);
@@ -23,19 +23,32 @@ export function getCase(): Promise<CaseBundle> {
   return getJSON("/api/case");
 }
 
+export function getRuns(): Promise<{ runs: RunListEntry[] }> {
+  return getJSON("/api/runs");
+}
+export function getRun(key: string): Promise<RunRecord> {
+  return getJSON("/api/run?key=" + encodeURIComponent(key));
+}
+
 export interface ChatCallbacks {
-  onStart?: (agentId: string) => void;
+  onStart?: (agentId: string, runKey: string) => void;
   onDelta?: (text: string) => void;
+  onStep?: (step: RunStep) => void;
   onError?: (text: string) => void;
-  onDone?: () => void;
+  onDone?: (status?: RunStatus) => void;
 }
 
 // 通过本地代理 /api/chat 发送消息，解析 SSE 流（代理已桥接 Gateway）
-export async function sendChat(agentId: string, message: string, cb: ChatCallbacks): Promise<void> {
+export async function sendChat(
+  agentId: string,
+  message: string,
+  cb: ChatCallbacks,
+  sessionKey?: string,
+): Promise<void> {
   const res = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ agent: agentId, message }),
+    body: JSON.stringify({ agent: agentId, message, sessionKey }),
   });
   if (!res.ok || !res.body) {
     cb.onError?.(`服务异常 (${res.status})`);
@@ -58,10 +71,11 @@ export async function sendChat(agentId: string, message: string, cb: ChatCallbac
       if (!json) continue;
       try {
         const ev = JSON.parse(json);
-        if (ev.type === "start") cb.onStart?.(ev.agent);
+        if (ev.type === "start") cb.onStart?.(ev.agent, ev.runKey);
         else if (ev.type === "delta") cb.onDelta?.(ev.text || "");
+        else if (ev.type === "step") cb.onStep?.(ev.step);
         else if (ev.type === "error") cb.onError?.(ev.text || "error");
-        else if (ev.type === "done") cb.onDone?.();
+        else if (ev.type === "done") cb.onDone?.(ev.status);
       } catch {
         /* 忽略无法解析的分片 */
       }

@@ -29,6 +29,46 @@ export interface ChatMessage {
   ts: number;
   streaming?: boolean;
   error?: boolean;
+  runKey?: string;
+}
+
+// ── A3: 中间结果落盘 / 执行进度 ──
+export type RunStatus = "running" | "success" | "timeout" | "error" | "aborted";
+
+export interface RunStep {
+  ts: string;
+  type: string;
+  detail: string;
+  raw: string;
+  kind: "tool" | "model" | "ended" | "info" | "raw";
+  tool?: string;
+  phase?: "call" | "result";
+  status?: "running" | "ok" | "error";
+  result?: string;
+  disposition?: string;
+  startedTs?: string;
+  endedTs?: string;
+}
+
+export interface RunRecord {
+  key: string;
+  agent: string;
+  message: string;
+  startedAt: number;
+  endedAt: number | null;
+  status: RunStatus;
+  steps: RunStep[];
+  raw: string[];
+}
+
+export interface RunListEntry {
+  key: string;
+  agent: string;
+  message: string;
+  startedAt: number;
+  endedAt: number | null;
+  status: RunStatus;
+  stepCount: number;
 }
 
 // ── 右栏「真实案例」数据（由 scripts/export_case_bundle.py 生成本机私有文件） ──

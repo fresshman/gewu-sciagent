@@ -80,7 +80,7 @@ reproduce_fold(fold=0) 实际返回：
 |---|---|---|---|
 | A1 | MCP 工具不在 Agent 直连工具表，需 `tool_search → tool_describe → tool_call` 三步桥接 | 成功轮次也要 3 次调用才完成 1 次真实取数；失败轮次 27 次调用 | **已修**：`tools.toolSearch.enabled=false`，实测同类任务降到 **1 次调用 / 0 失败** |
 | A2 | intern-s2 397B 每轮推理慢，多步任务极易撞超时 | 首轮 14 turn / 325s 超时 | 已缓解（超时 1800s）+ Director 侧纪律：单轮只派一件事 |
-| A3 | 超时/失败时用户侧无部分结果 | `terminalReply.disposition: empty` | 已缓解：代理把超时翻译成人话并提示拆任务；Web 轮次超时 240s→1500s |
+| A3 | 超时/失败时用户侧无部分结果 | `terminalReply.disposition: empty` | **已修（中间结果落盘）**：代理并发 `openclaw sessions tail --follow` 跟会话轨迹，逐步工具调用/结果实时落盘到 `web/.local/runs/<key>.json`；前端「执行进度」面板实时展示，超时/关页可复盘已完成步骤，并支持断点续跑（复用同一 session-key 承接上下文）。见 1.6 |
 | A4 | 冷启动 inspection 窗口返回 cli_error | 见 1.1(2) | **已修**：代理识别该错误 → 提示"启动自检中，稍后重试" |
 
 ### 1.4 A1 的根因与修复
@@ -115,6 +115,37 @@ toolSummary: { calls: 1, tools: ["mil-model__cv_summary"], failures: 0 }   // 74
 
 **冒烟**：`POST /api/chat {"agent":"gewu-director","message":"只回答四个字：格物就绪"}`
 → `delta: 格物就绪` → `done exitCode 0`。
+
+### 1.6 A3 修复：中间结果落盘（2026-10-23 补全）
+
+**根因**：`openclaw agent` 默认模式的 stdout 只在轮次**结束**才吐最终回复，运行期间浏览器
+收不到任何增量。所以长任务（多步工具调用，常跑十几分钟）用户全程空白；一旦超时/关页，
+进度全丢——这正是 A3 要治的病根。
+
+**方案**：并发跟 OpenClaw 的会话轨迹流。
+- 代理给每次 `/api/chat` 生成（或复用）一个 `session-key`，以
+  `openclaw agent --session-key <key> -m <msg>` 起智能体轮次；
+- **同时**起 `openclaw sessions tail --session-key <key> --follow`，实时拿到离散事件流：
+  ```
+  07:00:02Z tool.call     ... mil-model__list_val_bags {...redacted...}
+  07:00:54Z tool.result   ... mil-model__list_val_bags ok
+  07:01:01Z model.completed ... sheng/intern-s2 done
+  07:01:01Z session.ended ... success
+  ```
+- 每行解析成结构化步骤（`tool.call`→运行中 / `tool.result`→ok|error / `session.ended`→disposition），
+  实时 `writeFileSync` 到 `web/.local/runs/<key>.json`（`.gitignore`，含本机数据不上仓库），
+  并通过 SSE `step` 事件推给前端。
+- 前端「执行进度」面板实时渲染步骤列表（🔄调用 / ✅ok / ❌error / 🧠模型完成 / ⏹会话结束），
+  即使超时或关闭页面，已完成步骤也已落盘，可在「历史任务」里复盘；对超时/出错/中止的任务
+  提供「续跑」按钮——复用同一 `session-key` 让 agent 承接上下文继续未完成的部份。
+
+**改动文件**：`web/proxy/server.mjs`、`web/src/{App.tsx,api/client.ts,types.ts,styles/global.css}`、
+新增 `web/src/components/RunPanel.tsx`。
+
+**验证**：typecheck + build 通过；代理实跑确认 run 文件按 schema 落盘、`start/delta/error/done`
+事件正常、`success/error` 状态正确；`parseTailLine` 对真实轨迹行解析单测通过。
+（实时 `step` 流因环境沙箱限制本轮未做完整实跑，但双流捕获已补上此前"只监听 stdout 漏掉 stderr"
+导致 steps 为空的问题。）
 
 ---
 
