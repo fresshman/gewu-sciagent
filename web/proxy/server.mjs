@@ -9,7 +9,7 @@
 // 后续可平滑替换为直连 Gateway WS（升级路径见 docs/architecture.md）。
 
 import http from "node:http";
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -26,6 +26,31 @@ const GATEWAY = process.env.GATEWAY_URL || "http://127.0.0.1:18789";
 // OpenClaw CLI：优先用环境变量 OPENCLAW_BIN，否则假定已在 PATH（跨平台）。
 // 本机开发时若不在 PATH，可设 OPENCLAW_BIN 指向 openclaw.cmd 的绝对路径。
 const OPENCLAW_BIN = process.env.OPENCLAW_BIN || "openclaw";
+
+// OpenClaw 要求 Node ≥24.16/<25 或 ≥26.1。若直接用 `openclaw` 这个 shell shim，
+// 它会被解析到系统里更老的 Node 上并以 code 1 退出（实测：对话一发就失败）。
+// 因此优先用**当前运行代理的这个 Node** 直跑 openclaw.mjs（路径由 `npm root -g` 动态解析）。
+function resolveOpenclawLaunch() {
+  const explicit = process.env.OPENCLAW_MJS;
+  if (explicit && existsSync(explicit))
+    return { cmd: process.execPath, prefix: [explicit], shell: false };
+  // Windows 上 npm 是 npm.cmd，必须经 shell 才能解析（否则 execFileSync 直接抛错）
+  const npmBin = process.platform === "win32" ? "npm.cmd" : "npm";
+  try {
+    const root = execFileSync(npmBin, ["root", "-g"], {
+      encoding: "utf8",
+      windowsHide: true,
+      shell: true,
+      timeout: 15000,
+    }).trim();
+    const cand = join(root, "openclaw", "openclaw.mjs");
+    if (existsSync(cand)) return { cmd: process.execPath, prefix: [cand], shell: false };
+  } catch {
+    /* 回落到 PATH 里的 openclaw */
+  }
+  return { cmd: OPENCLAW_BIN, prefix: [], shell: true };
+}
+const OPENCLAW = resolveOpenclawLaunch();
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -133,13 +158,31 @@ const server = http.createServer(async (req, res) => {
     send({ type: "start", agent, ts: Date.now() });
 
     // 通过官方 CLI 桥接 Gateway（CLI 是 Gateway 的官方客户端）
-    const args = ["agent", "--agent", agent, "-m", message, "--timeout", "240"];
+    // 单次 agent 轮次超时：默认 1500s（与 agents.defaults.timeoutSeconds=1800 对齐，
+    // 留出网关侧余量）。领域模型推理/绘图都远超早先写死的 240s。
+    const timeoutSec = String(Number(process.env.GEWU_AGENT_TIMEOUT) || 1500);
+    const args = ["agent", "--agent", agent, "-m", message, "--timeout", timeoutSec];
     let child;
     try {
-      child = spawn(OPENCLAW_BIN, args, { shell: true, env: { ...process.env } });
+      child = spawn(OPENCLAW.cmd, [...OPENCLAW.prefix, ...args], {
+        shell: OPENCLAW.shell,
+        env: { ...process.env },
+      });
     } catch (e) {
       send({ type: "error", text: "无法启动 openclaw：" + (e?.message || e) });
       return res.end();
+    }
+
+    // 把网关侧的低层错误翻译成人话：这些是"系统状态"，不是"任务失败"。
+    function friendly(raw) {
+      const t = String(raw || "");
+      if (/has not completed startup inspection/i.test(t))
+        return "⏳ 格物正在做启动自检（网关重启后约 1–2 分钟），请稍后重试。";
+      if (/Request timed out|timeout/i.test(t))
+        return "⏱ 本轮超时未返回结果。建议把任务拆小（一次只让智能体做一件事）后重试。";
+      if (/failed to acquire gateway state ownership|gateway is not running|ECONNREFUSED/i.test(t))
+        return "🔌 未连上 OpenClaw Gateway。请先在终端启动：openclaw gateway run --force";
+      return t.slice(0, 500);
     }
 
     let errored = false;
@@ -148,11 +191,12 @@ const server = http.createServer(async (req, res) => {
       const t = d.toString();
       if (/error|拒绝|fail|denied|exception/i.test(t)) {
         errored = true;
-        send({ type: "error", text: t });
+        send({ type: "error", text: friendly(t) });
       }
     });
     child.on("close", (code) => {
-      if (!errored && code !== 0) send({ type: "error", text: `agent 异常退出 (code ${code})` });
+      if (!errored && code !== 0)
+        send({ type: "error", text: `智能体异常退出（code ${code}）。可稍后重试或缩小任务范围。` });
       send({ type: "done", exitCode: code, ts: Date.now() });
       res.end();
     });
@@ -169,5 +213,6 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`[gewu-proxy] listening on http://localhost:${PORT}`);
-  console.log(`[gewu-proxy] gateway=${GATEWAY}  openclaw=${OPENCLAW_BIN}`);
+  console.log(`[gewu-proxy] gateway=${GATEWAY}  openclaw=${OPENCLAW.cmd} ${OPENCLAW.prefix.join(" ")}`);
+  console.log(`[gewu-proxy] agent timeout=${process.env.GEWU_AGENT_TIMEOUT || 1500}s`);
 });

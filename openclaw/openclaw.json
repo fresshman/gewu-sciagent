@@ -152,6 +152,16 @@
     auth: { mode: "token", token: "${OPENCLAW_GATEWAY_TOKEN}" },
   },
 
+  // ---------- 4.5 工具暴露方式（实测关键项）----------
+  // toolSearch 默认开启时会把"大工具目录"藏在 search/describe/call 三步桥接后面，
+  // 实测导致一次真实取数要 2–3 次工具调用、多耗 2–3 个 assistant turn，
+  // 多步任务极易撞超时（首轮 27 次调用 / 14 turn 在 300s 被斩）。
+  // 关闭后 MCP 工具直连暴露：同类任务实测降到 1 次调用 / 0 失败。
+  // 代价是工具 schema 全量进 prompt（8 个服务约 150+ 工具），intern-s2 的 256K 上下文足够。
+  tools: {
+    toolSearch: { enabled: false },
+  },
+
   // ---------- 5. 渠道（本地演示可先不接；接微信/飞书/Slack 时在此配置）----------
   // channels: { wechat: { ... }, feishu: { ... } }
 }

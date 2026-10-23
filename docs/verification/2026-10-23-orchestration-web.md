@@ -76,12 +76,45 @@ reproduce_fold(fold=0) 实际返回：
 
 ### 1.3 仍然存在的编排层问题
 
-| # | 问题 | 证据 | 建议 |
+| # | 问题 | 证据 | 状态 |
 |---|---|---|---|
-| A1 | MCP 工具不在 Agent 直连工具表，需 `tool_search → tool_describe → tool_call` 三步桥接 | 成功轮次也要 3 次调用才完成 1 次真实取数；失败轮次 27 次调用 | 把高频工具（mil-model / sci-data / sci-plot）挂进 Agent 直连工具表，省掉每调用 2 轮 |
-| A2 | intern-s2 397B 每轮推理慢，多步任务极易撞超时 | 首轮 14 turn / 325s 超时 | 除提高超时外，Director 应拆小任务、单轮只做一件事 |
-| A3 | 超时/失败时用户侧无部分结果 | `terminalReply.disposition: empty` | Web 代理应落盘中间 tool 结果，超时也能展示已完成步骤 |
-| A4 | 冷启动 inspection 窗口返回 cli_error | 见 1.1(2) | 前端把该错误识别为「系统预热中」并自动重试 |
+| A1 | MCP 工具不在 Agent 直连工具表，需 `tool_search → tool_describe → tool_call` 三步桥接 | 成功轮次也要 3 次调用才完成 1 次真实取数；失败轮次 27 次调用 | **已修**：`tools.toolSearch.enabled=false`，实测同类任务降到 **1 次调用 / 0 失败** |
+| A2 | intern-s2 397B 每轮推理慢，多步任务极易撞超时 | 首轮 14 turn / 325s 超时 | 已缓解（超时 1800s）+ Director 侧纪律：单轮只派一件事 |
+| A3 | 超时/失败时用户侧无部分结果 | `terminalReply.disposition: empty` | 已缓解：代理把超时翻译成人话并提示拆任务；Web 轮次超时 240s→1500s |
+| A4 | 冷启动 inspection 窗口返回 cli_error | 见 1.1(2) | **已修**：代理识别该错误 → 提示"启动自检中，稍后重试" |
+
+### 1.4 A1 的根因与修复
+
+`tools.toolSearch.enabled` 默认开启，schema 描述写得很清楚：
+
+> Enables Tool Search. When on, OpenClaw hides large tool catalogs behind
+> structured search/describe/call tools during embedded runtime runs.
+
+格物挂了 8 个 MCP 服务（约 150+ 工具），正好命中"large tool catalog"，于是每个真实取数都要
+先 search 再 describe 再 call。关闭后（代价：工具 schema 全量进 prompt，intern-s2 的 256K
+上下文足够）：
+
+```
+toolSummary: { calls: 1, tools: ["mil-model__cv_summary"], failures: 0 }   // 74.8s
+→ hybrid 均值 = 214.5699 kcal/kg，标准差 = 25.7094（与官方 214.5699 差 1.1e-05）
+```
+
+### 1.5 Web 代理自身的两个 bug（对话功能此前是坏的）
+
+实测 Web 端发消息，SSE 立刻返回 `智能体异常退出（code 1）`：
+
+1. **`openclaw` shell shim 解析到老 Node**。代理用 `spawn("openclaw")` → 命中系统 Node 22，
+   而 OpenClaw 要求 Node ≥24.16/<25 或 ≥26.1，直接 code 1 退出。
+   **已修**：改用**运行代理的当前 Node** 直跑 `openclaw.mjs`，路径由 `npm root -g` 动态解析
+   （支持 `OPENCLAW_MJS` 显式覆盖）。坑：Windows 上 `npm` 是 `npm.cmd`，`execFileSync` 必须带
+   `shell: true` 才解析得到。
+2. **代理把 agent 轮次超时写死成 240s**，与配置里的 1800s 脱节——Web 端必然先超时。
+   **已修**：默认 1500s，可用 `GEWU_AGENT_TIMEOUT` 覆盖。
+
+同时把网关侧低层错误翻译成人话：启动自检中 / 超时建议拆任务 / 网关未连。
+
+**冒烟**：`POST /api/chat {"agent":"gewu-director","message":"只回答四个字：格物就绪"}`
+→ `delta: 格物就绪` → `done exitCode 0`。
 
 ---
 

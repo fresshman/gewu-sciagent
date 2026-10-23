@@ -139,9 +139,9 @@ export function RightPanel({ variant = "desktop" }: { variant?: "desktop" | "mob
           <CaseBody data={data} />
         ) : (
           <div className="right__empty-note">
-            {err || data?.reason || "尚未接入真实案例数据。"
-              ? `未接入真实案例：${err || data?.reason || ""}`
-              : "加载中…"}
+            {data === null
+              ? err || "加载中…"
+              : `未接入真实案例：${data.reason || ""}${data.hint ? ` 生成：${data.hint}` : ""}`}
           </div>
         )}
       </div>
