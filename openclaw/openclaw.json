@@ -125,6 +125,14 @@
         args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/chart_cloud.mjs"],
         cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
       },
+      // office-word：本地生成/排版 Word 文档（python-docx，~70 工具），用于中文期刊/学位论文成稿。
+      // 独立 venv（fastmcp 2.x，与 default 的 mcp<2 隔离）；-m 走 stdio 默认传输。
+      // 换机部署：先建 venv 并 pip install 自 E:/UNpress/Office-Word-MCP-Server-main（或 PyPI office-word-mcp-server）。
+      "office-word": {
+        command: "C:/Users/<user>/.workbuddy/binaries/python/envs/office-word/Scripts/python.exe",
+        args: ["-m", "word_document_server.main"],
+        cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
+      },
     },
   },
 

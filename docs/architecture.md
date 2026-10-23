@@ -7,7 +7,7 @@
 ### 当前落地状态（2026-10-22 已验证）
 - ✅ OpenClaw v2026.10.5 安装并常驻运行（Gateway `gateway probe` 连通，`config validate` 通过）。
 - ✅ 书生模型 provider `sheng`（Intern-S1 / InternVL）已配置。
-- ✅ 7 个 MCP 服务（6 个 Python + 1 个 Node 包装）经 `openclaw mcp add` 注册到 `mcp.servers`，`mcp probe` 实测全部拉起并暴露工具。
+- ✅ 8 个 MCP 服务（7 个 Python + 1 个 Node 包装）经 `openclaw mcp add` 注册到 `mcp.servers`，`mcp probe` 实测全部拉起并暴露工具。
 - ✅ 7 个科研 Agent（`agents.ownership="explicit"`）已注册，各用独立工作区 `AGENTS.md` 承载角色，技能自动发现。
 - ⏳ 待办：填 `INTERN_API_KEY` 跑真实规划；导出 OpenVINO MIL 模型 + 接真实 LIBS 数据跑实参考实现；完善技术文档与演示材料。
 
@@ -102,9 +102,10 @@ lobster 实际支持的是 `when/condition`（条件**跳过**步骤）、`retry
 | `paper-search` | arXiv/Crossref/OpenAlex/Semantic Scholar/PubMed 多源检索（paper-search-mcp，零 key 即可用） | 通用 |
 | `sci_data` | 科学文件与图表载入解析（InternVL 视觉） | 通用 |
 | `mil_model` | OpenVINO 量化后的 MIL 热值预测模型 | 领域专属（标准封装） |
-| `report` | 报告 / 论文草稿生成 | 通用 |
+| `report` | 报告 / 论文草稿生成；并含「本地写 LaTeX」工具族（`write_local_file` / `write_latex_project` / `copy_local_file`），把 .tex/.bib 源文件落盘本机，不依赖 Overleaf | 通用 |
 | `sci_plot` | 含实验数据的统计图（本地 matplotlib 渲染，PDF 矢量 + PNG 300dpi，17 工具） | 通用 |
 | `chart-cloud` | 纯结构/概念图（Node 包装 @antv/mcp-server-chart 云端出图：思维导/桑基/鱼骨/组织架构/地图等 12 工具；已用 `DISABLED_TOOLS` 禁用全部含数据图类型） | 通用 |
+| `office-word` | 本地生成/排版 Word 文档（python-docx，54 工具：mcp probe 实测；建/写标题段落表格、单元格底纹合并、字体颜色、搜索替换、`convert_to_pdf` 等），用于中文期刊/学位论文成稿 | 通用 |
 
 > MCP 语言无关，是打通 OpenClaw(TS) 网关与 Python 科学引擎的桥，也是本项目采用的工具调用协议。
 
@@ -147,6 +148,31 @@ lobster 实际支持的是 `when/condition`（条件**跳过**步骤）、`retry
 - **分工边界**：agent 需要画折线/散点/柱状/饼/雷达等统计图 → 一律 `sci-plot`；需要思维导/
   桑基/鱼骨/组织架构/地图 → `chart-cloud`。若把真实实验数据塞进 chart-cloud 的图即违反此边界。
 
+### 4.3 文档成稿层（`office-word` + `report` 本地写 LaTeX 工具族）
+
+- **为什么要这一层**：格物的科学计算/绘图已闭环，但此前 `report` 只产出文本草稿，缺少把
+  「正文 + 图」组装成**可投稿真实文档文件**的环节。`office-word` 与 `report` 的本地写 LaTeX
+  工具族正是补齐这最后一环的"成稿/排版输出"层。
+- **两条成稿路径（按目标期刊/学位论文格式二选一）**：
+  1. **Word 路径（`office-word`，本地）**：中文核心期刊、硕士学位论文多为 Word 模板，用
+     `office-word` 直接产出 `.docx`（标题/段落/表格/底纹/字体/搜索替换俱全，`convert_to_pdf`
+     在 Windows 走本机 Word）。**全程本地，不出域。**
+  2. **LaTeX 路径（`report` 的本地写 LaTeX 工具族，本地）**：若投 LaTeX 期刊或自用本地 TeX 编译，
+     用 `write_latex_project` 一次性把 `main.tex` + 各 `sections/*.tex` + `refs.bib` 写入本机
+     目录；`write_local_file` 写单文件；`copy_local_file` 把 `sci-plot` 生成的 PDF/PNG 矢量图
+     拷进项目 `figures/`。**不依赖 Overleaf**（Overleaf 会把稿件推到第三方云，与"本地优先"
+     原则有张力，故不接入）。
+- **office-word 接入要点（已踩坑）**：
+  - 该服务基于**独立 `fastmcp` 2.x 包**（与 default venv 的 `mcp<2` 不是一回事），**必须独立 venv**
+    安装，否则会污染其余 6 个 Python MCP 服务。venv 路径：`~/.workbuddy/binaries/python/envs/office-word`。
+  - 安装：`office-word/Scripts/python.exe -m pip install "office-word-mcp-server"`（或本地源码目录
+    `E:/UNpress/Office-Word-MCP-Server-main`；tuna 镜像曾拉不到构建后端 `hatchling`，改用
+    `https://mirrors.aliyun.com/pypi/simple` 成功）。
+  - 启动：`python -m word_document_server.main`（stdio，默认传输）。该包在导入/启动时会向 stdout
+    打印若干状态行，实测经 OpenClaw `mcp probe` 仍可正常列出工具；若某版本打印破坏 stdio 协议，
+    则在 `gewu/mcp/` 加一个启动器把导入期 stdout 导向 stderr 后再 `mcp.run()`。
+  - `convert_to_pdf` 依赖本机 MS Word（Windows）或 LibreOffice（Linux）；仅是可选工具，不调用则无影响。
+
 ## 5. 领域包（参考实现：coal_libs）
 - `knowledge.md`：LIBS 原理、煤质热值背景、MIL 方法说明（供 RAG / 长周期记忆）。
 - `tools.py`：用**通用工具组合**出「LIBS 谱图 → 预处理 → MIL 预测」的领域工作流，而非写死。
@@ -179,7 +205,7 @@ gewu-sciagent/
 │   └── workspace/             # 共享 MEMORY.md / 数据 / 产出
 │       └── agents/<role>/     # 7 个 Agent 各自工作区，各含 AGENTS.md + skills/ + MEMORY.md
 ├── gewu/                      # Python 工具/技能/领域源码（被 OpenClaw 经 MCP 调用）
-│   ├── mcp/                   # 7 个 stdio MCP Server（sci_compute/sci_data/mil_model/report/sci_plot 为 Python；chart_cloud.mjs 为 Node 包装）
+│   ├── mcp/                   # 8 个 stdio MCP Server（sci_compute/sci_data/mil_model/report/sci_plot/office-word 为 Python；chart_cloud.mjs 为 Node 包装）
 │   ├── skills/  domain_packs/
 ├── docs/  data/  README.md
 ```
@@ -242,7 +268,7 @@ gewu-sciagent/
 ## 10. 分阶段落地路线图（已验证进展 ✓）
 1. **安装 OpenClaw + 建项目骨架** ✓：OpenClaw v2026.10.5 经独立 **Node 26.9.0**（因要求 Node ≥24.16/<25 或 ≥26.1，本机 22/24 不满足）全局安装；`openclaw/openclaw.json` 已合并进 `~/.openclaw/openclaw.json` 并通过 `config validate`，Gateway 常驻运行、`gateway probe` 连通。
 2. **接书生大模型**：配置 `models.providers.sheng`（OpenAI 兼容 baseUrl）✓；待填 `INTERN_API_KEY` 后跑通真实规划（缺 key 时 config 仅 warning，不阻断启动）。
-3. **迁入 MCP 工具层** ✓：6 个 `gewu/mcp/*.py`（sci_compute/sci_data/mil_model/report/sci_plot）+ 1 个 Node 包装 `chart_cloud.mjs` 本就是合法 FastMCP/stdio server；Python 侧 venv 内 `mcp` 固定为 1.x 后导入正常，经 `openclaw mcp add` 注册到 `mcp.servers`，`openclaw mcp probe` 实测 7 个服务全部拉起并列出工具（`sci_compute` 含 PCA/PLS/拟合/交叉验证 4 工具；`sci-plot` 17 工具；`chart-cloud` 12 工具）。
+3. **迁入 MCP 工具层** ✓：6 个 `gewu/mcp/*.py`（sci_compute/sci_data/mil_model/report/sci_plot）+ 1 个 Node 包装 `chart_cloud.mjs` 本就是合法 FastMCP/stdio server；Python 侧 venv 内 `mcp` 固定为 1.x 后导入正常，经 `openclaw mcp add` 注册到 `mcp.servers`，`openclaw mcp probe` 实测 8 个服务全部拉起并列出工具（`sci_compute` 含 PCA/PLS/拟合/交叉验证 4 工具；`sci-plot` 17 工具；`chart-cloud` 12 工具）。
 4. **写 7 个 Agent 角色** ✓：`agents.ownership="explicit"`，7 个 `agents.entries` 各指向独立工作区，角色写在工作区 `AGENTS.md`，技能从 `skills/` 自动发现；`config validate` 通过、Gateway 识别 7 个 Agent。
 5. **Skills 化** ✓：`spectrum_preprocess` / `mil_calibration` / `research_lifecycle` 三个 Skill 已就位并复制到各工作区。
 6. **参考实现跑实**（进行中）：需将 MIL 模型导出为 OpenVINO(`.xml/.bin`) 置入 `data/models/`、接入真实 LIBS 数据，使 `mil_model` 产出真实热值预测，并在煤热值上产出 5 折交叉验证可复现指标。

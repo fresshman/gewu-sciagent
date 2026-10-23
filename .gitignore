@@ -36,6 +36,8 @@ gw.log
 
 # sci-plot 生成的插图（PDF 矢量 + PNG 预览），属运行产物不入版本库
 output/figures/
+# report「本地写 LaTeX」工具族落盘的文档/项目，属运行产物不入版本库
+output/documents/
 
 # ── OpenClaw 运行时 / 本地身份与偏好文件 ──────────
 # 这些是 OpenClaw 生成的工作区模板与运行时记忆：
