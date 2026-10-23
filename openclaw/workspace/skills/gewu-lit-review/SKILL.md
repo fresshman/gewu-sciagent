@@ -14,9 +14,26 @@ PDF 原页（图+表+公式同帧）直接作为 `image_url` 喂给 `sheng/inter
 ## 常量
 - `MAX_PAPERS = 15` — 检索召回上限
 - `REVIEW_TOP_N = 5` — 进入「下载全文+原页理解」的 top 论文数（吃 256K 上下文，克制）
-- `RENDER_DPI = 130` — 原页渲染分辨率（平衡可读性与 base64 体积）
-- `RENDER_PAGES = "all"` 或 `"1,3,5"` — 全页/精选；首轮建议全页，省 token 可精选图页
+- `RENDER_DPI = 110~150` — 原页渲染分辨率（实测 130 即可读图内小字标注；
+  150 时 A4 单页 base64 ≈ 570KB，两页合计 ≈ 5.5K prompt tokens）
+- `RENDER_PAGES` — **默认 `"figtab"`**（只渲染含图页）；或先用 `pdf_page_map`
+  拿到 `suggested_pages` 再按需精选。**不要按正文图号猜页码**（见下方实测教训）
 - 反幻觉脚本：`gewu/mcp/verify_papers.py`（纯标准库，零依赖）
+
+## 实测教训（真实论文验证，务必遵守）
+
+1. **图号 ≠ 页码，禁止猜页。** 实测某中文 LIBS 论文：正文 p9 写着"图6 对比了…"，
+   但 p9 内嵌图数为 **0**，图6 实际在 **p10**。盲目渲染会得到"该页无图"的空转结果。
+   → 渲染前必须 `pdf_page_map`，或直接用 `pages="figtab"`。
+2. **书生会拒绝编造——这是优点，要如实接受。** 测试中它明确回复"该页未包含图6 的
+   图像本身…无法对散点分布进行视觉判读"，而不是编造坐标与趋势。
+   遇到"无法回答/看不清"时，**换页重渲染**，不要追问施压让它虚构。
+3. **图内标注数值是纯文本路线的盲区，正是原页理解的价值。** 实测书生从图中读出了
+   `RMSEp=1.097 / MAEp=0.934`、PCA 方差解释率 `PC1 47.9%/43.2%`、`PC2 17.9%/28.3%`
+   —— 这些数值写在图里，**PDF 文本层完全没有**，任何 OCR/文本抽取都拿不到。
+4. **多页联合推理能发现跨页 gap。** 实测把"结果页+方法页"两页一起给它，它指出：
+   结果页把优势归因于"缓解分布差异"，但方法页损失函数并无域适应/分布鲁棒项，
+   即**结论归因缺乏方法层显式支撑**。这类跨页矛盾是单页阅读发现不了的。
 
 ## 流程
 
@@ -45,16 +62,23 @@ JSON
 对 `REVIEW_TOP_N` 内、且 `status∈{verified, verify_pending}` 的论文，用
 `mcp__paper-search__download_with_fallback` 拉全文到 `literature/`。已存在则跳过。
 
+### Step 3.5 — 定位含图页（强制，实测踩坑点）
+`mcp__sci-data__pdf_page_map(pdf_path)` → 返回每页 `n_images` 与 `figure_pages`、
+`suggested_pages`。用它决定 Step 4 渲染哪些页，**不要凭正文图号猜页码**。
+
 ### Step 4 — 原页多模态理解（核心：书生 intern-s2）
 对每篇全文 PDF：
-1. `mcp__sci-data__render_pdf_pages(pdf_path, pages=RENDER_PAGES, dpi=RENDER_DPI)`
-   → `images:[{page, path, width, height}]`。
+1. `mcp__sci-data__render_pdf_pages(pdf_path, pages="figtab"|<suggested_pages>,
+   dpi=RENDER_DPI)` → `images:[{page, path, width, height}]`。
 2. 对每张图 `mcp__sci-data__image_to_data_uri(path)` → `data_uri`。
 3. **直接把 `data_uri` 作为 image_url 发给 `sheng/intern-s2`**（不再经 InternVL 转文本）：
    - 文本 content 要求它把该页的图/表/公式与正文方法描述**联合推理**，找出
      跨模态不一致、方法-结果矛盾、图表可疑迹象、未说明的假设。
    - 这是「科学多模态原页理解」的真正落点：模型自己读原页，而非只读 InternVL 抽出的文字。
-4. 若某页纯文本（无图/表/公式）可跳过渲染省 token；优先渲染含图/表/公式的页。
+4. **优先"结果页+方法页"成对喂入**（实测最有效）：一次请求里放 2 页图，要求它
+   交叉检验"正文结论 ↔ 图中证据 ↔ 方法/公式设计"三者是否自洽，能挖出跨页 gap。
+5. 纯文本页（pdf_page_map 显示 `n_images=0` 且是参考文献/摘要页）跳过渲染省 token。
+6. 单篇原页理解完成后，及时把结论写入 `literature_review.md`，不要长期占用上下文。
 
 > ⚠️ 上下文纪律：256K 也有限。每批评 `REVIEW_TOP_N` 篇的原页分次给 intern-s2，
 > 不要一次性塞入所有 PDF 全页。base64 单图超 4MB 时 `image_to_data_uri` 会告警，

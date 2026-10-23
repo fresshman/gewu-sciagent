@@ -33,6 +33,69 @@ def parse_figure(image_path: str) -> dict:
     }
 
 
+def _open_fitz():
+    """导入 PyMuPDF：新版包名 pymupdf，旧版兼容 fitz。"""
+    try:
+        import pymupdf as fitz
+    except ImportError:  # pragma: no cover - 旧环境回退
+        import fitz
+    return fitz
+
+
+def _page_stats(doc) -> list:
+    """逐页统计：文本字数、内嵌图数、是否为图表页的启发式判定。"""
+    stats = []
+    for i in range(doc.page_count):
+        page = doc[i]
+        text = page.get_text().strip()
+        n_imgs = len(page.get_images())
+        # 启发式：含内嵌图 → 必有图；文本很少(纯图页) → 大概率是图版
+        is_fig = n_imgs > 0
+        stats.append(
+            {
+                "page": i + 1,
+                "n_chars": len(text),
+                "n_images": n_imgs,
+                "is_figure_page": is_fig,
+                "head": " ".join(text.split())[:40],
+            }
+        )
+    return stats
+
+
+@mcp.tool()
+def pdf_page_map(pdf_path: str) -> dict:
+    """渲染前先探明"哪些页有图/表"，避免盲目渲染浪费上下文。
+
+    实测教训：直接按正文提到的图号猜页码常猜错（图号与页码不对应，
+    且一页可能无图只有表）。先调本工具拿到含图页清单，再把这些页号
+    传给 render_pdf_pages，可显著减少无效 base64 与 token 消耗。
+
+    Args:
+        pdf_path: PDF 文件路径。
+
+    Returns:
+        {pdf, n_pages, pages:[{page,n_chars,n_images,is_figure_page,head}],
+         figure_pages:[...], suggested_pages:"1,3,5"}
+    """
+    fitz = _open_fitz()
+    pdf_path = os.path.expanduser(pdf_path)
+    if not os.path.isfile(pdf_path):
+        return {"error": f"PDF 不存在: {pdf_path}"}
+    doc = fitz.open(pdf_path)
+    stats = _page_stats(doc)
+    doc.close()
+    fig_pages = [s["page"] for s in stats if s["is_figure_page"]]
+    return {
+        "pdf": os.path.abspath(pdf_path),
+        "n_pages": len(stats),
+        "pages": stats,
+        "figure_pages": fig_pages,
+        "suggested_pages": ",".join(str(p) for p in fig_pages),
+        "note": "把 suggested_pages（或按需精选）传给 render_pdf_pages.pages",
+    }
+
+
 @mcp.tool()
 def render_pdf_pages(pdf_path: str, pages: str = "all", dpi: int = 150, out_dir: str = "") -> dict:
     """把论文 PDF 渲染成 PNG 图片，供书生(intern-s2)多模态原页理解。
@@ -44,7 +107,8 @@ def render_pdf_pages(pdf_path: str, pages: str = "all", dpi: int = 150, out_dir:
     Args:
         pdf_path: PDF 文件路径（本地绝对/相对路径）。
         pages: "all"=全页；或逗号分隔 1-based 页码（如 "1,3,5"）；
-               或 "figtab"=启发式选含图/表的页（暂退化为全页，留扩展位）。
+               或 "figtab"=只渲染含图的页（推荐：省 token）。
+               不确定该渲染哪页时，先用 pdf_page_map 探明含图页。
         dpi: 渲染分辨率，默认 150。省 token 可降到 110~130；
              过高会显著增大后续 base64 体积。
         out_dir: 输出目录，默认 <GEWU_FIG_DIR>/pdf_pages/。
@@ -52,7 +116,8 @@ def render_pdf_pages(pdf_path: str, pages: str = "all", dpi: int = 150, out_dir:
     Returns:
         {pdf, n_pages, rendered, images:[{page, path, width, height}], note}
     """
-    import fitz  # PyMuPDF，default venv 已装
+    import fitz  # noqa: F401 - 兼容旧版；实际用 _open_fitz()
+    fitz = _open_fitz()
 
     pdf_path = os.path.expanduser(pdf_path)
     if not os.path.isfile(pdf_path):
@@ -64,7 +129,11 @@ def render_pdf_pages(pdf_path: str, pages: str = "all", dpi: int = 150, out_dir:
     doc = fitz.open(pdf_path)
     total = doc.page_count
 
-    if pages in ("all", "figtab"):
+    if pages == "figtab":
+        idxs = [s["page"] - 1 for s in _page_stats(doc) if s["is_figure_page"]]
+        if not idxs:  # 无内嵌图（如矢量图/扫描件）→ 退回全页
+            idxs = list(range(total))
+    elif pages == "all":
         idxs = list(range(total))
     else:
         try:
