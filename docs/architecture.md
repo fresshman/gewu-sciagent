@@ -173,6 +173,30 @@ lobster 实际支持的是 `when/condition`（条件**跳过**步骤）、`retry
     则在 `gewu/mcp/` 加一个启动器把导入期 stdout 导向 stderr 后再 `mcp.run()`。
   - `convert_to_pdf` 依赖本机 MS Word（Windows）或 LibreOffice（Linux）；仅是可选工具，不调用则无影响。
 
+### 4.4 科研阅读闭环（反幻觉 + 书生原页理解 + 评审循环）
+
+这是格物"本地优先、功能化激发书生"的关键闭环，把 ARIS（Auto-claude-code-research-in-sleep）
+的成熟工程纪律移植过来，**挑着用、改着用**，不整库搬：
+
+- **① 反幻觉校验（`gewu/mcp/verify_papers.py`，移植 ARIS）**：纯标准库 CLI，零依赖、零改动。
+  三层校验 arXiv API 批量 → CrossRef DOI → Semantic Scholar 模糊标题匹配，在下游分析前
+  拦掉 LLM 编造的 arXiv ID/DOI/标题。与格物 `paper-search`（返回结构化
+  `arxiv_id/doi/title`）天然契合——检索后把候选写成 JSON，Bash 调脚本即得
+  `verified/unverified/verify_pending` 标记，绝不沉默丢弃未验证项。
+- **② 书生科学多模态原页理解（本项目的核心差异点）**：这是书生 intern-s2 相对纯文本模型的
+  最大价值——直接在统一表征空间联合理解图/表/公式。落地方式：
+  `render_pdf_pages`（sci-data，PyMuPDF 渲染）→ `image_to_data_uri`（转 base64）→
+  把 `data_uri` 作为 `image_url` **直接发给 `sheng/intern-s2`**，让它对原页做跨模态联合推理
+  （图与正文方法矛盾、公式与表格数据对不上等）。**关键：不再先经 InternVL 转文本再喂 S2**——
+  那样会切断原页理解能力，使 S2 退化成"文本规划器"。由 `gewu-lit-review` 技能承载（部署于 ideation）。
+- **③ 评审循环（`gewu-review-loop` 技能，部署于 improver / publication）**：把 ARIS
+  `auto-review-loop` 的"评分+最小修复+最多 N 轮"纪律移植，但**不依赖 Codex/Gemini 外部后端**——
+  改用本机 `sheng/intern-s2` 当对抗评审（符合本地优先），`review-stage/AUTO_REVIEW.md`
+  追加式记录、 `REVIEW_STATE.json` 防上下文压缩丢失。
+- **模型路由铁律**：原页/图/公式 → `sheng/intern-s2`（多模态）；机械任务 → `intern-s1-mini`；
+  判断/规划/写作 → `intern-s2`/`intern-s1-pro`。书生在格物里既是"长程科研智能体调度器"，
+  也是"通专融合可插拔"的内核，更是"科学多模态原页理解"的唯一承载者——三者同时被功能化使用。
+
 ## 5. 领域包（参考实现：coal_libs）
 - `knowledge.md`：LIBS 原理、煤质热值背景、MIL 方法说明（供 RAG / 长周期记忆）。
 - `tools.py`：用**通用工具组合**出「LIBS 谱图 → 预处理 → MIL 预测」的领域工作流，而非写死。
