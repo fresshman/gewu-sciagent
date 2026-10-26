@@ -26,9 +26,15 @@
   编造引用**。对检索阶段给来的文献若未核验或状态为 `verify_pending`/`unverified`，
   须先调 `mcp__sci-verify__verify_papers` 复核，仍不能确认的一律标 `UNVERIFIED` 交用户，
   绝不静默写进参考文献。
-- **数值（D2，当前纪律、工具化进行中）**：每条量化声明（RMSE / MAE / R² / 提升百分比等）
-  必须能回溯到 `sci-exp` 注册表的某个 `realizable_by_gewu` / `verifiable_via_summary`
-  实验条目，或一条已核验文献中的明确数值。**写作顺序：先查 `sci-exp` 拿真值，再落笔**；
+- **数值（D2，已建成）**：每条量化声明（RMSE / MAE / R² / 提升百分比等）必须能回溯到
+  `sci-exp` 注册表的某个 `realizable_by_gewu` / `verifiable_via_summary` 实验条目，
+  或一条 D1 已核验文献中的明确数值。**写作顺序：先查 `sci-exp` 拿真值，再落笔**；
   记忆中的数字（如草稿里的 197.99）若注册表无对应已复现条目，不得写入成稿。
+  - 成稿时**一并产出 claims 清单（JSON）**：每条量化声明形如
+    `{"text":"MIL 取得 RMSE","metric":"rmse_kcal_mean","value":214.57,"source":"registry:our_hybrid"}`
+    （`source` 为 `registry:<exp_id>` 或 `paper:<verified_id>`）；可用
+    `mcp__sci-verify__save_claims` 落盘，发表官会调 `mcp__sci-verify__verify_claims` 复核。
+  - 任何被 `verify_claims` 判为 `drift` / `unknown_experiment` / `metric_not_in_registry` /
+    `paper_unverified` 的声明，**不得落稿**，先回 `sci-exp` 取真值修正。
 - **结论（D4 延伸）**：对原页理解（③）得到的"该图显示 X"类结论，须保留原文 span /
   数据出处，不把模型自由文本结论当作事实直述；与原页矛盾处显式标注。

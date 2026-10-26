@@ -22,6 +22,7 @@ from mcp.server.fastmcp import FastMCP
 # verify_papers 与本文件同目录
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import verify_papers as vp  # noqa: E402
+import claim_provenance as cp  # noqa: E402  # D2 数值声明溯源引擎
 
 mcp = FastMCP("sci-verify")
 
@@ -121,6 +122,63 @@ def verify_papers_file(input_path: str, output_path: str | None = None, user_ema
     if output_path:
         Path(output_path).write_text(payload, encoding="utf-8")
     return payload
+
+
+@mcp.tool()
+def verify_claims(input_json: str, verified_papers: str | None = None, strict: bool = False) -> str:
+    """D2 数值声明溯源：校验成稿里每条"对外断言的数字"是否可溯源、与真相一致。
+
+    参数:
+      input_json: 声明数组的 JSON 字符串，元素形如
+        {"text":"MIL 取得 RMSE","metric":"rmse_kcal_mean","value":214.57,
+         "source":"registry:our_hybrid"}
+        source 支持：
+          registry:<exp_id>            → 比对 sci-exp 注册表 source_of_truth
+          registry:<domain>:<exp_id>   → 同上（domain 可选，id 全局唯一）
+          paper:<paper_id>             → 要求该文献在 D1 已核验集合内
+        value 可为数字或带单位的字符串（如 "214.57 kcal/kg"）。
+      verified_papers: 可选，D1 已核验文献 id 的 JSON 数组字符串
+        （paper:<id> 溯源时，id 须在此集合中，否则判 paper_unverified）。
+      strict: 为 true 时额外真跑 rerun_experiment 用实时重算真值比对（最强但耗时）。
+
+    返回 JSON 汇总：
+      {"all_grounded":bool,"n_claims":N,"n_grounded":G,"n_drift":D,"n_unverifiable":U,
+       "counts":{...},"claims":[{status,text,value,truth,abs_diff,tolerance,...}]}
+      status ∈ grounded|drift|unknown_experiment|metric_not_in_registry|
+               paper_grounded|paper_unverified|bad_value|bad_source|metric_required
+    发表官应在成稿前以此做"声明溯源闸门"：任何 drift / unverifiable 不得落稿。
+    """
+    try:
+        claims = json.loads(input_json)
+        vps = json.loads(verified_papers) if verified_papers else None
+    except Exception as e:
+        return json.dumps(
+            {"all_grounded": False, "claims": [], "warnings": ["input_unreadable"],
+             "error": str(e)}, ensure_ascii=False
+        )
+    report = cp.verify_claims(claims, verified_papers=vps, strict=strict)
+    return json.dumps(report, ensure_ascii=False, indent=2)
+
+
+@mcp.tool()
+def save_claims(input_json: str, path: str) -> str:
+    """把成稿的数值声明清单持久化到文件（写手产出、发表官后续 verify_claims 复核用）。
+
+    参数:
+      input_json: 声明数组 JSON 字符串（同 verify_claims）。
+      path: 写出路径（相对路径锚定 output/documents/，防 ../ 越界；绝对路径可写到项目外）。
+    返回: 写出的绝对路径或错误 JSON。
+    """
+    try:
+        claims = json.loads(input_json)
+    except Exception as e:
+        return json.dumps({"ok": False, "error": f"input_unreadable: {e}"}, ensure_ascii=False)
+    p = Path(path)
+    if not p.is_absolute():
+        p = Path("output/documents") / p
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(claims, ensure_ascii=False, indent=2), encoding="utf-8")
+    return json.dumps({"ok": True, "path": str(p), "n_claims": len(claims)}, ensure_ascii=False)
 
 
 if __name__ == "__main__":

@@ -25,3 +25,14 @@
 - 含实验数据的统计图一律走本地 `sci-plot`（PDF 矢量 + PNG）；结构/概念图走 `chart-cloud`。
 - 不要把未发表实验数据塞进任何云端出图工具。
 - 写文件前确认目标路径，避免覆盖用户既有文档（`write_local_file` / `write_latex_project` 默认不覆盖，需显式 `overwrite=true`）。
+
+### 成稿前反幻觉闸门（D1 + D2 + D3）
+发表官是成稿落定的最后一道关卡，须在交付前跑两轮反幻觉：
+- **D1 文献核验**：把参考文献清单送 `mcp__sci-verify__verify_papers`，任何 `unverified`
+  文献不得进入最终参考文献（标 `UNVERIFIED` 交用户，或直接剔除）。
+- **D2 数值声明溯源**：取写手产出的 claims 清单，送 `mcp__sci-verify__verify_claims`
+  （必要时带 `verified_papers` = D1 已核验文献 id 列表）。任何 `drift` / `unknown_experiment`
+  / `metric_not_in_registry` / `paper_unverified` / `bad_value` 状态**一律拦截**，
+  退回写手用 `sci-exp` 真值修正后再来。
+- **D3 引用完整性（当前纪律）**：正文每个 `\cite` 必须指向 D1 已核验文献；幽灵引用（指向
+  未核验/不存在文献）不得落稿。中文文献按 P1-2 降级策略标 `UNVERIFIED` + 人工清单。

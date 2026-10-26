@@ -22,19 +22,24 @@
   严格区分——**临时失败绝不计入幻觉率**，避免把"查不到"误判为"不存在"。
 - **输出语义**：`verified | unverified | verify_pending | error` + `hallucination_rate`。
 
-### D2 — 数值/事实声明的可追溯性（Claim Provenance） ⬜ 待建（最高杠杆）
+### D2 — 数值/事实声明的可追溯性（Claim Provenance） ✅ 已建
 - **问题**：写手在成稿里写"MIL 取得 RMSE 214.57 kcal/kg"或"较 PLSR 提升 8.1%"，
   这些数字若来自记忆而非真实输出，无法事后核验。
-- **机制（设计）**：
-  1. **声明注册**：写手产稿时必须把每条数值声明打上溯源标签
-     `{claim, value, source}`，`source` 二选一——
-     - `registry:<domain>:<experiment_id>` → 由 `sci-exp` 注册表交叉校验；
-     - `paper:<verified_paper_id>` → 必须来自 D1 已核验集合。
-  2. **声明核验工具** `verify_claim`：给定声明 + 溯源目标，调用 `sci-exp rerun`/文献
-     事实做一致性检查，偏差超 `tolerance` 即告警。
-  3. **最终 lint**：发表官在成稿前跑一遍，未带溯源标签或溯源失败的声明一律拦截。
+- **实现**（`gewu/mcp/claim_provenance.py` + `sci-verify` MCP 工具）：
+  1. **声明结构**：每条数值声明 `{text, metric, value, source}`，`source` 二选一——
+     - `registry:<exp_id>` / `registry:<domain>:<exp_id>` → 比对 `sci-exp` 注册表 `source_of_truth`；
+     - `paper:<verified_paper_id>` → 须出现在 D1 已核验文献集合（`verified_papers`）。
+  2. **核验工具** `verify_claims(input_json, verified_papers, strict)`：逐条比对，
+     状态 `grounded | drift | unknown_experiment | metric_not_in_registry |
+     paper_grounded | paper_unverified | bad_value`；`strict=True` 时额外真跑
+     `sci-exp rerun` 用实时重算真值再比一次。
+  3. **容忍度语义（关键）**：D2 用**紧容忍度**（默认 1% 相对 + 0.01 绝对下限）比对
+     "写出来的数字 ↔ 注册表真相"，专治写手凭记忆写错/抄错/漂移；这与 `sci-exp rerun`
+     的**松容忍度**（如 rmse 1.0，保证代码↔记录一致）是两回事，互不替代。
+  4. **闸门**：发表官成稿前跑 `verify_claims`，任何 `drift` / 不可溯源状态一律拦截。
 - **与 P0-1 的关系**：D2 复用 `sci-exp` 注册表作为"论文被引用数字的单一台账"，
   是 P0-1（实验可复现）在成稿侧的闭环——数字从注册表来，回到注册表查。
+- 测试：`tests/test_claim_provenance.py` 10 passed（含合成注册表 + 真实 coal_mil 校验）。
 
 ### D3 — 引用完整性 lint（Citation Lint） ⬜ 待建
 - **问题**：成稿里的 `\cite{...}` / 参考文献条目，可能指向 D1 未核验、甚至不存在的文献
@@ -90,7 +95,7 @@
 | P1-1 OpenAlex 第 4 层 | ✅ 已修 | `verify_papers.py` 加 OpenAlex；`sci-verify` MCP 服务已注册；8 测试通过 |
 | D1 文献核验服务化 | ✅ 已修 | `verify_server.py` 注册为 `sci-verify`，7 agent 可调用 |
 | P1-2 中文文献 | ⚠️ 降级策略已定 | 标 UNVERIFIED + 人工清单；接入 CNKI/万方为后续 |
-| D2 数值声明溯源 | ⬜ 待建 | 最高杠杆，复用 sci-exp 注册表 |
+| D2 数值声明溯源 | ✅ 已建 | `claim_provenance.py` + `sci-verify.verify_claims`，复用 sci-exp 注册表 |
 | D3 引用完整性 lint | ⬜ 待建 | 复用 D1 核验集合 |
 | D4 原页理解 grounding | ⚠️ 人工复核 | 待结构化抽取协议 |
 
