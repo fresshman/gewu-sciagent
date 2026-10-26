@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import verify_papers as vp  # noqa: E402
 import claim_provenance as cp  # noqa: E402  # D2 数值声明溯源引擎
 import citation_lint as cl  # noqa: E402  # D3 引用完整性 lint
+import journal_rank as jr  # noqa: E402  # EasyScholar 期刊等级溯源（反幻觉·期刊信息）
 
 mcp = FastMCP("sci-verify")
 
@@ -213,6 +214,30 @@ def lint_citations(input_json: str, verified_papers: str | None = None,
         keys.extend(cl.extract_cite_keys(tex))
     report = cl.lint_citations(keys, verified_papers=vps, manually_confirmed=mcs)
     return json.dumps(report, ensure_ascii=False, indent=2)
+
+
+@mcp.tool()
+def get_journal_rank(publication_name: str) -> str:
+    """查询推荐期刊在 EasyScholar 的等级/分区，用于期刊推荐时"标注推荐期刊的具体信息"，
+    让期刊等级/分区可溯源、不靠模型记忆编造（反幻觉·期刊信息层）。
+
+    参数:
+      publication_name: 期刊名称（中英文均可，如 "Talanta" 或 "光谱学与光谱分析"）。
+        内部已做 URL 编码，调用方无需自行 encode。
+
+    返回 JSON：
+      {"ok":true,
+       "data":{"official_all":{字段:等级,...},"official_select":{...},
+               "custom":[{"dataset","rank","raw_rank"}]},
+       "summary":"官方: sci=Q1 · ssci=... | 自定义: 国自然管科=A"}
+      失败：{"ok":false,"error":"...","code"?}
+
+    重要边界：期刊"是否存在"仍由 D1（sci-verify.verify_papers / OpenAlex）把关；
+    本工具只负责"等级/分区"这一层信息的真实性与溯源。两者叠用 =
+    推荐期刊存在性 + 期刊等级 都来自真实接口。
+    """
+    res = jr.query_publication_rank(publication_name)
+    return json.dumps(res, ensure_ascii=False, indent=2)
 
 
 if __name__ == "__main__":

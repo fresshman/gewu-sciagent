@@ -26,6 +26,9 @@ web/dist/
 secrets/
 credentials.json
 
+# EasyScholar 期刊等级查询秘钥（本地私有，切勿提交；运行期由 journal_rank.py 读取）
+gewu/mcp/.easyscholar_key
+
 # 本地运行产物（可能含本机绝对路径）
 gw.log
 *.local.json

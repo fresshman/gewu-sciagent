@@ -83,6 +83,27 @@ Find 5-10 high-impact published papers similar to the user's submission to guide
    python scripts/venue_enrich.py --journals journals.json
    ```
 
+## STEP 3B — GROUND JOURNAL RANK VIA EASYSCHOLAR (反幻觉)
+
+> 原则：期刊「等级/分区」（SCI/SSCI/Q区、中科院分区、CSCD/北大核心/中国科技核心等）
+> 是 LLM 最易**凭记忆编造**的信息，必须锚定到真实接口，禁止模型自行断言等级。
+
+1. 对 STEP 3 得到的每个候选期刊，调用格物反幻觉·文献核验 MCP 服务：
+   `mcp__sci-verify__get_journal_rank(publication_name="<期刊名>")`
+   - 期刊名中英文均可（如 `"Talanta"` / `"光谱学与光谱分析"`），工具内部已做 URL 编码。
+   - 该工具经 EasyScholar `getPublicationRank` 返回官方数据集（officialRank:
+     sci/ssci/中科院分区/各校自科目录…）与自定义数据集（customRank）的权威等级。
+2. 返回 JSON：
+   - 成功：`{"ok":true,"data":{"official_all":{...},"official_select":{...},
+     "custom":[{"dataset","rank","raw_rank"}]},"summary":"官方: sci=Q1 · 自定义: 国自然管科=A"}`
+   - 失败（秘钥缺失 / 该刊未登记）：`{"ok":false,"error":"..."}` —— **不得**给该刊
+     标注任何等级，报告中标「等级：待核查（EasyScholar 无数据）」，交人工确认。
+3. 将 `summary` 作为该期刊「等级/分区」字段，写入 STEP 5 报告卡片的
+   `{{EASYSCHOLAR_RANK}}` 占位。
+4. 反幻觉边界：期刊「是否存在」仍由 D1（OpenAlex，见 `sci-verify.verify_papers`）
+   把关；本步只负责「等级/分区」这一层信息溯源。两者叠用 = 推荐期刊的存在性与
+   等级都来自真实接口，杜绝编造期刊等级/分区。
+
 ## STEP 4 — SCORE AND RANK
 
 1. For each journal, assign a scope match score (1-5):
@@ -126,6 +147,7 @@ TIER 1 — BEST MATCH
   - Journal name (linked to homepage)
   - Scope match: {score}/5 — {one-line reasoning}
   - H-index: {value} · Works: {count} · OA: Yes/No
+  - 等级/分区 (EasyScholar): {EASYSCHOLAR_RANK}  ← 来自 sci-verify.get_journal_rank
   - Similar papers found: {count} in last 3 years
   - Notable: "{related paper title}" closely related
 
@@ -138,7 +160,9 @@ TIER 3 — SPECIALIZED/NICHE
 METHODOLOGY NOTE (footer)
   "Recommendations based on venue analysis of similar papers via
    Semantic Scholar and OpenAlex. Scope scores reflect editorial
-   alignment, not acceptance probability."
+   alignment, not acceptance probability. Journal 等级/分区 (SCI/SSCI/
+   中科院分区/CSCD/北大核心等) 由 EasyScholar 开放接口经 sci-verify 核验取得，
+   期刊存在性经 OpenAlex 核验；二者均未通过者不进入推荐。"
 ```
 
 5. After writing the file:

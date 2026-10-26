@@ -22,6 +22,23 @@
   严格区分——**临时失败绝不计入幻觉率**，避免把"查不到"误判为"不存在"。
 - **输出语义**：`verified | unverified | verify_pending | error` + `hallucination_rate`。
 
+### D1 扩展 — 期刊等级溯源（EasyScholar，反幻觉·期刊信息） ✅ 已建
+- **问题**：期刊推荐时，期刊的「等级/分区」（SCI/SSCI/Q区、中科院分区、CSCD/北大核心/
+  中国科技核心、各校自科目录…）是 LLM **最易凭记忆编造**的信息——"该刊为中科院 1 区"
+  "属于 CSSCI"张口就来、无法核验，且与 D1 的"存在性"完全是两件事。
+- **实现**（`gewu/mcp/journal_rank.py` + `sci-verify` MCP 工具 `get_journal_rank`）：
+  - 经 **EasyScholar 开放接口** `getPublicationRank`（免费、无需登录、秘钥 `EASYSCHOLAR_SECRET_KEY`
+    由 `journal_rank.py` 从本地 **gitignored** 文件 `gewu/mcp/.easyscholar_key` 读取，不外泄、不入库）。
+  - 文档要求 ≤2 req/s，模块级 `_throttle()` 限速到 ~1.8 req/s。
+  - 返回结构化等级：官方数据集（`officialRank.all/select`：sci/ssci/中科院分区/各校目录…）
+    + 自定义数据集（`customRank`：用户自建分级，按 `uuid&&&rank` 解析出 数据集缩写=等级）。
+  - 失败（秘钥缺失 / 该刊未登记）：`ok:false`，**不编造等级**，报告标"待核查"交人工确认。
+- **与 D1 的关系**：D1 管"期刊是否存在"，本扩展管"期刊等级是否真实"。两者叠用 =
+  推荐期刊的**存在性 + 等级**都来自真实接口，是期刊推荐场景下的完整反幻觉闭环。
+- **接入点**：发表官 `journal-match` skill 的 STEP 3B；`get_journal_rank` 已在 `sci-verify` 注册。
+- 测试：`tests/test_journal_rank.py` 6 passed（mock 网络）；真实 EasyScholar 实测
+  Talanta / Spectrochimica Acta B / Analytical Chemistry / 《光谱学与光谱分析》均返回真实等级。
+
 ### D2 — 数值/事实声明的可追溯性（Claim Provenance） ✅ 已建
 - **问题**：写手在成稿里写"MIL 取得 RMSE 214.57 kcal/kg"或"较 PLSR 提升 8.1%"，
   这些数字若来自记忆而非真实输出，无法事后核验。
@@ -103,6 +120,7 @@
 | P1-2 中文文献 | ⚠️ 降级策略已定 | 标 UNVERIFIED + 人工清单；接入 CNKI/万方为后续 |
 | D2 数值声明溯源 | ✅ 已建 | `claim_provenance.py` + `sci-verify.verify_claims`，复用 sci-exp 注册表 |
 | D3 引用完整性 lint | ✅ 已建 | `citation_lint.py` + `sci-verify.lint_citations`，含 P1-2 中文降级 |
+| D1 扩展·期刊等级溯源 | ✅ 已建 | `journal_rank.py` + `sci-verify.get_journal_rank`，EasyScholar 接口 + gitignored 秘钥 |
 | D4 原页理解 grounding | ⚠️ 人工复核 | 待结构化抽取协议 |
 
 ---

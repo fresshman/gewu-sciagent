@@ -49,6 +49,11 @@
 2. 用 Semantic Scholar + OpenAlex 找相似论文，提取 venue 分布作为候选期刊。
 3. 用自带的 `scripts/venue_enrich.py`（OpenAlex，纯标准库，格物 default venv 直跑）
    批量丰富候选期刊元数据（h-index / works_count / is_oa / homepage / issn）。
+3.5. 对每个候选期刊调用 `mcp__sci-verify__get_journal_rank("<期刊名>")`，取得
+   EasyScholar 等级/分区（SCI/SSCI/Q区、中科院分区、CSCD/北大核心/中国科技核心等）
+   作为报告「等级/分区」字段。工具内部已做 URL 编码；秘钥由 `journal_rank.py`
+   从本地 **gitignored** 文件读取，不外泄。若返回 `ok:false`（该刊无登记），
+   报告标「待核查（EasyScholar 无数据）」交人工确认——**不得编造等级**。
 4. `scripts/scope_score.py` 基于 profile 与期刊 subjects 打 scope 分（1–5），分级 Tier 1/2/3。
 5. 按 `shared/report-template.md`（设计系统）+ `assets/journal-report-template.md`（结构）
    写单文件 HTML 报告到 `reports/{date}-journal-match-{slug}.html`。
@@ -60,6 +65,9 @@ journal-match 本身**不做存在性核验**，完全依赖模型检索结果�
   做存在性核验；
 - 报告中每个期刊标注 `verified`（OpenAlex 命中）/ `UNVERIFIED`（未命中，须人工确认）；
 - **任何 `UNVERIFIED` 期刊不得作为"推荐"呈现**，降为"待人工确认"区，或剔除。
+- **等级/分区溯源**：每个推荐期刊的「等级/分区」必须经
+  `mcp__sci-verify__get_journal_rank`（EasyScholar 开放接口）取得，禁止模型自行
+  断言；未取到者标"待核查"，不得编造 SCI/Q区/核心目录等结论。
 - 如需把推荐期刊与论文参考文献交叉，可再用 `mcp__sci-verify__lint_citations` 验证
   正文是否真的引用了这些 venue。
 
