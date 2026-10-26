@@ -38,3 +38,32 @@
   `mcp__sci-verify__lint_citations`，`verified_papers` 传 D1 已核验文献 id 列表，
   `manually_confirmed` 传人工确认过的中文文献 id。任何 `phantom`（幽灵引用）必须
   修正/剔除；`accepted_unverified`（中文等 D1 免入项）产出"人工核验清单"交用户，不静默通过。
+
+## 期刊推荐（journal-match skill）
+
+本 agent 自带 `skills/journal-match/SKILL.md`（外部 PaperSkills 技能，已本地化）。
+当用户提供稿件文件 / 摘要 / 主题并问"投哪本期刊""期刊推荐""venue selection"时启用。
+
+### 调用流程（遵循 SKILL.md 六步）
+1. 抽稿件 profile（学科 / 子领域 / 方法 / 语言 / 关键词）。
+2. 用 Semantic Scholar + OpenAlex 找相似论文，提取 venue 分布作为候选期刊。
+3. 用自带的 `scripts/venue_enrich.py`（OpenAlex，纯标准库，格物 default venv 直跑）
+   批量丰富候选期刊元数据（h-index / works_count / is_oa / homepage / issn）。
+4. `scripts/scope_score.py` 基于 profile 与期刊 subjects 打 scope 分（1–5），分级 Tier 1/2/3。
+5. 按 `shared/report-template.md`（设计系统）+ `assets/journal-report-template.md`（结构）
+   写单文件 HTML 报告到 `reports/{date}-journal-match-{slug}.html`。
+
+### 反幻觉铁律（D1 接入，必做）
+journal-match 本身**不做存在性核验**，完全依赖模型检索结果，可能产出
+"看起来合理但不存在 / 已被撤稿 / 张冠李戴"的期刊。因此成稿前**必须**追加一道闸门：
+- 把候选期刊清单（名称）送 `mcp__sci-verify__verify_papers`（OpenAlex 第4层，复用 D1）
+  做存在性核验；
+- 报告中每个期刊标注 `verified`（OpenAlex 命中）/ `UNVERIFIED`（未命中，须人工确认）；
+- **任何 `UNVERIFIED` 期刊不得作为"推荐"呈现**，降为"待人工确认"区，或剔除。
+- 如需把推荐期刊与论文参考文献交叉，可再用 `mcp__sci-verify__lint_citations` 验证
+  正文是否真的引用了这些 venue。
+
+### 依赖说明
+- 两个脚本仅用 Python 标准库（`urllib`/`argparse`/`json`），格物 default venv 即可运行，无需额外 pip 安装。
+- 外部 API（S2 / OpenAlex / CrossRef）格物已在用，无需新凭据；OpenAlex 请求带 `mailto` 礼貌池。
+- SKILL.md 原引用的 LobeHub `skills/shared/report-template.md` 已本地化为同目录 `shared/report-template.md`。
