@@ -198,6 +198,13 @@ npm run dev        # 开发：前端 :5173 （/api 反代到本机代理 :3000�
 npm run build && npm start   # 生产：单端口 :3000 同时提供前端与 API
 ```
 
+> 🚀 **一键启动（推荐）**：仓库根目录的 `start-gewu.sh` 已把「后端网关 + 前端 Web」合并为一个命令，
+> 且所有路径写死为本机 Node 26 绝对路径（绕过 Git Bash 默认 Node 22 的 openclaw shim）。在 Git Bash 中执行：
+> ```bash
+> bash start-gewu.sh     # 同时拉起网关(:18789) 与前端(:5173/:3000)，Ctrl+C 一并停止
+> ```
+> 日志写入 `.aris/logs/`（已在 .gitignore，不入库）。
+
 ## 配置与隐私
 
 本项目对凭据处理遵循以下原则，**仓库中不含任何真实密钥或个人身份信息**：
