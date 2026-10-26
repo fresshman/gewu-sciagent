@@ -71,13 +71,22 @@
   - 任何 `phantom` 必须修正/剔除后才可成稿。
 - 测试：`tests/test_citation_lint.py` 5 passed（含 LaTeX 抽取、幽灵检测、中文降级、tex+显式合并）。
 
-### D4 — 图/数据 Grounding ⚠️ 部分建成
+### D4 — 图/数据 Grounding ✅ 文本层已自动核验 / ⚠️ 图内读数仍人工
 - **成稿绘图**：`sci-plot` 本地出图、数据不出本机，写手已被铁律约束
   "禁止手写或臆造图中数据，数值必须来自 sci-compute / mil-model 真实输出"。
-- **原页理解（③）**：intern-s2 读 PDF/图时**可能误读坐标轴、表格、跨页矛盾**
-  （本次走查已发现图中标注与跨页矛盾）。此面目前**无自动核验**，依赖写手人工复核 +
-  把关键数值回灌 D2 注册表。→ 后续可加"结构化抽取协议"（要求模型返回原文 span /
-  bounding box，而非自由文本结论）。
+- **原页理解（③）文本层 grounding（已建）**：`gewu/mcp/source_ground.py` +
+  `sci-verify` MCP 工具 `verify_source_span`，用 PyMuPDF 抽出指定页文本层，对模型声称
+  "来自正文/表格文本层"的数值/声明做**程序化核对**（数值容忍度与 D2 一致：1% 相对 +
+  0.01 绝对）。命中→`grounded_text`；未命中→`value_not_in_text_layer` /
+  `figure_suspected` 标"未文本核验"交人工，**绝不让**末位/位序误读（实测 R² 0.8851→0.8551）
+  与长回答前后矛盾静默流入成稿。
+- **原页理解（③）图内读数（仍人工）**：图中标注数值**只存在于图像、文本层完全没有**
+  （见 lit-review 实测教训 #3），本工具**无法**自动核验。落地方式：`gewu-lit-review`
+  技能 Step 4.5「结构化抽取协议」要求模型每条声明带 `{claim, page, evidence_type,
+  evidence_span}`——`evidence_type=figure` 的声明诚实标 `figure_derived_requires_human`，
+  触发"关键数字二次复读"纪律（实测教训 #5），交人工双读复核，**不冒充通过**。
+- 测试：`tests/test_source_ground.py` 9 passed（fitz 现场造 PDF，覆盖 grounded / 尾零容忍
+  / 末位误读拦截 / figure 诚实标记 / 子串 / 越页 / 缺文件 / 缺参）。
 
 ---
 
@@ -87,15 +96,16 @@
 |------|----------|--------|---------|-------------|---------|-----------|
 | ① 检索 | "找到 N 篇相关文献" | 编造/错配引用 | ✅ | — | — | — |
 | ② 反幻觉核验 | "这些文献真实存在" | 漏检真实文献（假阴性） | ✅(含OpenAlex) | — | — | — |
-| ③ 原页理解 | "该图显示 X 趋势" | 误读图/表/跨页 | — | ⬜(待D2) | — | ⚠️(人工) |
+| ③ 原页理解 | "该图显示 X 趋势" | 误读图/表/跨页 | — | — | — | ✅(文本层 grounding + 图内人工) |
 | ④ 领域建模 | "RMSE=214.57" | 数字漂移/记忆错误 | — | ⬜(待D2,复用sci-exp) | — | — |
 | ⑤ 绘图 | "图5 展示…" | 轴标签/数据绑定错 | — | ✅(sci-plot约束) | — | ✅ |
 | ⑥ 成稿·LaTeX | "据此我们得到…" | 无源声明/幽灵引用 | ✅(D1前置) | ⬜(待D2) | ⬜(待D3) | ✅ |
 | ⑦ 成稿·Word | 同上 | 同上 | ✅ | ⬜ | ⬜ | ✅ |
 
-**结论**：反幻觉当前只在 D1（文献存在性）与 D4 的"绘图约束"两处有硬保障；
-**D2（数值溯源）、D3（引用 lint）是让"整个格物都反幻觉"真正闭环的两个必建项**，
-且二者都廉价复用既有 `sci-exp` 注册表与 `sci-verify` 服务，无需新基础设施。
+**结论**：反幻觉四道防线现已全部落地——D1（文献存在性，含 OpenAlex 第 4 层与期刊等级
+溯源）硬保障；D2（数值声明溯源）、D3（引用 lint）复用 `sci-exp` 注册表与 `sci-verify`
+服务形成成稿侧闭环；D4 的"绘图约束"与"原页理解文本层 grounding"均已自动核验，仅"图内
+读数"因文本层查不到而保留人工双读。至此"整个格物都反幻觉"的横向第一公民架构基本成型。
 
 ---
 
@@ -121,7 +131,7 @@
 | D2 数值声明溯源 | ✅ 已建 | `claim_provenance.py` + `sci-verify.verify_claims`，复用 sci-exp 注册表 |
 | D3 引用完整性 lint | ✅ 已建 | `citation_lint.py` + `sci-verify.lint_citations`，含 P1-2 中文降级 |
 | D1 扩展·期刊等级溯源 | ✅ 已建 | `journal_rank.py` + `sci-verify.get_journal_rank`，EasyScholar 接口 + gitignored 秘钥 |
-| D4 原页理解 grounding | ⚠️ 人工复核 | 待结构化抽取协议 |
+| D4 原页理解 grounding | ✅ 文本层自动核验 / ⚠️ 图内读数人工 | `source_ground.py` + `sci-verify.verify_source_span` + lit-review Step 4.5 结构化抽取协议 |
 
 ---
 
@@ -130,5 +140,7 @@
 1. **D2 声明注册 + verify_claim**：让写手每条数字声明带溯源标签，发表官终检。
    复用 `sci-exp` 注册表，零新基础设施。
 2. **D3 引用 lint**：成稿末尾比对 D1 核验集合，拦截幽灵引用。
-3. **D4 原页理解结构化抽取**：要求 intern-s2 返回原文 span/坐标，降低误读。
+3. **D4 原页理解结构化抽取（已落地文本层）**：`verify_source_span` 已能程序化核验
+   正文/表格文本层读数；图内读数因无文本层，仍靠 `evidence_type=figure` + 二次复读人工复核。
+   进一步自动化需 OCR/坐标级 bounding-box 比对（未来项，非必需）。
 4. （可选）**中文文献**：评估 CNKI/万方或人工核验清单自动化。

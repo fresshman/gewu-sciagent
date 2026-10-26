@@ -25,6 +25,7 @@ import verify_papers as vp  # noqa: E402
 import claim_provenance as cp  # noqa: E402  # D2 数值声明溯源引擎
 import citation_lint as cl  # noqa: E402  # D3 引用完整性 lint
 import journal_rank as jr  # noqa: E402  # EasyScholar 期刊等级溯源（反幻觉·期刊信息）
+import source_ground as sg  # noqa: E402  # D4 原页理解 grounding（核对原页文本层读数）
 
 mcp = FastMCP("sci-verify")
 
@@ -237,6 +238,38 @@ def get_journal_rank(publication_name: str) -> str:
     推荐期刊存在性 + 期刊等级 都来自真实接口。
     """
     res = jr.query_publication_rank(publication_name)
+    return json.dumps(res, ensure_ascii=False, indent=2)
+
+
+@mcp.tool()
+def verify_source_span(pdf_path: str, page: int, value: str | None = None,
+                       claim_text: str | None = None,
+                       evidence_type: str = "auto") -> str:
+    """D4 原页理解 grounding：核对模型从 PDF 某页读出的数值/声明是否真实落在文本层，
+    拦截书生读图/读表的末位/位序误读与长回答前后矛盾（见 lit-review 实测教训 #5/#6）。
+
+    参数:
+      pdf_path: PDF 文件路径（绝对或相对）。
+      page: 页码（从 1 开始）。
+      value: 可选，模型声明的数值（数字或含单位字符串如 "218.61 kcal/kg"）；
+        提取其中数字与该页文本层数字做容忍度比对（默认 1% 相对 + 0.01 绝对，与 D2 一致）。
+      claim_text: 可选，模型声明的文本片段（如 "缓解分布差异"）；在文本层做子串比对。
+      evidence_type: "auto"(默认) | "text" | "table" | "figure"。
+        auto 时由是否命中文本层推断：命中→文本/表格支持(grounded_text)；
+        未命中且声明 figure→figure_derived_requires_human（图中数值文本层查不到，交人工复核）；
+        未命中且未声明 figure→figure_suspected（疑似来自图，需人工复核）。
+
+    返回 JSON：
+      {"ok":true,
+       "status":"grounded_text|value_not_in_text_layer|figure_derived_requires_human|
+                 claim_not_in_text_layer|page_out_of_range|pdf_unreadable",
+       "evidence_type_detected":"text|figure|...",
+       "found_at":..., "page_text_excerpt":...}
+    调用时机：lit-review Step 4 结构化抽取协议——任何"来自正文/表格文本层"的声明，
+    落库前先用本工具核一次；来自图的声明标 evidence_type="figure" 交人工双读复核。
+    """
+    res = sg.verify_source_span(pdf_path, page, value=value, claim_text=claim_text,
+                                evidence_type=evidence_type)
     return json.dumps(res, ensure_ascii=False, indent=2)
 
 

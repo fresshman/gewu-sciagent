@@ -105,15 +105,45 @@ JSON
 5. 纯文本页（pdf_page_map 显示 `n_images=0` 且是参考文献/摘要页）跳过渲染省 token。
 6. 单篇原页理解完成后，及时把结论写入 `literature_review.md`，不要长期占用上下文。
 
+### Step 4.5 — 结构化抽取协议（反幻觉·D4 原页理解 grounding）
+
+> 问题：书生读原页对**图内标注数值**会末位/位序误读（实测 R² 0.8851→0.8551、
+> 0.9616→0.9619），长回答还会**前后矛盾**（表格写 `/` 结论段却给具体值）。这两类风险
+> 若不拦截，会静默流入综述/对比表。D4 用「结构化抽取 + 文本层 grounding」双保险堵死。
+
+每一条从原页抽取的"事实/数值声明"，**必须以结构化形式输出并带源 span**，禁止只吐自由文本结论：
+
+```
+{claim, page, evidence_type: text|table|figure, evidence_span, confidence}
+```
+- `evidence_type = text | table`：声明来自**正文/表格文本层** → 必须能用 `sci-verify`
+  在文本层核到（见图内读数 vs 文本层，见下方边界）。
+- `evidence_type = figure`：声明来自**图内标注**（PDF 文本层完全没有，见实测教训 #3）
+  → 诚实标 `figure`，触发"关键数字二次复读"纪律（#5），并在文献表标注"图中读数"。
+
+**落地动作（强制，不可跳过）**：对所有 `evidence_type ∈ {text, table}` 的声明，落库前调
+`mcp__sci-verify__verify_source_span(pdf_path, page, value=<数字>, evidence_type="text")`
+核对文本层——返回 `grounded_text` 才落稿；返回 `value_not_in_text_layer` /
+`figure_suspected` 一律标 `⚠️未文本核验` 交人工复核，**绝不静默落稿**。对 `evidence_type=figure`
+的声明，调同一工具并传 `evidence_type="figure"`，返回 `figure_derived_requires_human` 即
+视为"已诚实标记图内读数、待人工双读"，与 `grounded_text` 同等可落稿（但表内须标注来源为图）。
+
+> 边界（诚实优于静默）：图中数值只存在于图像、文本层查不到，本工具**无法**自动核验图内
+> 读数——此时只标 `figure_derived_requires_human` 交人工，绝不冒充通过。这正是 D4 与
+> D1/D2/D3 的区别：D4 只覆盖"文本层/表格层可查"的原页理解，纯图内读数仍是人工复核面。
+
 > ⚠️ 上下文纪律：256K 也有限。每批评 `REVIEW_TOP_N` 篇的原页分次给 intern-s2，
 > 不要一次性塞入所有 PDF 全页。base64 单图超 4MB 时 `image_to_data_uri` 会告警，
 > 此时降 dpi 或缩小 pages。
 
 ### Step 5 — 归纳输出
-产出结构化文献表（含 verification 列）：
+产出结构化文献表（含 verification 列与 D4 源 span 列）：
 ```
-| Paper | Venue | Method | Key Result | 跨模态发现 | Relevance | Verify |
+| Paper | Venue | Method | Key Result | 跨模态发现 | Evidence(来源页/类型/D4核验) | Relevance | Verify |
 ```
+- **Evidence 列**来自 Step 4.5 结构化抽取：每条 Key Result 标注 `page + evidence_type +
+  D4状态(grounded_text / figure_derived / ⚠️未文本核验)`；凡 `⚠️未文本核验` 须在表注说明
+  待人工复核，不得隐去。
 + 叙事性 gap 分析（3–5 段），重点写出**原页理解发现的图文矛盾/未言明假设**——
 这是纯文本路线拿不到的增量。输出到 `literature_review.md`，把 top idea 候选
 回传 director（A2A announce）。
