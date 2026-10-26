@@ -116,6 +116,15 @@
         requestTimeoutMs: 900000,
         connectionTimeoutMs: 60000,
       },
+      // 通用实验注册表（领域无关）：list/get/rerun/audit。领域包只需提供一份
+      // registry/<domain>.json + 计算脚本即可接入（coverage example: coal-mil）。
+      "sci-exp": {
+        command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
+        args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/sci_exp.py"],
+        cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
+        requestTimeoutMs: 1800000,
+        connectionTimeoutMs: 60000,
+      },
       "report": {
         command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
         args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/report.py"],

@@ -416,6 +416,7 @@ def cv_summary() -> dict:
     return out
 
 
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="格物 × 煤热值 MIL 真实推理胶水层")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -440,7 +441,7 @@ def main() -> None:
             res = predict_bag(args.bag_dir, args.fold)
         elif args.cmd == "predict-fold":
             res = predict_fold(args.fold)
-        else:
+        elif args.cmd == "cv-summary":
             res = cv_summary()
     except (ProjectNotFound, FileNotFoundError, ValueError) as e:
         print(json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False, indent=2))

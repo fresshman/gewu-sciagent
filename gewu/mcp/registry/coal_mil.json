@@ -1,0 +1,590 @@
+{
+  "schema_version": 1,
+  "registered_by": "gewu-sciagent 实验注册表机制 (P0-1)",
+  "note": "本文件仅记录实验元数据与聚合指标(均值±标准差)，不含任何原始光谱、模型权重或未发表数据。our_hybrid 与 plsr_baseline 的指标在运行时由 COAL_PROJECT_ROOT 下 summary.json 实时覆盖校验，此处作为台账缓存；其余实验由原始项目脚本产出，格物不复制数据，仅登记追溯信息与复现路径。所有 source_of_truth 路径均为相对 COAL_PROJECT_ROOT 的相对路径，不含机器绝对路径。",
+  "experiments": [
+    {
+      "id": "our_hybrid",
+      "name": "PLSR-MIL 残差混合 (本文方法)",
+      "category": "ours",
+      "config": {
+        "encoder": "ResNet1D(base=16) + SupCon pretrain",
+        "pool": "transmil_attn (LSE β=0.5 可学习)",
+        "fusion": "FiLM(plsr_dim=7)",
+        "loss": "huber(delta=1.0)",
+        "n_components": 7,
+        "n_folds": 5,
+        "seed": 42
+      },
+      "metrics": {
+        "rmse_kcal_mean": 214.5699,
+        "rmse_kcal_std": 25.7094,
+        "rmse_mj_mean": 0.8979,
+        "rmse_mj_std": 0.1076,
+        "mae_kcal_mean": 177.78,
+        "mae_kcal_std": 22.43,
+        "r2_mean": 0.8963,
+        "r2_std": 0.0468,
+        "per_fold_rmse_kcal": [
+          218.6108,
+          244.9214,
+          222.3821,
+          220.0729,
+          166.8624
+        ]
+      },
+      "source": "summary_json",
+      "source_of_truth": "coal-mil/outputs/best_solution/summary.json",
+      "reproducibility": "realizable_by_gewu",
+      "rerun_hint": "gewu sci-exp rerun_experiment(our_hybrid) → 经 coal_infer cv-summary 重算 5 折 RMSE 并与本记录交叉校验",
+      "rerun": {
+        "type": "cli",
+        "python": "coal-torch",
+        "script": "gewu/mcp/coal_infer.py",
+        "args": [
+          "cv-summary"
+        ],
+        "metrics_path": "",
+        "key_map": {
+          "rmse_kcal_mean": "mean_rmse_kcal_kg",
+          "rmse_kcal_std": "std_rmse_kcal_kg"
+        },
+        "tolerance": {
+          "rmse_kcal_mean": 1.0,
+          "rmse_kcal_std": 1.0
+        },
+        "timeout": 1800,
+        "note": "重算 5 折 hybrid RMSE；key_map 把 cv-summary 输出映射到注册指标"
+      },
+      "domain": "coal-mil"
+    },
+    {
+      "id": "plsr_baseline",
+      "name": "PLSR 基线 (光谱预先平均 + 偏最小二乘回归)",
+      "category": "baseline",
+      "config": {
+        "method": "PLSR",
+        "n_components": 7,
+        "input": "bag 内光谱取平均后的袋均谱",
+        "n_folds": 5,
+        "seed": 42
+      },
+      "metrics": {
+        "rmse_kcal_mean": 233.9521,
+        "rmse_kcal_std": 17.95,
+        "rmse_mj_mean": 0.979,
+        "rmse_mj_std": 0.075,
+        "mae_kcal_mean": 198.39,
+        "mae_kcal_std": 21.42,
+        "r2_mean": 0.8803,
+        "r2_std": 0.0465,
+        "per_fold_rmse_kcal": [
+          231.2064,
+          248.8767,
+          255.2973,
+          230.6638,
+          203.7164
+        ]
+      },
+      "source": "summary_json",
+      "source_of_truth": "coal-mil/outputs/best_solution/summary.json (mean_plsr_rmse)",
+      "reproducibility": "verifiable_via_summary",
+      "rerun_hint": "gewu sci-exp rerun_experiment(plsr_baseline) → 直接读 summary.json 的 mean_plsr_rmse 与本记录校验",
+      "rerun": {
+        "type": "cli",
+        "python": "coal-torch",
+        "script": "gewu/mcp/coal_infer.py",
+        "args": [
+          "cv-summary"
+        ],
+        "metrics_path": "official_summary",
+        "key_map": {
+          "rmse_kcal_mean": "mean_plsr_rmse"
+        },
+        "tolerance": {
+          "rmse_kcal_mean": 1.0
+        },
+        "timeout": 600,
+        "note": "读外部项目 summary.json 的 mean_plsr_rmse 校验"
+      },
+      "domain": "coal-mil"
+    },
+    {
+      "id": "mil_direct",
+      "name": "MIL 直接回归热值 (消融对照，base=12/dropout=0.4/wd=0.05/lr=2e-4/noise=0.05)",
+      "category": "comparison",
+      "config": {
+        "encoder": "ResNet1D(base=12)",
+        "pool": "transmil_attn",
+        "mode": "直接回归热值 (非残差)",
+        "dropout": 0.4,
+        "weight_decay": 0.05,
+        "lr": 0.0002,
+        "noise_std": 0.05,
+        "n_folds": 5,
+        "seed": 42
+      },
+      "metrics": {
+        "rmse_kcal_mean": 633.19,
+        "rmse_kcal_std": 122.55,
+        "rmse_mj_mean": 2.649,
+        "rmse_mj_std": 0.513,
+        "mae_kcal_mean": 542.62,
+        "mae_kcal_std": 119.11,
+        "r2_mean": 0.1163,
+        "r2_std": 0.4833,
+        "per_fold_rmse_kcal": null
+      },
+      "source": "original_script:coal-mil/scripts/compare_all_methods.py",
+      "source_of_truth": "coal-mil/scripts/compare_all_methods.py (METHODS 含 MIL, 5 折 kfold 对比)",
+      "reproducibility": "requires_original_script",
+      "rerun_hint": "在 coal-torch/含 sklearn 环境运行: python coal-mil/scripts/compare_all_methods.py (产出 MIL/PLSR/MLR/LWPLSR/SVR/KELM 全表)",
+      "rerun": {
+        "type": "none"
+      },
+      "domain": "coal-mil"
+    },
+    {
+      "id": "cmp_svr",
+      "name": "SVR (RBF 核, 光谱预先平均)",
+      "category": "comparison",
+      "config": {
+        "method": "SVR",
+        "kernel": "rbf",
+        "C": 1000,
+        "gamma": 0.001,
+        "epsilon": 10.0,
+        "input": "bag 均谱",
+        "n_folds": 5,
+        "seed": 42
+      },
+      "metrics": {
+        "rmse_kcal_mean": 543.0,
+        "rmse_kcal_std": 124.75,
+        "rmse_mj_mean": 2.272,
+        "rmse_mj_std": 0.522,
+        "mae_kcal_mean": 416.57,
+        "mae_kcal_std": 108.65,
+        "r2_mean": 0.3528,
+        "r2_std": 0.2806,
+        "per_fold_rmse_kcal": null
+      },
+      "source": "original_script:coal-mil/scripts/compare_all_methods.py",
+      "source_of_truth": "coal-mil/scripts/compare_all_methods.py",
+      "reproducibility": "requires_original_script",
+      "rerun_hint": "python coal-mil/scripts/compare_all_methods.py",
+      "rerun": {
+        "type": "none"
+      },
+      "domain": "coal-mil"
+    },
+    {
+      "id": "cmp_kelm",
+      "name": "K-ELM (核极限学习机, 光谱预先平均)",
+      "category": "comparison",
+      "config": {
+        "method": "KELM",
+        "kernel": "rbf",
+        "C": 100.0,
+        "gamma": 0.001,
+        "input": "bag 均谱",
+        "n_folds": 5,
+        "seed": 42
+      },
+      "metrics": {
+        "rmse_kcal_mean": 505.76,
+        "rmse_kcal_std": 83.62,
+        "rmse_mj_mean": 2.116,
+        "rmse_mj_std": 0.35,
+        "mae_kcal_mean": 398.55,
+        "mae_kcal_std": 64.29,
+        "r2_mean": 0.4733,
+        "r2_std": 0.146,
+        "per_fold_rmse_kcal": null
+      },
+      "source": "original_script:coal-mil/scripts/compare_all_methods.py",
+      "source_of_truth": "coal-mil/scripts/compare_all_methods.py",
+      "reproducibility": "requires_original_script",
+      "rerun_hint": "python coal-mil/scripts/compare_all_methods.py",
+      "rerun": {
+        "type": "none"
+      },
+      "domain": "coal-mil"
+    },
+    {
+      "id": "cmp_lwplsr",
+      "name": "LW-PLSR (局部加权偏最小二乘回归)",
+      "category": "comparison",
+      "config": {
+        "method": "LWPLSR",
+        "n_components": 3,
+        "k_neighbors": 15,
+        "input": "bag 均谱",
+        "n_folds": 5,
+        "seed": 42
+      },
+      "metrics": {
+        "rmse_kcal_mean": 370.07,
+        "rmse_kcal_std": 94.33,
+        "rmse_mj_mean": 1.548,
+        "rmse_mj_std": 0.395,
+        "mae_kcal_mean": 295.85,
+        "mae_kcal_std": 70.41,
+        "r2_mean": 0.6984,
+        "r2_std": 0.1383,
+        "per_fold_rmse_kcal": null
+      },
+      "source": "original_script:coal-mil/scripts/compare_all_methods.py",
+      "source_of_truth": "coal-mil/scripts/compare_all_methods.py",
+      "reproducibility": "requires_original_script",
+      "rerun_hint": "python coal-mil/scripts/compare_all_methods.py",
+      "rerun": {
+        "type": "none"
+      },
+      "domain": "coal-mil"
+    },
+    {
+      "id": "cmp_mlr",
+      "name": "MLR (Ridge 正则化多元线性回归, 光谱预先平均)",
+      "category": "comparison",
+      "config": {
+        "method": "MLR",
+        "alpha": 10.0,
+        "input": "bag 均谱",
+        "n_folds": 5,
+        "seed": 42
+      },
+      "metrics": {
+        "rmse_kcal_mean": 259.26,
+        "rmse_kcal_std": 10.99,
+        "rmse_mj_mean": 1.085,
+        "rmse_mj_std": 0.046,
+        "mae_kcal_mean": 211.9,
+        "mae_kcal_std": 15.34,
+        "r2_mean": 0.8521,
+        "r2_std": 0.0631,
+        "per_fold_rmse_kcal": null
+      },
+      "source": "original_script:coal-mil/scripts/compare_all_methods.py",
+      "source_of_truth": "coal-mil/scripts/compare_all_methods.py",
+      "reproducibility": "requires_original_script",
+      "rerun_hint": "python coal-mil/scripts/compare_all_methods.py",
+      "rerun": {
+        "type": "none"
+      },
+      "domain": "coal-mil"
+    },
+    {
+      "id": "abl_pool_maxpool",
+      "name": "消融-池化策略: MaxPool",
+      "category": "ablation",
+      "config": {
+        "encoder": "ResNet1D(base=16)+SE",
+        "pool": "MaxPool",
+        "mode": "hybrid (残差)",
+        "loss": "mse"
+      },
+      "metrics": {
+        "rmse_kcal_mean": 883.87,
+        "rmse_kcal_std": null,
+        "rmse_mj_mean": null,
+        "rmse_mj_std": null,
+        "mae_kcal_mean": null,
+        "mae_kcal_std": null,
+        "r2_mean": null,
+        "r2_std": null,
+        "per_fold_rmse_kcal": null
+      },
+      "source": "original_script:coal-mil/scripts/plot_figures.py (fig7_pool_comparison 硬编码列表)",
+      "source_of_truth": "coal-mil/scripts/plot_figures.py",
+      "reproducibility": "requires_original_script",
+      "rerun_hint": "对应实验需从 compare_hybrid_pools.py / compare_fusion_modes.py 跑出后回填; 当前数值为画图脚本硬编码, 非自动记录",
+      "notes": "数值硬编码于 plot_figures.py, 属于'实验产物被手抄进绘图脚本'的典型, 注册表将其显式登记并标注复现路径, 杜绝无来源追溯",
+      "rerun": {
+        "type": "none"
+      },
+      "domain": "coal-mil"
+    },
+    {
+      "id": "abl_pool_abmil_scratch",
+      "name": "消融-池化策略: ABMIL (从零训练)",
+      "category": "ablation",
+      "config": {
+        "encoder": "ResNet1D(base=16)+SE",
+        "pool": "ABMIL (从零)",
+        "mode": "hybrid (残差)",
+        "loss": "mse"
+      },
+      "metrics": {
+        "rmse_kcal_mean": 957.47,
+        "rmse_kcal_std": null,
+        "rmse_mj_mean": null,
+        "rmse_mj_std": null,
+        "mae_kcal_mean": null,
+        "mae_kcal_std": null,
+        "r2_mean": null,
+        "r2_std": null,
+        "per_fold_rmse_kcal": null
+      },
+      "source": "original_script:coal-mil/scripts/plot_figures.py (fig7_pool_comparison 硬编码列表)",
+      "source_of_truth": "coal-mil/scripts/plot_figures.py",
+      "reproducibility": "requires_original_script",
+      "rerun_hint": "对应实验需从 compare_hybrid_pools.py 跑出后回填; 当前数值为画图脚本硬编码",
+      "notes": "数值硬编码于 plot_figures.py",
+      "rerun": {
+        "type": "none"
+      },
+      "domain": "coal-mil"
+    },
+    {
+      "id": "abl_pool_abmil_frozen",
+      "name": "消融-池化策略: ABMIL (冻结编码器)",
+      "category": "ablation",
+      "config": {
+        "encoder": "ResNet1D(base=16)+SE (冻结)",
+        "pool": "ABMIL (冻结)",
+        "mode": "hybrid (残差)",
+        "loss": "mse"
+      },
+      "metrics": {
+        "rmse_kcal_mean": 559.09,
+        "rmse_kcal_std": null,
+        "rmse_mj_mean": null,
+        "rmse_mj_std": null,
+        "mae_kcal_mean": null,
+        "mae_kcal_std": null,
+        "r2_mean": null,
+        "r2_std": null,
+        "per_fold_rmse_kcal": null
+      },
+      "source": "original_script:coal-mil/scripts/plot_figures.py (fig7_pool_comparison 硬编码列表)",
+      "source_of_truth": "coal-mil/scripts/plot_figures.py",
+      "reproducibility": "requires_original_script",
+      "rerun_hint": "对应实验需从 compare_hybrid_pools.py 跑出后回填; 当前数值为画图脚本硬编码",
+      "notes": "数值硬编码于 plot_figures.py",
+      "rerun": {
+        "type": "none"
+      },
+      "domain": "coal-mil"
+    },
+    {
+      "id": "abl_pool_meanpool",
+      "name": "消融-池化策略: MeanPool",
+      "category": "ablation",
+      "config": {
+        "encoder": "ResNet1D(base=16)+SE",
+        "pool": "MeanPool",
+        "mode": "hybrid (残差)",
+        "loss": "mse"
+      },
+      "metrics": {
+        "rmse_kcal_mean": 512.96,
+        "rmse_kcal_std": null,
+        "rmse_mj_mean": null,
+        "rmse_mj_std": null,
+        "mae_kcal_mean": null,
+        "mae_kcal_std": null,
+        "r2_mean": null,
+        "r2_std": null,
+        "per_fold_rmse_kcal": null
+      },
+      "source": "original_script:coal-mil/scripts/plot_figures.py (fig7_pool_comparison 硬编码列表)",
+      "source_of_truth": "coal-mil/scripts/plot_figures.py",
+      "reproducibility": "requires_original_script",
+      "rerun_hint": "对应实验需从 compare_hybrid_pools.py 跑出后回填; 当前数值为画图脚本硬编码",
+      "notes": "数值硬编码于 plot_figures.py; 与 abl_path_baseline 同配置同值",
+      "rerun": {
+        "type": "none"
+      },
+      "domain": "coal-mil"
+    },
+    {
+      "id": "abl_pool_lse_fixed",
+      "name": "消融-池化策略: LSE 池化 (固定 β)",
+      "category": "ablation",
+      "config": {
+        "encoder": "ResNet1D(base=16)+SE",
+        "pool": "LSE (固定 β)",
+        "mode": "hybrid (残差)",
+        "loss": "mse"
+      },
+      "metrics": {
+        "rmse_kcal_mean": 361.0,
+        "rmse_kcal_std": null,
+        "rmse_mj_mean": null,
+        "rmse_mj_std": null,
+        "mae_kcal_mean": null,
+        "mae_kcal_std": null,
+        "r2_mean": null,
+        "r2_std": null,
+        "per_fold_rmse_kcal": null
+      },
+      "source": "original_script:coal-mil/scripts/plot_figures.py (fig7_pool_comparison 硬编码列表)",
+      "source_of_truth": "coal-mil/scripts/plot_figures.py",
+      "reproducibility": "requires_original_script",
+      "rerun_hint": "对应实验需从 compare_hybrid_pools.py / compare_fusion_modes.py 跑出后回填; 当前数值为画图脚本硬编码",
+      "notes": "数值硬编码于 plot_figures.py; 与 abl_path_plus_lse 同配置同值",
+      "rerun": {
+        "type": "none"
+      },
+      "domain": "coal-mil"
+    },
+    {
+      "id": "abl_pool_lse_learnable",
+      "name": "消融-池化策略: LSE 池化 (可学习 β, 收敛至 0.516)",
+      "category": "ablation",
+      "config": {
+        "encoder": "ResNet1D(base=16)+SE",
+        "pool": "LSE (可学习 β)",
+        "mode": "hybrid (残差)",
+        "loss": "mse"
+      },
+      "metrics": {
+        "rmse_kcal_mean": 347.55,
+        "rmse_kcal_std": null,
+        "rmse_mj_mean": null,
+        "rmse_mj_std": null,
+        "mae_kcal_mean": null,
+        "mae_kcal_std": null,
+        "r2_mean": null,
+        "r2_std": null,
+        "per_fold_rmse_kcal": null
+      },
+      "source": "original_script:coal-mil/scripts/plot_figures.py (fig7_pool_comparison / fig9_optimization_path 硬编码列表)",
+      "source_of_truth": "coal-mil/scripts/plot_figures.py",
+      "reproducibility": "requires_original_script",
+      "rerun_hint": "对应实验需从 compare_hybrid_pools.py / compare_fusion_modes.py 跑出后回填; 当前数值为画图脚本硬编码",
+      "notes": "数值硬编码于 plot_figures.py; 与 abl_path_plus_beta 同配置同值",
+      "rerun": {
+        "type": "none"
+      },
+      "domain": "coal-mil"
+    },
+    {
+      "id": "abl_path_baseline",
+      "name": "消融-优化路径: 基线 (MeanPool + SE + MSE)",
+      "category": "ablation",
+      "config": {
+        "encoder": "ResNet1D(base=16)+SE",
+        "pool": "MeanPool",
+        "mode": "hybrid (残差)",
+        "loss": "mse"
+      },
+      "metrics": {
+        "rmse_kcal_mean": 512.96,
+        "rmse_kcal_std": null,
+        "rmse_mj_mean": null,
+        "rmse_mj_std": null,
+        "mae_kcal_mean": null,
+        "mae_kcal_std": null,
+        "r2_mean": null,
+        "r2_std": null,
+        "per_fold_rmse_kcal": null
+      },
+      "source": "original_script:coal-mil/scripts/plot_figures.py (fig9_optimization_path 硬编码列表)",
+      "source_of_truth": "coal-mil/scripts/plot_figures.py",
+      "reproducibility": "requires_original_script",
+      "rerun_hint": "对应实验需从 compare_fusion_modes.py / compare_hybrid.py 跑出后回填; 当前数值为画图脚本硬编码",
+      "notes": "数值硬编码于 plot_figures.py; 与 abl_pool_meanpool 同配置同值",
+      "rerun": {
+        "type": "none"
+      },
+      "domain": "coal-mil"
+    },
+    {
+      "id": "abl_path_minus_se",
+      "name": "消融-优化路径: 移除 SE 模块",
+      "category": "ablation",
+      "config": {
+        "encoder": "ResNet1D(base=16) 无 SE",
+        "pool": "MeanPool",
+        "mode": "hybrid (残差)",
+        "loss": "mse"
+      },
+      "metrics": {
+        "rmse_kcal_mean": 441.12,
+        "rmse_kcal_std": null,
+        "rmse_mj_mean": null,
+        "rmse_mj_std": null,
+        "mae_kcal_mean": null,
+        "mae_kcal_std": null,
+        "r2_mean": null,
+        "r2_std": null,
+        "per_fold_rmse_kcal": null
+      },
+      "source": "original_script:coal-mil/scripts/plot_figures.py (fig9_optimization_path 硬编码列表)",
+      "source_of_truth": "coal-mil/scripts/plot_figures.py",
+      "reproducibility": "requires_original_script",
+      "rerun_hint": "对应实验需从 compare_fusion_modes.py / compare_hybrid.py 跑出后回填; 当前数值为画图脚本硬编码",
+      "notes": "数值硬编码于 plot_figures.py",
+      "rerun": {
+        "type": "none"
+      },
+      "domain": "coal-mil"
+    },
+    {
+      "id": "abl_path_plus_lse",
+      "name": "消融-优化路径: +LSE 池化 + 训练策略",
+      "category": "ablation",
+      "config": {
+        "encoder": "ResNet1D(base=16)+SE",
+        "pool": "LSE (固定 β)",
+        "mode": "hybrid (残差)",
+        "loss": "mse + 训练策略"
+      },
+      "metrics": {
+        "rmse_kcal_mean": 361.0,
+        "rmse_kcal_std": null,
+        "rmse_mj_mean": null,
+        "rmse_mj_std": null,
+        "mae_kcal_mean": null,
+        "mae_kcal_std": null,
+        "r2_mean": null,
+        "r2_std": null,
+        "per_fold_rmse_kcal": null
+      },
+      "source": "original_script:coal-mil/scripts/plot_figures.py (fig9_optimization_path 硬编码列表)",
+      "source_of_truth": "coal-mil/scripts/plot_figures.py",
+      "reproducibility": "requires_original_script",
+      "rerun_hint": "对应实验需从 compare_fusion_modes.py / compare_hybrid.py 跑出后回填; 当前数值为画图脚本硬编码",
+      "notes": "数值硬编码于 plot_figures.py; 与 abl_pool_lse_fixed 同配置同值",
+      "rerun": {
+        "type": "none"
+      },
+      "domain": "coal-mil"
+    },
+    {
+      "id": "abl_path_plus_beta",
+      "name": "消融-优化路径: +可学习 β",
+      "category": "ablation",
+      "config": {
+        "encoder": "ResNet1D(base=16)+SE",
+        "pool": "LSE (可学习 β)",
+        "mode": "hybrid (残差)",
+        "loss": "mse + 训练策略"
+      },
+      "metrics": {
+        "rmse_kcal_mean": 347.55,
+        "rmse_kcal_std": null,
+        "rmse_mj_mean": null,
+        "rmse_mj_std": null,
+        "mae_kcal_mean": null,
+        "mae_kcal_std": null,
+        "r2_mean": null,
+        "r2_std": null,
+        "per_fold_rmse_kcal": null
+      },
+      "source": "original_script:coal-mil/scripts/plot_figures.py (fig9_optimization_path 硬编码列表)",
+      "source_of_truth": "coal-mil/scripts/plot_figures.py",
+      "reproducibility": "requires_original_script",
+      "rerun_hint": "对应实验需从 compare_fusion_modes.py / compare_hybrid.py 跑出后回填; 当前数值为画图脚本硬编码",
+      "notes": "数值硬编码于 plot_figures.py; 与 abl_pool_lse_learnable 同配置同值",
+      "rerun": {
+        "type": "none"
+      },
+      "domain": "coal-mil"
+    }
+  ],
+  "domain": "coal-mil",
+  "domain_label": "煤热值 MIL+LIBS 大颗粒原煤热值预测（格物参考领域包 / coverage example）"
+}
