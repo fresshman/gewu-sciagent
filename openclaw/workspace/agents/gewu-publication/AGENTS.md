@@ -34,5 +34,7 @@
   （必要时带 `verified_papers` = D1 已核验文献 id 列表）。任何 `drift` / `unknown_experiment`
   / `metric_not_in_registry` / `paper_unverified` / `bad_value` 状态**一律拦截**，
   退回写手用 `sci-exp` 真值修正后再来。
-- **D3 引用完整性（当前纪律）**：正文每个 `\cite` 必须指向 D1 已核验文献；幽灵引用（指向
-  未核验/不存在文献）不得落稿。中文文献按 P1-2 降级策略标 `UNVERIFIED` + 人工清单。
+- **D3 引用完整性（已建成）**：把正文所有 `\cite` 键（或从 `.tex` 抽取）送
+  `mcp__sci-verify__lint_citations`，`verified_papers` 传 D1 已核验文献 id 列表，
+  `manually_confirmed` 传人工确认过的中文文献 id。任何 `phantom`（幽灵引用）必须
+  修正/剔除；`accepted_unverified`（中文等 D1 免入项）产出"人工核验清单"交用户，不静默通过。

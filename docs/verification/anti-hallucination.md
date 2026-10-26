@@ -41,12 +41,18 @@
   是 P0-1（实验可复现）在成稿侧的闭环——数字从注册表来，回到注册表查。
 - 测试：`tests/test_claim_provenance.py` 10 passed（含合成注册表 + 真实 coal_mil 校验）。
 
-### D3 — 引用完整性 lint（Citation Lint） ⬜ 待建
+### D3 — 引用完整性 lint（Citation Lint） ✅ 已建
 - **问题**：成稿里的 `\cite{...}` / 参考文献条目，可能指向 D1 未核验、甚至不存在的文献
   （"幽灵引用"）。
-- **机制（设计）**：发表官在成稿末尾，抽取全部引用键，逐一比对 D1 核验集合；
-  任何不在"已核验文献库"的引用 → 标 `UNVERIFIED`（而非静默通过），并触发 D1 补核验
-  或要求人工确认。中文文献（CNKI/万方未收录）按 P1-2 降级策略处理。
+- **实现**（`gewu/mcp/citation_lint.py` + `sci-verify` MCP 工具 `lint_citations`）：
+  - 抽取引用键（`extract_cite_keys` 支持 `\cite/\citep/\citet/\autocite/...`），或用
+    显式键列表；逐一比对 D1 已核验集合 `verified_papers`。
+  - 状态：`verified`（在 D1 集合） / `accepted_unverified`（在人工确认集合，中文等 D1 免入项）
+    / `phantom`（幽灵引用，既不在 D1 也不在人工确认集合 → 必须修正）。
+  - **P1-2 降级**：中文文献（CNKI/万方 D1 不收录）经 `manually_confirmed` 传参标
+    `accepted_unverified`——**不静默通过、也不误判为幻觉**，产出"人工核验清单"交用户。
+  - 任何 `phantom` 必须修正/剔除后才可成稿。
+- 测试：`tests/test_citation_lint.py` 5 passed（含 LaTeX 抽取、幽灵检测、中文降级、tex+显式合并）。
 
 ### D4 — 图/数据 Grounding ⚠️ 部分建成
 - **成稿绘图**：`sci-plot` 本地出图、数据不出本机，写手已被铁律约束
@@ -96,7 +102,7 @@
 | D1 文献核验服务化 | ✅ 已修 | `verify_server.py` 注册为 `sci-verify`，7 agent 可调用 |
 | P1-2 中文文献 | ⚠️ 降级策略已定 | 标 UNVERIFIED + 人工清单；接入 CNKI/万方为后续 |
 | D2 数值声明溯源 | ✅ 已建 | `claim_provenance.py` + `sci-verify.verify_claims`，复用 sci-exp 注册表 |
-| D3 引用完整性 lint | ⬜ 待建 | 复用 D1 核验集合 |
+| D3 引用完整性 lint | ✅ 已建 | `citation_lint.py` + `sci-verify.lint_citations`，含 P1-2 中文降级 |
 | D4 原页理解 grounding | ⚠️ 人工复核 | 待结构化抽取协议 |
 
 ---

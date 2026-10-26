@@ -23,6 +23,7 @@ from mcp.server.fastmcp import FastMCP
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import verify_papers as vp  # noqa: E402
 import claim_provenance as cp  # noqa: E402  # D2 数值声明溯源引擎
+import citation_lint as cl  # noqa: E402  # D3 引用完整性 lint
 
 mcp = FastMCP("sci-verify")
 
@@ -179,6 +180,39 @@ def save_claims(input_json: str, path: str) -> str:
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(claims, ensure_ascii=False, indent=2), encoding="utf-8")
     return json.dumps({"ok": True, "path": str(p), "n_claims": len(claims)}, ensure_ascii=False)
+
+
+@mcp.tool()
+def lint_citations(input_json: str, verified_papers: str | None = None,
+                   manually_confirmed: str | None = None, tex: str | None = None) -> str:
+    """D3 引用完整性 lint：成稿引用键逐一比对 D1 已核验集合，拦截幽灵引用。
+
+    参数:
+      input_json: 引用键数组 JSON 字符串，如 ["ilse2018","resnet2016","cn_li2020"]；
+        也可省略，直接传 tex 从 LaTeX 抽取。
+      verified_papers: D1 自动核验通过的文献 id 数组 JSON 字符串
+        （来自 mcp__sci-verify__verify_papers 的 verified 项）。
+      manually_confirmed: 人工已确认/待复核的文献 id 数组 JSON（中文期刊等 D1 免入项），
+        这些会被标 accepted_unverified（非幻觉、待人工复核），而非 phantom。
+      tex: 可选，LaTeX 源码字符串；若提供则从 \\cite/\\citep/\\citet 中抽取引用键并合并。
+
+    返回 JSON：
+      {"all_verified":bool,"n_citations":N,"n_verified":V,"n_accepted_unverified":A,
+       "n_phantom":P,"citations":[{"key","status":"verified|accepted_unverified|phantom"}]}
+      任何 phantom（幽灵引用）必须修正/剔除后才可成稿。
+    """
+    try:
+        explicit = json.loads(input_json) if input_json else []
+        vps = json.loads(verified_papers) if verified_papers else []
+        mcs = json.loads(manually_confirmed) if manually_confirmed else []
+    except Exception as e:
+        return json.dumps({"all_verified": False, "citations": [], "error": f"input_unreadable: {e}"},
+                         ensure_ascii=False)
+    keys = list(explicit)
+    if tex:
+        keys.extend(cl.extract_cite_keys(tex))
+    report = cl.lint_citations(keys, verified_papers=vps, manually_confirmed=mcs)
+    return json.dumps(report, ensure_ascii=False, indent=2)
 
 
 if __name__ == "__main__":
