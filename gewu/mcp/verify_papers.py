@@ -3,9 +3,16 @@
 verify_papers.py — Pre-search paper-existence verification helper.
 
 Verifies that candidate papers found by literature-search skills actually exist
-via 3-layer fallback (arXiv API → CrossRef DOI lookup → Semantic Scholar fuzzy
-title match). Designed to catch LLM hallucination at search time, before
-fabricated references propagate through downstream skills.
+via a multi-layer fallback chain:
+
+    arXiv API → CrossRef DOI → Semantic Scholar fuzzy title → CrossRef title
+             → OpenAlex (exact-DOI + title search)
+
+OpenAlex is the broadest index of the five and (uniquely) covers conference
+proceedings (ICML/NeurIPS/CVPR) that CrossRef under-indexes, so it is the
+backstop that prevents a *real* paper from being wrongly flagged "unverified"
+(a false fabrication signal). Designed to catch LLM hallucination at search
+time, before fabricated references propagate through downstream skills.
 
 Used by `/research-lit` (Step 1.5, mandatory), `/idea-creator`, `/novelty-check`.
 
@@ -109,6 +116,12 @@ from typing import Any
 ARXIV_API = "https://export.arxiv.org/api/query"
 CROSSREF_API = "https://api.crossref.org/works"
 S2_API = "https://api.semanticscholar.org/graph/v1/paper/search"
+# OpenAlex: free, no key, the broadest coverage of the four — indexes arXiv, CrossRef,
+# and (critically) conference proceedings (ICML/NeurIPS/CVPR) that Crossref under-covers.
+# Added as layer 4 (title) / layer 2.5 (exact DOI) to kill the false-negative problem
+# where a real conference paper falls through arXiv/CrossRef/S2 and gets marked "unverified",
+# which would wrongly signal hallucination.
+OPENALEX_API = "https://api.openalex.org/works"
 # Semantic Scholar's documented limit for an issued key is 1 request/second,
 # cumulative across all endpoints; unauthenticated callers share one pool and get
 # 429 under any load. Pace ourselves and send the key when the env var is set.
@@ -122,6 +135,13 @@ _s2_last_call = 0.0
 # require a much tighter ratio before accepting a DOI as the same paper.
 CROSSREF_TITLE_ROWS = 3
 CROSSREF_TITLE_THRESHOLD = 0.82
+
+# OpenAlex title search fallback (layer 4). OpenAlex ingests arXiv + Crossref + conference
+# proceedings, so it is the most comprehensive title matcher. We still require a tight ratio
+# before accepting, because the search endpoint ranks by relevance and the top hit is not
+# always the intended paper.
+OPENALEX_TITLE_ROWS = 5
+OPENALEX_TITLE_THRESHOLD = 0.82
 
 DEFAULT_BATCH_SIZE = 40
 DEFAULT_FUZZY_THRESHOLD = 0.6
@@ -487,6 +507,103 @@ def verify_title_s2(title: str, fuzzy_threshold: float) -> tuple[str, dict[str, 
 
 
 # ──────────────────────────────────────────────────────────────────────────
+# Layer 4: OpenAlex (title search fallback + exact-DOI lookup)
+# ──────────────────────────────────────────────────────────────────────────
+
+_ARXIV_DOI_RE = re.compile(r"arxiv\.([\d]{4}\.?[\d]{4,5}(?:v\d+)?)", re.IGNORECASE)
+
+
+def _openalex_mailto(user_email: str) -> str:
+    contact = (user_email or "").strip()
+    return f"&mailto={urllib.parse.quote(contact)}" if contact and "@" in contact else ""
+
+
+def verify_doi_openalex(doi: str, user_email: str) -> str:
+    """Exact-DOI lookup via OpenAlex filter. Return verified | unverified | verify_pending.
+
+    OpenAlex's DOI index is broader than CrossRef's (it also covers arXiv DOIs such as
+    10.48550/arXiv.1802.04712), so this is a strictly more authoritative fallback when
+    CrossRef 404s on a DOI.
+    """
+    d = normalize_doi(doi)
+    if not d:
+        return "unverified"
+    url = (
+        f"{OPENALEX_API}?filter=doi:https://doi.org/{urllib.parse.quote(d, safe='')}"
+        f"&per-page=1{_openalex_mailto(user_email)}"
+    )
+    for attempt in range(2):
+        status, body = http_get(url, headers={"User-Agent": "gewu-verify/1.0"}, timeout=20)
+        if status == 200 and body:
+            try:
+                count = json.loads(body).get("meta", {}).get("count", 0)
+            except (json.JSONDecodeError, ValueError):
+                return "verify_pending"
+            return "verified" if count >= 1 else "unverified"
+        if is_refusal(status):
+            return "verify_pending"
+        if not is_transient(status):
+            return "unverified"
+        time.sleep(backoff(attempt))
+    return "verify_pending"
+
+
+def verify_title_openalex(
+    title: str,
+    user_email: str,
+    threshold: float = OPENALEX_TITLE_THRESHOLD,
+) -> tuple[str, dict[str, str] | None]:
+    """Return (status, identifiers_or_None) via OpenAlex `search=` endpoint.
+
+    实测动机（P1-1，2026-10-26）：Ilse 2018 (ICML, arXiv 1802.04712) 在 arXiv/CrossRef/S2
+    三层下均落到 unverified，但论文真实存在——OpenAlex 一次即命中（其收录 ICML 会议论文
+    经 arXiv DOI）。会议论文在 CrossRef 覆盖不足，会造成大量假阴性，反而削弱校验可信度。
+    故在 S2 → CrossRef 标题 之后补 OpenAlex 作为第 4 层回退。
+    """
+    normalized = normalize_title(title or "")
+    if not normalized:
+        return "unverified", None
+    q = urllib.parse.quote(title or "")
+    url = (
+        f"{OPENALEX_API}?search={q}"
+        f"&per-page={OPENALEX_TITLE_ROWS}{_openalex_mailto(user_email)}"
+    )
+    for attempt in range(2):
+        status, body = http_get(url, headers={"User-Agent": "gewu-verify/1.0"}, timeout=20)
+        if status == 200 and body:
+            try:
+                results = json.loads(body).get("results", [])
+            except (json.JSONDecodeError, ValueError):
+                return "verify_pending", None
+            best_ratio, best_ids = 0.0, None
+            for r in results:
+                cand = normalize_title(r.get("display_name") or "")
+                if not cand:
+                    continue
+                ratio = difflib.SequenceMatcher(None, normalized, cand).ratio()
+                if ratio > best_ratio:
+                    ids: dict[str, str] = {}
+                    raw_doi = (r.get("ids") or {}).get("doi") or r.get("doi") or ""
+                    if raw_doi:
+                        raw_doi = raw_doi.replace("https://doi.org/", "").replace("http://doi.org/", "")
+                        ids["doi"] = raw_doi
+                        m = _ARXIV_DOI_RE.search(raw_doi)
+                        if m:
+                            ids["arxiv_id"] = m.group(1)
+                    best_ratio, best_ids = ratio, ids
+            if best_ids and best_ratio >= threshold:
+                best_ids = {**best_ids, "openalex_title_ratio": f"{best_ratio:.3f}"}
+                return "verified", best_ids
+            return "unverified", None
+        if is_refusal(status):
+            return "verify_pending", None
+        if not is_transient(status):
+            return "unverified", None
+        time.sleep(backoff(attempt))
+    return "verify_pending", None
+
+
+# ──────────────────────────────────────────────────────────────────────────
 # Orchestration
 # ──────────────────────────────────────────────────────────────────────────
 
@@ -568,20 +685,48 @@ def verify_papers(
             reason=None if status == "verified" else f"crossref_{status}",
             identifiers={"doi": normalize_doi(p.doi or "")},
         )
-        # If unverified by CrossRef and we have a title, fall through to S2
-        if status == "unverified" and p.title:
-            s2_status, s2_ids = verify_title_s2(p.title, fuzzy_threshold)
-            if s2_status == "verified":
+        # Unverified by CrossRef: try authoritative OpenAlex exact-DOI match, then
+        # title-based fallbacks (S2 → OpenAlex title). Never let a single CrossRef
+        # 404 alone decide "this paper does not exist".
+        if status == "unverified":
+            oa_doi = verify_doi_openalex(p.doi or "", user_email)
+            if oa_doi == "verified":
                 result = PaperResult(
                     id=p.id,
                     status="verified",
-                    method="s2_fallback_from_doi",
-                    confidence="medium",
-                    identifiers={"doi": normalize_doi(p.doi or ""), **(s2_ids or {})},
+                    method="openalex_doi",
+                    confidence="high",
+                    identifiers={"doi": normalize_doi(p.doi or "")},
                 )
-            elif s2_status == "verify_pending":
-                result.status = "verify_pending"
-                result.reason = "crossref_unverified_s2_pending"
+            elif p.title:
+                s2_status, s2_ids = verify_title_s2(p.title, fuzzy_threshold)
+                if s2_status == "verified":
+                    result = PaperResult(
+                        id=p.id,
+                        status="verified",
+                        method="s2_fallback_from_doi",
+                        confidence="medium",
+                        identifiers={"doi": normalize_doi(p.doi or ""), **(s2_ids or {})},
+                    )
+                else:
+                    oa_status, oa_ids = verify_title_openalex(p.title, user_email)
+                    if oa_status == "verified":
+                        result = PaperResult(
+                            id=p.id,
+                            status="verified",
+                            method="openalex_title_fallback_from_doi",
+                            confidence="medium",
+                            identifiers={"doi": normalize_doi(p.doi or ""), **(oa_ids or {})},
+                        )
+                    elif s2_status == "verify_pending" or oa_status == "verify_pending":
+                        result.status = "verify_pending"
+                        result.reason = "crossref_unverified_oa_pending"
+                    else:
+                        result.status = "unverified"
+                        result.reason = f"crossref_unverified_s2_{s2_status}_openalex_{oa_status}"
+            else:
+                result.status = "unverified"
+                result.reason = "crossref_unverified_no_title"
         results[p.id] = result
         if cache is not None:
             cache[f"doi:{normalize_doi(p.doi or '')}"] = {
@@ -619,14 +764,33 @@ def verify_papers(
                         "ts": now,
                     }
                 continue
-            result = PaperResult(
-                id=p.id,
-                status="unverified" if cr_status == "unverified" else "verify_pending",
-                method=None,
-                confidence=None,
-                reason=f"s2_{s2_status}_crossref_{cr_status}",
-                identifiers=s2_ids or {},
-            )
+            # S2 + CrossRef title both missed: OpenAlex is the broadest title index
+            # (it covers conference proceedings that CrossRef omits). Give it a final
+            # chance before concluding the paper does not exist.
+            oa_status, oa_ids = verify_title_openalex(p.title or "", user_email)
+            if oa_status == "verified":
+                result = PaperResult(
+                    id=p.id,
+                    status="verified",
+                    method="openalex_title_fallback",
+                    confidence="medium",
+                    reason=None,
+                    identifiers=oa_ids or {},
+                )
+            else:
+                any_pending = (
+                    s2_status == "verify_pending"
+                    or cr_status == "verify_pending"
+                    or oa_status == "verify_pending"
+                )
+                result = PaperResult(
+                    id=p.id,
+                    status="verify_pending" if any_pending else "unverified",
+                    method=None,
+                    confidence=None,
+                    reason=f"s2_{s2_status}_crossref_{cr_status}_openalex_{oa_status}",
+                    identifiers=s2_ids or {},
+                )
         else:
             result = PaperResult(
                 id=p.id,

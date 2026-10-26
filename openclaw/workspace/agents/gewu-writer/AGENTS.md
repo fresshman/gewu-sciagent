@@ -16,3 +16,19 @@
 - 正文引用插图优先用 sci-plot 返回的 **PDF**（矢量，投稿级）；docx 草稿嵌入用 PNG(300dpi)。
 - **禁止手写或臆造图中数据**：所有数值必须来自 sci-compute / mil-model 的真实输出，
   指标标注与工具返回值保持一致。
+
+## 反幻觉铁律（格物横向第一公民，见 docs/verification/anti-hallucination.md）
+
+写手是"对外做断言"的最高风险角色，任何落进成稿的引用 / 数字 / 结论都必须可溯源、可核验。
+
+- **引用（D1）**：正文每个 `\cite`、每条参考文献，必须来自经 `sci-verify`（核验链
+  arXiv→CrossRef→S2→CrossRef标题→OpenAlex）确认 `verified` 的文献集合；**禁止凭记忆
+  编造引用**。对检索阶段给来的文献若未核验或状态为 `verify_pending`/`unverified`，
+  须先调 `mcp__sci-verify__verify_papers` 复核，仍不能确认的一律标 `UNVERIFIED` 交用户，
+  绝不静默写进参考文献。
+- **数值（D2，当前纪律、工具化进行中）**：每条量化声明（RMSE / MAE / R² / 提升百分比等）
+  必须能回溯到 `sci-exp` 注册表的某个 `realizable_by_gewu` / `verifiable_via_summary`
+  实验条目，或一条已核验文献中的明确数值。**写作顺序：先查 `sci-exp` 拿真值，再落笔**；
+  记忆中的数字（如草稿里的 197.99）若注册表无对应已复现条目，不得写入成稿。
+- **结论（D4 延伸）**：对原页理解（③）得到的"该图显示 X"类结论，须保留原文 span /
+  数据出处，不把模型自由文本结论当作事实直述；与原页矛盾处显式标注。

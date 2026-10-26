@@ -125,6 +125,16 @@
         requestTimeoutMs: 1800000,
         connectionTimeoutMs: 60000,
       },
+      // 反幻觉·文献核验服务（系统级第一公民）：把 verify_papers 的多层核验
+      // （arXiv→CrossRef→S2→CrossRef标题→OpenAlex）暴露成 MCP 工具，7 个智能体
+      // 任一均可直接调用，对检索到的参考文献做"存在性"反幻觉，阻断编造引用扩散。
+      "sci-verify": {
+        command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
+        args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/verify_server.py"],
+        cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
+        requestTimeoutMs: 180000,
+        connectionTimeoutMs: 60000,
+      },
       "report": {
         command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
         args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/report.py"],

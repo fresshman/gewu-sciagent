@@ -23,6 +23,11 @@ REAL_TITLE = (
 )
 REAL_DOI = "10.1016/j.talanta.2025.128106"
 
+# The P1-1 regression case: Ilse 2018 (ICML) fell through arXiv/CrossRef/S2 as
+# "unverified" even though it is real. OpenAlex indexes the ICML proceedings via
+# its arXiv DOI and must catch it.
+ILSE_TITLE = "Attention-based Deep Multiple Instance Learning"
+
 FAKE_TITLE = (
     "Deep quantum blockchain neural network for perpetual motion energy "
     "harvesting in LIBS spectra"  # 编造，必须判 unverified
@@ -65,3 +70,44 @@ def test_layer_order_uses_crossref_when_s2_misses(monkeypatch):
     assert out[0].status == "verified"
     assert out[0].method == "crossref_title_fallback_from_s2"
     assert out[0].identifiers.get("doi") == REAL_DOI
+
+
+def test_layer_order_uses_openalex_when_s2_crossref_miss(monkeypatch):
+    """S2 与 CrossRef 都未命中时，verify_papers 必须继续走 OpenAlex（第 4 层）。
+    P1-1 回归：否则 Ilse 2018 (ICML) 这类会议论文会被误判 unverified。"""
+    monkeypatch.setattr(vp, "verify_title_s2", lambda t, thr: ("unverified", None))
+    monkeypatch.setattr(vp, "verify_title_crossref", lambda t, mail: ("unverified", None))
+    monkeypatch.setattr(
+        vp, "verify_title_openalex",
+        lambda t, mail, threshold=0.82: (
+            "verified",
+            {"doi": "10.48550/arXiv.1802.04712", "arxiv_id": "1802.04712"},
+        ),
+    )
+    papers = [vp.PaperInput(id="p1", arxiv_id=None, doi=None, title=ILSE_TITLE)]
+    out = vp.verify_papers(papers, arxiv_batch_size=40, fuzzy_threshold=0.6,
+                           user_email="test@example.com", cache=None)
+    assert out[0].status == "verified"
+    assert out[0].method == "openalex_title_fallback"
+    assert out[0].identifiers.get("arxiv_id") == "1802.04712"
+
+
+def test_openalex_title_catches_ilse2018():
+    """P1-1 真网回归：OpenAlex 应能命中 Ilse 2018（arXiv/CrossRef/S2 曾漏掉）。"""
+    status, ids = vp.verify_title_openalex(ILSE_TITLE, "test@example.com")
+    _skip_if_pending(status)
+    assert status == "verified", f"OpenAlex 应命中 Ilse 2018，实际 {status}"
+    assert ids and ids.get("arxiv_id") == "1802.04712"
+
+
+def test_openalex_exact_doi():
+    status = vp.verify_doi_openalex("10.48550/arXiv.1802.04712", "test@example.com")
+    _skip_if_pending(status)
+    assert status == "verified"
+
+
+def test_openalex_fabricated_rejected():
+    status, ids = vp.verify_title_openalex(FAKE_TITLE, "test@example.com")
+    _skip_if_pending(status)
+    assert status == "unverified"
+    assert ids is None
