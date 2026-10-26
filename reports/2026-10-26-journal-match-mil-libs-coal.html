@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Journal Recommendations — 基于 LSE-Pool 聚合的多示例学习用于大颗粒原煤 LIBS 光谱热值回归</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --font-heading: 'Crimson Pro', Georgia, 'Times New Roman', serif;
+  --font-body: 'Source Sans 3', system-ui, -apple-system, sans-serif;
+  --paper: #fbfaf7; --surface: #ffffff; --ink: #1c1a17; --text: #2d2a25;
+  --muted: #6b655c; --border: #e4ded3; --accent: #8a1c1c; --positive: #2f7d4f;
+  --tier1: #38a169; --tier1-bg: rgba(56,161,105,0.10);
+  --tier2: #2b6cb0; --tier2-bg: rgba(43,108,176,0.10);
+  --tier3: #718096; --tier3-bg: rgba(113,128,150,0.10);
+}
+* { box-sizing: border-box; }
+body { margin:0; background:var(--paper); color:var(--text);
+  font-family:var(--font-body); line-height:1.55; -webkit-font-smoothing:antialiased; }
+.report { max-width:880px; margin:2.5rem auto; padding:2.5rem 2.75rem;
+  background:var(--surface); border:1px solid var(--border); border-radius:6px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+.report-header { border-bottom:2px solid var(--accent); padding-bottom:1rem; margin-bottom:1.5rem; }
+.report-tag { text-transform:uppercase; letter-spacing:0.12em; font-size:0.72rem;
+  color:var(--accent); font-weight:600; margin:0 0 0.25rem; }
+.report-title { font-family:var(--font-heading); font-size:1.9rem; font-weight:700;
+  color:var(--ink); margin:0.25rem 0; line-height:1.2; }
+.report-subtitle { color:var(--muted); margin:0.25rem 0 0.75rem; }
+.report-meta { font-size:0.8rem; color:var(--muted); }
+.meta-sep { margin:0 0.4rem; }
+.metrics { display:flex; gap:1rem; margin:1.5rem 0; flex-wrap:wrap; }
+.metric-card { flex:1 1 0; min-width:140px; background:var(--paper);
+  border:1px solid var(--border); border-radius:4px; padding:1rem; text-align:center; }
+.metric-value { font-family:var(--font-heading); font-size:1.6rem; font-weight:700; color:var(--ink); }
+.metric-label { font-size:0.78rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; }
+.callout { background:var(--paper); border-left:3px solid var(--accent);
+  padding:0.85rem 1.1rem; margin:1.25rem 0; font-size:0.92rem; border-radius:0 4px 4px 0; }
+h2 { font-family:var(--font-heading); color:var(--ink); border-bottom:1px solid var(--border);
+  padding-bottom:0.4rem; margin-top:2rem; }
+.report-footer { margin-top:2.5rem; padding-top:1rem; border-top:1px solid var(--border);
+  font-size:0.82rem; color:var(--muted); }
+.report-footer p { margin:0.3rem 0; }
+.tag { display:inline-block; font-size:0.7rem; font-weight:600; letter-spacing:0.05em;
+  padding:0.15rem 0.5rem; border-radius:3px; background:var(--paper);
+  border:1px solid var(--border); color:var(--muted); }
+.tag-oa { background:#e8f5e9; color:var(--positive); border-color:#c8e6c9; }
+.journal-card { background:var(--surface); border:1px solid var(--border);
+  border-radius:4px; padding:1.5rem; margin:1rem 0; }
+.journal-card.tier-1 { border-left:4px solid var(--tier1); background:var(--tier1-bg); }
+.journal-card.tier-2 { border-left:4px solid var(--tier2); background:var(--tier2-bg); }
+.journal-card.tier-3 { border-left:4px solid var(--tier3); background:var(--tier3-bg); }
+.journal-card-header { display:flex; justify-content:space-between; align-items:flex-start;
+  flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem; }
+.journal-name { font-family:var(--font-body); font-size:1.1rem; font-weight:600;
+  color:var(--ink); margin:0; }
+.journal-name a { color:var(--ink); text-decoration:none; border-bottom:1px solid var(--border); }
+.journal-name a:hover { border-bottom-color:var(--accent); }
+.journal-badges { display:flex; gap:0.35rem; flex-wrap:wrap; }
+.journal-meta-row { font-size:0.9rem; color:var(--text); margin-bottom:0.35rem; }
+.score-bar { height:6px; border-radius:3px; background:var(--border); margin:0.3rem 0 0.5rem; }
+.score-bar > span { display:block; height:100%; border-radius:3px; background:var(--tier1); }
+.journal-rank { font-size:0.92rem; color:var(--accent); margin-bottom:0.5rem;
+  padding:0.4rem 0.6rem; background:color-mix(in srgb, var(--accent) 8%, transparent);
+  border-left:3px solid var(--accent); border-radius:2px; }
+.journal-rank strong { color:var(--ink); }
+.journal-notable { font-size:0.9rem; color:var(--muted); font-style:italic; margin:0.5rem 0 0; }
+details { margin:1rem 0; border:1px solid var(--border); border-radius:4px; padding:0.5rem 1rem; }
+summary { cursor:pointer; font-weight:600; color:var(--ink); }
+table { width:100%; border-collapse:collapse; font-size:0.85rem; margin-top:0.5rem; }
+th, td { text-align:left; padding:0.4rem 0.5rem; border-bottom:1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="report">
+  <header class="report-header">
+    <p class="report-tag">Journal Recommendations</p>
+    <h1 class="report-title">基于 LSE-Pool 聚合的多示例学习用于大颗粒原煤 LIBS 光谱热值回归</h1>
+    <p class="report-subtitle">基于 scope、方法与影响力的目标期刊分析（数据驱动 + 反幻觉溯源）</p>
+    <div class="report-meta"><span>Gewu · journal-match</span><span class="meta-sep">·</span><span>2026-10-26</span></div>
+  </header>
+  <div class="metrics">
+    <div class="metric-card"><div class="metric-value">17</div><div class="metric-label">Journals Analyzed</div></div>
+    <div class="metric-card"><div class="metric-value">Tier 1</div><div class="metric-label">Best Match Tier</div></div>
+    <div class="metric-card"><div class="metric-value">41%</div><div class="metric-label">Open Access</div></div>
+  </div>
+  <div class="callout">
+    <strong>Manuscript Profile</strong> —
+    analytical chemistry · laser-induced breakdown spectroscopy and chemometrics · empirical · universal
+    <br>Keywords: laser-induced breakdown spectroscopy, multiple instance learning, coal, calorific value, chemometrics, regression, deep learning, spectral analysis
+  </div>
+  <details>
+    <summary>Similar Published Papers（42 found，用于引导 venue 分布）</summary>
+    <table>
+      <thead><tr><th>Title</th><th>Venue</th><th>Year</th><th>Citations</th></tr></thead>
+      <tbody><tr><td>Good practices in LIBS analysis: Review and advices</td><td>Spectrochimica Acta Part B Atomic Spectroscopy</td><td>2014</td><td>312</td></tr><tr><td>Advances in Laser-Induced Breakdown Spectroscopy analysis for geology: A critica</td><td>Spectrochimica Acta Part B Atomic Spectroscopy</td><td>2020</td><td>188</td></tr><tr><td>Quantitative methods for compensation of matrix effects and self-absorption in L</td><td>Spectrochimica Acta Part B Atomic Spectroscopy</td><td>2017</td><td>173</td></tr><tr><td>Review of Element Analysis of Industrial Materials by In-Line Laser—Induced Brea</td><td>Applied Sciences</td><td>2021</td><td>134</td></tr><tr><td>Current Application of Advancing Spectroscopy Techniques in Food Analysis: Data </td><td>Foods</td><td>2023</td><td>206</td></tr><tr><td>An Overview on the Application of Chemometrics Tools in Food Authenticity and Tr</td><td>Foods</td><td>2022</td><td>103</td></tr><tr><td>How Chemometrics Can Fight Milk Adulteration</td><td>Foods</td><td>2022</td><td>53</td></tr><tr><td>Partial Least Squares-Discriminant Analysis Classification for Patchouli Oil Adu</td><td>ACS Omega</td><td>2023</td><td>29</td></tr><tr><td>Application and Research Progress of Laser-Induced Breakdown Spectroscopy in Agr</td><td>ACS Omega</td><td>2024</td><td>24</td></tr><tr><td>Chemometric Analysis of a Ternary Mixture of Caffeine, Quinic Acid, and Nicotini</td><td>ACS Omega</td><td>2022</td><td>20</td></tr></tbody>
+    </table>
+    <p class="report-footer" style="border:0;margin:0.5rem 0 0">
+      候选期刊集合由上述相似论文的 venue 分布聚合得到（OpenAlex），再经存在性核验与等级溯源。
+    </p>
+  </details>
+  <h2>Tier 1 — Best Match</h2>
+  
+    <div class="journal-card tier-1">
+      <div class="journal-card-header">
+        <h3 class="journal-name"><a href="http://www.rsc.org/Publishing/Journals/ay/index.asp">Analytical Methods</a></h3>
+        <div class="journal-badges">
+          <span class="tag">TIER 1</span>
+        </div>
+      </div>
+      <div class="journal-meta-row">
+        <span>Scope: <strong>4/5</strong> — Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (3/8 keywords match).</span>
+      </div>
+      <div class="score-bar"><span style="width:80%;background:var(--tier1)"></span></div>
+      <div class="journal-meta-row">
+        <span>H-index: N/A</span><span class="meta-sep">·</span>
+        <span>Works: 15609</span><span class="meta-sep">·</span>
+        <span>Citations: 236451</span>
+      </div>
+      <div class="journal-rank">等级/分区 (EasyScholar): <strong>官方: swjtu=A+ · hhu=C类 · xju=二区 · cug=工程技术T3 · sciif=3.0 · sci=Q2 · sciBase=化学3区 · sciUp=化学3区 · sciUpSmall=分析化学4区/食品科技4区/光谱学4区。 · eii=EI · scu=化学D · sciif5=3.0 · jci=0.71 · esi=化学 · xr=化学3区 · xrSmall=分析化学3区; 食品科技3区; 光谱学3区</strong></div>
+      <div class="journal-meta-row">
+        <span>Similar papers: 1 in last 3 years</span>
+      </div>
+      <p class="journal-notable">Notable: "Industrial applications of laser-induced breakdown spectroscopy: a review" closely related to this manuscript</p>
+    </div>
+    
+    <div class="journal-card tier-1">
+      <div class="journal-card-header">
+        <h3 class="journal-name"><a href="http://www.opticsinfobase.org/as/home.cfm">Applied Spectroscopy</a></h3>
+        <div class="journal-badges">
+          <span class="tag">TIER 1</span>
+        </div>
+      </div>
+      <div class="journal-meta-row">
+        <span>Scope: <strong>4/5</strong> — Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (3/8 keywords match).</span>
+      </div>
+      <div class="score-bar"><span style="width:80%;background:var(--tier1)"></span></div>
+      <div class="journal-meta-row">
+        <span>H-index: N/A</span><span class="meta-sep">·</span>
+        <span>Works: 13242</span><span class="meta-sep">·</span>
+        <span>Citations: 299735</span>
+      </div>
+      <div class="journal-rank">等级/分区 (EasyScholar): <strong>官方: hhu=C类 · xju=三区 · cug=工程技术T3 · sciif=2.2 · sci=Q2 · sciBase=化学4区 · sciUp=化学3区 · sciUpSmall=光谱学3区/仪器仪表4区。 · eii=EI · scu=化学D · sciif5=3.0 · jci=0.63 · esi=化学 · xr=化学3区 · xrSmall=仪器仪表4区; 光谱学3区</strong></div>
+      <div class="journal-meta-row">
+        <span>Similar papers: 2 in last 3 years</span>
+      </div>
+      <p class="journal-notable">Notable: "Development of a Rapid Coal Analyzer Using Laser-Induced Breakdown Spectroscopy (LIBS)" closely related to this manuscript</p>
+    </div>
+    
+    <div class="journal-card tier-1">
+      <div class="journal-card-header">
+        <h3 class="journal-name"><a href="http://www.mdpi.com/journal/molecules/">Molecules</a></h3>
+        <div class="journal-badges">
+          <span class="tag">TIER 1</span><span class="tag tag-oa">OPEN ACCESS</span>
+        </div>
+      </div>
+      <div class="journal-meta-row">
+        <span>Scope: <strong>4/5</strong> — Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (3/8 keywords match).</span>
+      </div>
+      <div class="score-bar"><span style="width:80%;background:var(--tier1)"></span></div>
+      <div class="journal-meta-row">
+        <span>H-index: N/A</span><span class="meta-sep">·</span>
+        <span>Works: 66263</span><span class="meta-sep">·</span>
+        <span>Citations: 1859648</span>
+      </div>
+      <div class="journal-rank">等级/分区 (EasyScholar): <strong>官方: swjtu=A+ · hhu=B类 · xju=三区 · cug=化学T3 · sciif=5.1 · sci=Q2 · sciBase=化学3区 · sciUp=化学3区 · sciUpSmall=生化与分子生物学3区/化学：综合3区。 · scu=化学D · sciif5=5.5 · jci=0.71 · esi=化学 · xr=化学2区 · xrSmall=生化与分子生物学3区; 化学：综合2区 · xrTop=化学TOP</strong></div>
+      <div class="journal-meta-row">
+        <span>Similar papers: 5 in last 3 years</span>
+      </div>
+      <p class="journal-notable">Notable: "A Review of Wine Authentication Using Spectroscopic Approaches in Combination with Chemometrics" closely related to this manuscript</p>
+    </div>
+    
+    <div class="journal-card tier-1">
+      <div class="journal-card-header">
+        <h3 class="journal-name"><a href="http://www.rsc.org/Publishing/Journals/ja/index.asp">Journal of Analytical Atomic Spectrometry</a></h3>
+        <div class="journal-badges">
+          <span class="tag">TIER 1</span>
+        </div>
+      </div>
+      <div class="journal-meta-row">
+        <span>Scope: <strong>4/5</strong> — Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (3/8 keywords match).</span>
+      </div>
+      <div class="score-bar"><span style="width:80%;background:var(--tier1)"></span></div>
+      <div class="journal-meta-row">
+        <span>H-index: N/A</span><span class="meta-sep">·</span>
+        <span>Works: 11042</span><span class="meta-sep">·</span>
+        <span>Citations: 270393</span>
+      </div>
+      <div class="journal-rank">等级/分区 (EasyScholar): <strong>官方: swjtu=A++ · hhu=B类 · xju=一区 · cug=化学T2 · sciif=3.3 · sci=Q1 · sciBase=化学3区 · sciUp=化学2区 · sciUpSmall=分析化学2区/光谱学2区。 · eii=EI · scu=化学C · sciif5=3.3 · jci=0.95 · esi=化学 · cpu=理学学科重要 · xr=化学2区 · xrSmall=分析化学3区; 光谱学2区</strong></div>
+      <div class="journal-meta-row">
+        <span>Similar papers: 2 in last 3 years</span>
+      </div>
+      <p class="journal-notable">Notable: "Applications of laser-induced breakdown spectroscopy in cultural heritage and archaeology: a critical review" closely related to this manuscript</p>
+    </div>
+    
+    <div class="journal-card tier-1">
+      <div class="journal-card-header">
+        <h3 class="journal-name"><a href="#">光谱学与光谱分析</a></h3>
+        <div class="journal-badges">
+          <span class="tag">TIER 1</span><span class="tag">种子候选</span>
+        </div>
+      </div>
+      <div class="journal-meta-row">
+        <span>Scope: <strong>3/5</strong> — Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (2/8 keywords match).</span>
+      </div>
+      <div class="score-bar"><span style="width:60%;background:var(--tier1)"></span></div>
+      <div class="journal-meta-row">
+        <span>H-index: N/A</span><span class="meta-sep">·</span>
+        <span>Works: 2000</span><span class="meta-sep">·</span>
+        <span>Citations: 143</span>
+      </div>
+      <div class="journal-rank">等级/分区 (EasyScholar): <strong>官方: sjtu=B · fdu=B · cqu=重要期刊 · xju=四区 · eii=EI · cscd=核心库 · pku=1 · zhongguokejihexin=中国科技核心期刊 · zju=国内核心期刊 · cju=T2物理学</strong></div>
+      <div class="journal-meta-row">
+        <span>Similar papers: 0 in last 3 years</span>
+      </div>
+      <p class="journal-notable">Notable: "—（种子候选，非 venue 分布得出）" closely related to this manuscript</p>
+    </div>
+    
+    <div class="journal-card tier-1">
+      <div class="journal-card-header">
+        <h3 class="journal-name"><a href="http://www.mdpi.com/journal/chemosensors">Chemosensors</a></h3>
+        <div class="journal-badges">
+          <span class="tag">TIER 1</span><span class="tag tag-oa">OPEN ACCESS</span>
+        </div>
+      </div>
+      <div class="journal-meta-row">
+        <span>Scope: <strong>3/5</strong> — Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (2/8 keywords match).</span>
+      </div>
+      <div class="score-bar"><span style="width:60%;background:var(--tier1)"></span></div>
+      <div class="journal-meta-row">
+        <span>H-index: N/A</span><span class="meta-sep">·</span>
+        <span>Works: 2848</span><span class="meta-sep">·</span>
+        <span>Citations: 44250</span>
+      </div>
+      <div class="journal-rank">等级/分区 (EasyScholar): <strong>官方: hhu=C类 · sciif=4.4 · sci=Q2 · sciBase=工程技术3区 · sciUp=化学3区 · sciUpSmall=分析化学3区/电化学3区/仪器仪表3区。 · eii=EI · sciif5=4.4 · jci=0.70 · esi=化学 · cpu=理学学科重要 · xr=化学3区 · xrSmall=分析化学3区; 电化学3区; 仪器仪表3区</strong></div>
+      <div class="journal-meta-row">
+        <span>Similar papers: 3 in last 3 years</span>
+      </div>
+      <p class="journal-notable">Notable: "How Chemometrics Revives the UV-Vis Spectroscopy Applications as an Analytical Sensor for Spectralprint (Nontargeted) Analysis" closely related to this manuscript</p>
+    </div>
+    
+    <div class="journal-card tier-1">
+      <div class="journal-card-header">
+        <h3 class="journal-name"><a href="#">Atomic Spectroscopy</a></h3>
+        <div class="journal-badges">
+          <span class="tag">TIER 1</span>
+        </div>
+      </div>
+      <div class="journal-meta-row">
+        <span>Scope: <strong>3/5</strong> — Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (1/8 keywords match).</span>
+      </div>
+      <div class="score-bar"><span style="width:60%;background:var(--tier1)"></span></div>
+      <div class="journal-meta-row">
+        <span>H-index: N/A</span><span class="meta-sep">·</span>
+        <span>Works: 857</span><span class="meta-sep">·</span>
+        <span>Citations: 6558</span>
+      </div>
+      <div class="journal-rank">等级/分区 (EasyScholar): <strong>官方: swjtu=A+ · hhu=B类 · xju=三区 · cug=物理T3 · sciif=2.9 · sci=Q2 · sciBase=化学4区 · sciUp=化学2区 · sciUpSmall=光谱学2区。 · scu=化学E · sciif5=2.9 · jci=0.90 · esi=化学 · xr=化学2区 · xrSmall=光谱学2区</strong></div>
+      <div class="journal-meta-row">
+        <span>Similar papers: 4 in last 3 years</span>
+      </div>
+      <p class="journal-notable">Notable: "Physicochemical State Classification of Heat-treated TC4 Samples Based on Laser-induced Breakdown Spectroscopy (LIBS)" closely related to this manuscript</p>
+    </div>
+    
+    <div class="journal-card tier-1">
+      <div class="journal-card-header">
+        <h3 class="journal-name"><a href="http://www.journals.elsevier.com/spectrochimica-acta-part-b-atomic-spectroscopy">Spectrochimica Acta Part B Atomic Spectroscopy</a></h3>
+        <div class="journal-badges">
+          <span class="tag">TIER 1</span>
+        </div>
+      </div>
+      <div class="journal-meta-row">
+        <span>Scope: <strong>3/5</strong> — Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (1/8 keywords match).</span>
+      </div>
+      <div class="score-bar"><span style="width:60%;background:var(--tier1)"></span></div>
+      <div class="journal-meta-row">
+        <span>H-index: N/A</span><span class="meta-sep">·</span>
+        <span>Works: 9290</span><span class="meta-sep">·</span>
+        <span>Citations: 240769</span>
+      </div>
+      <div class="journal-rank">等级/分区 (EasyScholar): <strong>官方: swjtu=A++ · hhu=B类 · xju=二区 · cug=物理T2 · sciif=3.5 · sci=Q1 · sciBase=化学3区 · sciUp=化学2区 · sciUpSmall=光谱学1区。 · eii=EI · scu=化学C · sciif5=3.4 · jci=1.30 · esi=化学 · cpu=理学学科重要 · xr=化学2区 · xrSmall=光谱学1区</strong></div>
+      <div class="journal-meta-row">
+        <span>Similar papers: 2 in last 3 years</span>
+      </div>
+      <p class="journal-notable">Notable: "Good practices in LIBS analysis: Review and advices" closely related to this manuscript</p>
+    </div>
+    
+    <div class="journal-card tier-1">
+      <div class="journal-card-header">
+        <h3 class="journal-name"><a href="https://iopscience.iop.org/journal/1009-0630">Plasma Science and Technology</a></h3>
+        <div class="journal-badges">
+          <span class="tag">TIER 1</span>
+        </div>
+      </div>
+      <div class="journal-meta-row">
+        <span>Scope: <strong>3/5</strong> — Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (2/8 keywords match).</span>
+      </div>
+      <div class="score-bar"><span style="width:60%;background:var(--tier1)"></span></div>
+      <div class="journal-meta-row">
+        <span>H-index: N/A</span><span class="meta-sep">·</span>
+        <span>Works: 4603</span><span class="meta-sep">·</span>
+        <span>Citations: 33542</span>
+      </div>
+      <div class="journal-rank">等级/分区 (EasyScholar): <strong>官方: swjtu=A+ · hhu=B类 · xju=三区 · cug=物理T4 · sciif=1.7 · sci=Q3 · sciBase=物理2区 · sciUp=物理与天体物理3区 · sciUpSmall=物理：流体与等离子体4区。 · eii=EI · cscd=核心库 · scu=物理与天体物理E · sciif5=1.7 · jci=0.59 · zju=国内核心期刊 · cju=T1力学 · esi=物理学 · xr=物理与天体物理2区 · xrSmall=物理：流体与等离子体2区</strong></div>
+      <div class="journal-meta-row">
+        <span>Similar papers: 1 in last 3 years</span>
+      </div>
+      <p class="journal-notable">Notable: "Elemental and proximate analysis of coal by x-ray fluorescence assisted laser-induced breakdown spectroscopy" closely related to this manuscript</p>
+    </div>
+    
+    <div class="journal-card tier-1">
+      <div class="journal-card-header">
+        <h3 class="journal-name"><a href="#">Chinese Journal of Analytical Chemistry</a></h3>
+        <div class="journal-badges">
+          <span class="tag">TIER 1</span><span class="tag">种子候选</span>
+        </div>
+      </div>
+      <div class="journal-meta-row">
+        <span>Scope: <strong>3/5</strong> — Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (2/8 keywords match).</span>
+      </div>
+      <div class="score-bar"><span style="width:60%;background:var(--tier1)"></span></div>
+      <div class="journal-meta-row">
+        <span>H-index: N/A</span><span class="meta-sep">·</span>
+        <span>Works: 1829</span><span class="meta-sep">·</span>
+        <span>Citations: 18992</span>
+      </div>
+      <div class="journal-rank">等级/分区 (EasyScholar): <strong>官方: xju=三区 · cug=化学T4 · sciif=1.4 · sci=Q4 · sciBase=化学3区 · sciUp=化学3区 · sciUpSmall=分析化学3区。 · eii=EI · scu=化学E · sciif5=1.2 · jci=0.31 · esi=化学 · xr=化学3区 · xrSmall=分析化学3区</strong></div>
+      <div class="journal-meta-row">
+        <span>Similar papers: 0 in last 3 years</span>
+      </div>
+      <p class="journal-notable">Notable: "—（种子候选，非 venue 分布得出）" closely related to this manuscript</p>
+    </div>
+    
+  <h2>Tier 2 — Good Alternative</h2>
+  
+    <div class="journal-card tier-2">
+      <div class="journal-card-header">
+        <h3 class="journal-name"><a href="https://pubs.acs.org/journal/acsodf">ACS Omega</a></h3>
+        <div class="journal-badges">
+          <span class="tag">TIER 2</span><span class="tag tag-oa">OPEN ACCESS</span>
+        </div>
+      </div>
+      <div class="journal-meta-row">
+        <span>Scope: <strong>4/5</strong> — Journal specializes in spectroscopy (exact sub-field match). Strong keyword overlap (4/8 keywords match subject area).</span>
+      </div>
+      <div class="score-bar"><span style="width:80%;background:var(--tier2)"></span></div>
+      <div class="journal-meta-row">
+        <span>H-index: N/A</span><span class="meta-sep">·</span>
+        <span>Works: 38032</span><span class="meta-sep">·</span>
+        <span>Citations: 632963</span>
+      </div>
+      <div class="journal-rank">等级/分区 (EasyScholar): <strong>官方: swjtu=A · hhu=C类 · xju=三区 · sciif=5.2 · sci=Q2 · sciBase=化学3区 · sciUp=化学3区 · sciUpSmall=化学：综合3区。 · scu=化学D · sciif5=5.1 · jci=0.68 · esi=化学 · xr=化学2区 · xrSmall=化学：综合2区 · xrTop=化学TOP</strong></div>
+      <div class="journal-meta-row">
+        <span>Similar papers: 7 in last 3 years</span>
+      </div>
+      <p class="journal-notable">Notable: "Partial Least Squares-Discriminant Analysis Classification for Patchouli Oil Adulteration Detection by Fourier Transform Infrared Spectroscopy in Combination with Chemometrics" closely related to this manuscript</p>
+    </div>
+    
+    <div class="journal-card tier-2">
+      <div class="journal-card-header">
+        <h3 class="journal-name"><a href="http://www.mdpi.com/journal/foods">Foods</a></h3>
+        <div class="journal-badges">
+          <span class="tag">TIER 2</span><span class="tag tag-oa">OPEN ACCESS</span>
+        </div>
+      </div>
+      <div class="journal-meta-row">
+        <span>Scope: <strong>4/5</strong> — Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (3/8 keywords match).</span>
+      </div>
+      <div class="score-bar"><span style="width:80%;background:var(--tier2)"></span></div>
+      <div class="journal-meta-row">
+        <span>H-index: N/A</span><span class="meta-sep">·</span>
+        <span>Works: 27317</span><span class="meta-sep">·</span>
+        <span>Citations: 575863</span>
+      </div>
+      <div class="journal-rank">等级/分区 (EasyScholar): <strong>官方: xju=二区 · sciif=6.0 · sci=Q1 · sciBase=农林科学2区 · sciUp=农林科学2区 · sciUpSmall=食品科技2区。 · scu=农林科学C · sciif5=6.5 · jci=0.96 · esi=农业科学 · xr=农林科学2区 · xrSmall=食品科技2区 · xrTop=农林科学TOP</strong></div>
+      <div class="journal-meta-row">
+        <span>Similar papers: 8 in last 3 years</span>
+      </div>
+      <p class="journal-notable">Notable: "Current Application of Advancing Spectroscopy Techniques in Food Analysis: Data Handling with Chemometric Approaches" closely related to this manuscript</p>
+    </div>
+    
+    <div class="journal-card tier-2">
+      <div class="journal-card-header">
+        <h3 class="journal-name"><a href="http://www.nature.com/srep/index.html">Scientific Reports</a></h3>
+        <div class="journal-badges">
+          <span class="tag">TIER 2</span><span class="tag tag-oa">OPEN ACCESS</span>
+        </div>
+      </div>
+      <div class="journal-meta-row">
+        <span>Scope: <strong>3/5</strong> — Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (1/8 keywords match).</span>
+      </div>
+      <div class="score-bar"><span style="width:60%;background:var(--tier2)"></span></div>
+      <div class="journal-meta-row">
+        <span>H-index: N/A</span><span class="meta-sep">·</span>
+        <span>Works: 318645</span><span class="meta-sep">·</span>
+        <span>Citations: 8123254</span>
+      </div>
+      <div class="journal-rank">等级/分区 (EasyScholar): <strong>官方: swjtu=A++ · hhu=B类 · nju=A · xju=二区 · cug=综合性期刊T2 · sciif=4.9 · sci=Q1 · sciBase=综合性期刊3区 · sciUp=综合性期刊3区 · sciUpSmall=综合性期刊3区。 · scu=综合性期刊D · sciif5=4.8 · jci=1.13 · esi=多学科 · xr=综合性期刊3区 · xrSmall=综合性期刊3区</strong></div>
+      <div class="journal-meta-row">
+        <span>Similar papers: 10 in last 3 years</span>
+      </div>
+      <p class="journal-notable">Notable: "Laser-Induced Breakdown Spectroscopy Coupled with Multivariate Chemometrics for Variety Discrimination of Soil" closely related to this manuscript</p>
+    </div>
+    
+    <div class="journal-card tier-2">
+      <div class="journal-card-header">
+        <h3 class="journal-name"><a href="http://www.mdpi.com/journal/sensors">Sensors</a></h3>
+        <div class="journal-badges">
+          <span class="tag">TIER 2</span><span class="tag tag-oa">OPEN ACCESS</span>
+        </div>
+      </div>
+      <div class="journal-meta-row">
+        <span>Scope: <strong>3/5</strong> — Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (1/8 keywords match).</span>
+      </div>
+      <div class="score-bar"><span style="width:60%;background:var(--tier2)"></span></div>
+      <div class="journal-meta-row">
+        <span>H-index: N/A</span><span class="meta-sep">·</span>
+        <span>Works: 82301</span><span class="meta-sep">·</span>
+        <span>Citations: 1987828</span>
+      </div>
+      <div class="journal-rank">等级/分区 (EasyScholar): <strong>官方: swjtu=A+ · hhu=C类 · xju=二区 · cug=工程技术T2 · sciif=4.0 · sci=Q2 · sciBase=工程技术3区 · sciUp=综合性期刊3区 · sciUpSmall=分析化学3区/工程：电子与电气3区/仪器仪表3区。 · eii=EI · scu=工程技术C · sciif5=4.1 · jci=0.81 · esi=化学 · xr=综合性期刊3区 · xrSmall=分析化学2区; 工程：电子与电气3区; 仪器仪表3区</strong></div>
+      <div class="journal-meta-row">
+        <span>Similar papers: 2 in last 3 years</span>
+      </div>
+      <p class="journal-notable">Notable: "A Review of Machine Learning for Near-Infrared Spectroscopy" closely related to this manuscript</p>
+    </div>
+    
+  <h2>Tier 3 — Specialized / Niche</h2>
+  
+    <div class="journal-card tier-3">
+      <div class="journal-card-header">
+        <h3 class="journal-name"><a href="http://www.mdpi.com/journal/applsci">Applied Sciences</a></h3>
+        <div class="journal-badges">
+          <span class="tag">TIER 3</span><span class="tag tag-oa">OPEN ACCESS</span>
+        </div>
+      </div>
+      <div class="journal-meta-row">
+        <span>Scope: <strong>4/5</strong> — Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (3/8 keywords match).</span>
+      </div>
+      <div class="score-bar"><span style="width:80%;background:var(--tier3)"></span></div>
+      <div class="journal-meta-row">
+        <span>H-index: N/A</span><span class="meta-sep">·</span>
+        <span>Works: 94007</span><span class="meta-sep">·</span>
+        <span>Citations: 1197309</span>
+      </div>
+      <div class="journal-rank">等级/分区 (EasyScholar): <strong>官方: swjtu=A · hhu=C类 · xju=三区 · cug=工程技术T3 · sciif=2.9 · sci=Q2 · sciBase=工程技术3区 · sciUp=综合性期刊4区 · sciUpSmall=化学：综合4区/工程：综合4区/材料科学：综合4区/物理：应用4区。 · eii=EI · scu=工程技术D · sciif5=3.0 · jci=0.51 · esi=工程科学 · xr=综合性期刊3区 · xrSmall=化学：综合3区; 工程：综合3区; 材料科学：综合3区; 物理：应用3区</strong></div>
+      <div class="journal-meta-row">
+        <span>Similar papers: 8 in last 3 years</span>
+      </div>
+      <p class="journal-notable">Notable: "Review of Element Analysis of Industrial Materials by In-Line Laser—Induced Breakdown Spectroscopy (LIBS)" closely related to this manuscript</p>
+    </div>
+    
+    <div class="journal-card tier-3">
+      <div class="journal-card-header">
+        <h3 class="journal-name"><a href="https://instipub.com/index.php/xdi">X-Disciplinarity</a></h3>
+        <div class="journal-badges">
+          <span class="tag">TIER 3</span>
+        </div>
+      </div>
+      <div class="journal-meta-row">
+        <span>Scope: <strong>3/5</strong> — Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (2/8 keywords match).</span>
+      </div>
+      <div class="score-bar"><span style="width:60%;background:var(--tier3)"></span></div>
+      <div class="journal-meta-row">
+        <span>H-index: N/A</span><span class="meta-sep">·</span>
+        <span>Works: 54</span><span class="meta-sep">·</span>
+        <span>Citations: 15</span>
+      </div>
+      <div class="journal-rank">等级/分区 (EasyScholar): <strong>（无等级数据）</strong></div>
+      <div class="journal-meta-row">
+        <span>Similar papers: 7 in last 3 years</span>
+      </div>
+      <p class="journal-notable">Notable: "Research and Analysis of Coal Volatile Matter and Calorific Value Based on Laser-Induced Breakdown Spectroscopy" closely related to this manuscript</p>
+    </div>
+    
+    <div class="journal-card tier-3">
+      <div class="journal-card-header">
+        <h3 class="journal-name"><a href="#">Optics and Precision Engineering</a></h3>
+        <div class="journal-badges">
+          <span class="tag">TIER 3</span>
+        </div>
+      </div>
+      <div class="journal-meta-row">
+        <span>Scope: <strong>2/5</strong> — Journal covers analytical chemistry (discipline match, not sub-field specific). Partial keyword overlap (1/8 keywords match).</span>
+      </div>
+      <div class="score-bar"><span style="width:40%;background:var(--tier3)"></span></div>
+      <div class="journal-meta-row">
+        <span>H-index: N/A</span><span class="meta-sep">·</span>
+        <span>Works: 8440</span><span class="meta-sep">·</span>
+        <span>Citations: 14922</span>
+      </div>
+      <div class="journal-rank">等级/分区 (EasyScholar): <strong>官方: eii=EI</strong></div>
+      <div class="journal-meta-row">
+        <span>Similar papers: 5 in last 3 years</span>
+      </div>
+      <p class="journal-notable">Notable: "Highly stable analysis of coal calorific value using combined NIRS-XRF" closely related to this manuscript</p>
+    </div>
+    
+  <footer class="report-footer">
+    <p>推荐基于 OpenAlex 检索相似论文的 venue 分布分析；scope 分反映编辑方向契合度，不代表录用概率。
+    期刊等级/分区（SCI/SSCI/中科院分区/CSCD/北大核心等）由 EasyScholar 开放接口经 sci-verify 核验取得；
+    期刊存在性经 OpenAlex 核验；二者未通过者不进入推荐。等级字段若显示「待核查」表示该刊在 EasyScholar 无登记数据，需人工确认。</p>
+    <p>Generated by Gewu · journal-match · 2026-10-26</p>
+  </footer>
+</div>
+</body>
+</html>

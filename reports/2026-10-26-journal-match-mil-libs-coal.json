@@ -1,0 +1,514 @@
+{
+  "profile": {
+    "discipline": "analytical chemistry",
+    "sub_field": "spectroscopy",
+    "sub_field_display": "laser-induced breakdown spectroscopy and chemometrics",
+    "methodology": "empirical",
+    "scope": "universal",
+    "keywords": [
+      "laser-induced breakdown spectroscopy",
+      "multiple instance learning",
+      "coal",
+      "calorific value",
+      "chemometrics",
+      "regression",
+      "deep learning",
+      "spectral analysis"
+    ]
+  },
+  "manuscript_title": "基于 LSE-Pool 聚合的多示例学习用于大颗粒原煤 LIBS 光谱热值回归",
+  "journals": [
+    {
+      "name": "Analytical Methods",
+      "homepage_url": "http://www.rsc.org/Publishing/Journals/ay/index.asp",
+      "is_oa": false,
+      "h_index": null,
+      "works_count": 15609,
+      "cited_by_count": 236451,
+      "issn": [
+        "1759-9660",
+        "1759-9679"
+      ],
+      "scope_score": 4,
+      "scope_reasoning": "Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (3/8 keywords match).",
+      "core_focus": 5,
+      "easyscholar_rank": "官方: swjtu=A+ · hhu=C类 · xju=二区 · cug=工程技术T3 · sciif=3.0 · sci=Q2 · sciBase=化学3区 · sciUp=化学3区 · sciUpSmall=分析化学4区/食品科技4区/光谱学4区。 · eii=EI · scu=化学D · sciif5=3.0 · jci=0.71 · esi=化学 · xr=化学3区 · xrSmall=分析化学3区; 食品科技3区; 光谱学3区",
+      "similar_count": 1,
+      "notable_title": "Industrial applications of laser-induced breakdown spectroscopy: a review",
+      "subjects": [
+        "Laser-induced breakdown spectroscopy",
+        "Analytical Chemistry (journal)",
+        "Spectroscopy",
+        "Materials science",
+        "Chemistry",
+        "Laser",
+        "Chemometrics",
+        "Coal"
+      ],
+      "is_seed": false,
+      "tier": 1
+    },
+    {
+      "name": "Applied Spectroscopy",
+      "homepage_url": "http://www.opticsinfobase.org/as/home.cfm",
+      "is_oa": false,
+      "h_index": null,
+      "works_count": 13242,
+      "cited_by_count": 299735,
+      "issn": [
+        "0003-7028",
+        "1943-3530"
+      ],
+      "scope_score": 4,
+      "scope_reasoning": "Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (3/8 keywords match).",
+      "core_focus": 5,
+      "easyscholar_rank": "官方: hhu=C类 · xju=三区 · cug=工程技术T3 · sciif=2.2 · sci=Q2 · sciBase=化学4区 · sciUp=化学3区 · sciUpSmall=光谱学3区/仪器仪表4区。 · eii=EI · scu=化学D · sciif5=3.0 · jci=0.63 · esi=化学 · xr=化学3区 · xrSmall=仪器仪表4区; 光谱学3区",
+      "similar_count": 2,
+      "notable_title": "Development of a Rapid Coal Analyzer Using Laser-Induced Breakdown Spectroscopy (LIBS)",
+      "subjects": [
+        "Laser-induced breakdown spectroscopy",
+        "Spectroscopy",
+        "Analytical Chemistry (journal)",
+        "Chemometrics",
+        "Chemistry",
+        "Laser",
+        "Materials science",
+        "Coal"
+      ],
+      "is_seed": false,
+      "tier": 1
+    },
+    {
+      "name": "Molecules",
+      "homepage_url": "http://www.mdpi.com/journal/molecules/",
+      "is_oa": true,
+      "h_index": null,
+      "works_count": 66263,
+      "cited_by_count": 1859648,
+      "issn": [
+        "1420-3049",
+        "1433-1373"
+      ],
+      "scope_score": 4,
+      "scope_reasoning": "Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (3/8 keywords match).",
+      "core_focus": 4,
+      "easyscholar_rank": "官方: swjtu=A+ · hhu=B类 · xju=三区 · cug=化学T3 · sciif=5.1 · sci=Q2 · sciBase=化学3区 · sciUp=化学3区 · sciUpSmall=生化与分子生物学3区/化学：综合3区。 · scu=化学D · sciif5=5.5 · jci=0.71 · esi=化学 · xr=化学2区 · xrSmall=生化与分子生物学3区; 化学：综合2区 · xrTop=化学TOP",
+      "similar_count": 5,
+      "notable_title": "A Review of Wine Authentication Using Spectroscopic Approaches in Combination with Chemometrics",
+      "subjects": [
+        "Laser-induced breakdown spectroscopy",
+        "Chemometrics",
+        "Spectroscopy",
+        "Chemistry",
+        "Partial least squares regression",
+        "Analytical Chemistry (journal)",
+        "Computer science",
+        "Multivariate statistics"
+      ],
+      "is_seed": false,
+      "tier": 1
+    },
+    {
+      "name": "Journal of Analytical Atomic Spectrometry",
+      "homepage_url": "http://www.rsc.org/Publishing/Journals/ja/index.asp",
+      "is_oa": false,
+      "h_index": null,
+      "works_count": 11042,
+      "cited_by_count": 270393,
+      "issn": [
+        "0267-9477",
+        "1364-5544"
+      ],
+      "scope_score": 4,
+      "scope_reasoning": "Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (3/8 keywords match).",
+      "core_focus": 4,
+      "easyscholar_rank": "官方: swjtu=A++ · hhu=B类 · xju=一区 · cug=化学T2 · sciif=3.3 · sci=Q1 · sciBase=化学3区 · sciUp=化学2区 · sciUpSmall=分析化学2区/光谱学2区。 · eii=EI · scu=化学C · sciif5=3.3 · jci=0.95 · esi=化学 · cpu=理学学科重要 · xr=化学2区 · xrSmall=分析化学3区; 光谱学2区",
+      "similar_count": 2,
+      "notable_title": "Applications of laser-induced breakdown spectroscopy in cultural heritage and archaeology: a critical review",
+      "subjects": [
+        "Laser-induced breakdown spectroscopy",
+        "Spectroscopy",
+        "Analytical Chemistry (journal)",
+        "Materials science",
+        "Chemistry",
+        "Chemometrics",
+        "Heat of combustion",
+        "Coal"
+      ],
+      "is_seed": false,
+      "tier": 1
+    },
+    {
+      "name": "ACS Omega",
+      "homepage_url": "https://pubs.acs.org/journal/acsodf",
+      "is_oa": true,
+      "h_index": null,
+      "works_count": 38032,
+      "cited_by_count": 632963,
+      "issn": [
+        "2470-1343"
+      ],
+      "scope_score": 4,
+      "scope_reasoning": "Journal specializes in spectroscopy (exact sub-field match). Strong keyword overlap (4/8 keywords match subject area).",
+      "core_focus": 2,
+      "easyscholar_rank": "官方: swjtu=A · hhu=C类 · xju=三区 · sciif=5.2 · sci=Q2 · sciBase=化学3区 · sciUp=化学3区 · sciUpSmall=化学：综合3区。 · scu=化学D · sciif5=5.1 · jci=0.68 · esi=化学 · xr=化学2区 · xrSmall=化学：综合2区 · xrTop=化学TOP",
+      "similar_count": 7,
+      "notable_title": "Partial Least Squares-Discriminant Analysis Classification for Patchouli Oil Adulteration Detection by Fourier Transform Infrared Spectroscopy in Combination with Chemometrics",
+      "subjects": [
+        "Artificial intelligence",
+        "Coal",
+        "Computer science",
+        "Chemometrics",
+        "Laser-induced breakdown spectroscopy",
+        "Machine learning",
+        "Mathematics",
+        "Partial least squares regression"
+      ],
+      "is_seed": false,
+      "tier": 2
+    },
+    {
+      "name": "Foods",
+      "homepage_url": "http://www.mdpi.com/journal/foods",
+      "is_oa": true,
+      "h_index": null,
+      "works_count": 27317,
+      "cited_by_count": 575863,
+      "issn": [
+        "2304-8158"
+      ],
+      "scope_score": 4,
+      "scope_reasoning": "Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (3/8 keywords match).",
+      "core_focus": 2,
+      "easyscholar_rank": "官方: xju=二区 · sciif=6.0 · sci=Q1 · sciBase=农林科学2区 · sciUp=农林科学2区 · sciUpSmall=食品科技2区。 · scu=农林科学C · sciif5=6.5 · jci=0.96 · esi=农业科学 · xr=农林科学2区 · xrSmall=食品科技2区 · xrTop=农林科学TOP",
+      "similar_count": 8,
+      "notable_title": "Current Application of Advancing Spectroscopy Techniques in Food Analysis: Data Handling with Chemometric Approaches",
+      "subjects": [
+        "Chemometrics",
+        "Computer science",
+        "Partial least squares regression",
+        "Chemistry",
+        "Laser-induced breakdown spectroscopy",
+        "Artificial intelligence",
+        "Adulterant",
+        "Mathematics"
+      ],
+      "is_seed": false,
+      "tier": 2
+    },
+    {
+      "name": "Applied Sciences",
+      "homepage_url": "http://www.mdpi.com/journal/applsci",
+      "is_oa": true,
+      "h_index": null,
+      "works_count": 94007,
+      "cited_by_count": 1197309,
+      "issn": [
+        "2076-3417"
+      ],
+      "scope_score": 4,
+      "scope_reasoning": "Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (3/8 keywords match).",
+      "core_focus": 1,
+      "easyscholar_rank": "官方: swjtu=A · hhu=C类 · xju=三区 · cug=工程技术T3 · sciif=2.9 · sci=Q2 · sciBase=工程技术3区 · sciUp=综合性期刊4区 · sciUpSmall=化学：综合4区/工程：综合4区/材料科学：综合4区/物理：应用4区。 · eii=EI · scu=工程技术D · sciif5=3.0 · jci=0.51 · esi=工程科学 · xr=综合性期刊3区 · xrSmall=化学：综合3区; 工程：综合3区; 材料科学：综合3区; 物理：应用3区",
+      "similar_count": 8,
+      "notable_title": "Review of Element Analysis of Industrial Materials by In-Line Laser—Induced Breakdown Spectroscopy (LIBS)",
+      "subjects": [
+        "Laser-induced breakdown spectroscopy",
+        "Coal",
+        "Computer science",
+        "Partial least squares regression",
+        "Artificial intelligence",
+        "Materials science",
+        "Heat of combustion",
+        "Mathematics"
+      ],
+      "is_seed": false,
+      "tier": 3
+    },
+    {
+      "name": "光谱学与光谱分析",
+      "homepage_url": "#",
+      "is_oa": false,
+      "h_index": null,
+      "works_count": 2000,
+      "cited_by_count": 143,
+      "issn": [
+        "1000-0593"
+      ],
+      "scope_score": 3,
+      "scope_reasoning": "Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (2/8 keywords match).",
+      "core_focus": 5,
+      "easyscholar_rank": "官方: sjtu=B · fdu=B · cqu=重要期刊 · xju=四区 · eii=EI · cscd=核心库 · pku=1 · zhongguokejihexin=中国科技核心期刊 · zju=国内核心期刊 · cju=T2物理学",
+      "similar_count": 0,
+      "notable_title": "—（种子候选，非 venue 分布得出）",
+      "subjects": [
+        "Spectroscopy",
+        "Chemometrics",
+        "Analytical Chemistry",
+        "Laser-induced breakdown spectroscopy",
+        "Atomic spectroscopy"
+      ],
+      "is_seed": true,
+      "tier": 1
+    },
+    {
+      "name": "Chemosensors",
+      "homepage_url": "http://www.mdpi.com/journal/chemosensors",
+      "is_oa": true,
+      "h_index": null,
+      "works_count": 2848,
+      "cited_by_count": 44250,
+      "issn": [
+        "2227-9040"
+      ],
+      "scope_score": 3,
+      "scope_reasoning": "Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (2/8 keywords match).",
+      "core_focus": 4,
+      "easyscholar_rank": "官方: hhu=C类 · sciif=4.4 · sci=Q2 · sciBase=工程技术3区 · sciUp=化学3区 · sciUpSmall=分析化学3区/电化学3区/仪器仪表3区。 · eii=EI · sciif5=4.4 · jci=0.70 · esi=化学 · cpu=理学学科重要 · xr=化学3区 · xrSmall=分析化学3区; 电化学3区; 仪器仪表3区",
+      "similar_count": 3,
+      "notable_title": "How Chemometrics Revives the UV-Vis Spectroscopy Applications as an Analytical Sensor for Spectralprint (Nontargeted) Analysis",
+      "subjects": [
+        "Laser-induced breakdown spectroscopy",
+        "Spectroscopy",
+        "Computer science",
+        "Materials science",
+        "Partial least squares regression",
+        "Laser",
+        "Chemistry",
+        "Analytical Chemistry (journal)"
+      ],
+      "is_seed": false,
+      "tier": 1
+    },
+    {
+      "name": "Atomic Spectroscopy",
+      "homepage_url": "#",
+      "is_oa": false,
+      "h_index": null,
+      "works_count": 857,
+      "cited_by_count": 6558,
+      "issn": [
+        "0195-5373",
+        "2708-521X"
+      ],
+      "scope_score": 3,
+      "scope_reasoning": "Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (1/8 keywords match).",
+      "core_focus": 4,
+      "easyscholar_rank": "官方: swjtu=A+ · hhu=B类 · xju=三区 · cug=物理T3 · sciif=2.9 · sci=Q2 · sciBase=化学4区 · sciUp=化学2区 · sciUpSmall=光谱学2区。 · scu=化学E · sciif5=2.9 · jci=0.90 · esi=化学 · xr=化学2区 · xrSmall=光谱学2区",
+      "similar_count": 4,
+      "notable_title": "Physicochemical State Classification of Heat-treated TC4 Samples Based on Laser-induced Breakdown Spectroscopy (LIBS)",
+      "subjects": [
+        "Chemistry",
+        "Laser-induced breakdown spectroscopy",
+        "Spectroscopy",
+        "Analytical Chemistry (journal)",
+        "Environmental chemistry",
+        "Laser",
+        "Quantitative analysis (chemistry)",
+        "Nanotechnology"
+      ],
+      "is_seed": false,
+      "tier": 1
+    },
+    {
+      "name": "Spectrochimica Acta Part B Atomic Spectroscopy",
+      "homepage_url": "http://www.journals.elsevier.com/spectrochimica-acta-part-b-atomic-spectroscopy",
+      "is_oa": false,
+      "h_index": null,
+      "works_count": 9290,
+      "cited_by_count": 240769,
+      "issn": [
+        "0584-8547",
+        "1873-3565"
+      ],
+      "scope_score": 3,
+      "scope_reasoning": "Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (1/8 keywords match).",
+      "core_focus": 3,
+      "easyscholar_rank": "官方: swjtu=A++ · hhu=B类 · xju=二区 · cug=物理T2 · sciif=3.5 · sci=Q1 · sciBase=化学3区 · sciUp=化学2区 · sciUpSmall=光谱学1区。 · eii=EI · scu=化学C · sciif5=3.4 · jci=1.30 · esi=化学 · cpu=理学学科重要 · xr=化学2区 · xrSmall=光谱学1区",
+      "similar_count": 2,
+      "notable_title": "Good practices in LIBS analysis: Review and advices",
+      "subjects": [
+        "Laser-induced breakdown spectroscopy",
+        "Spectroscopy",
+        "Computer science",
+        "Materials science",
+        "Laser",
+        "Chemistry",
+        "Artificial intelligence",
+        "Mathematics"
+      ],
+      "is_seed": false,
+      "tier": 1
+    },
+    {
+      "name": "Plasma Science and Technology",
+      "homepage_url": "https://iopscience.iop.org/journal/1009-0630",
+      "is_oa": false,
+      "h_index": null,
+      "works_count": 4603,
+      "cited_by_count": 33542,
+      "issn": [
+        "1009-0630",
+        "2058-6272"
+      ],
+      "scope_score": 3,
+      "scope_reasoning": "Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (2/8 keywords match).",
+      "core_focus": 3,
+      "easyscholar_rank": "官方: swjtu=A+ · hhu=B类 · xju=三区 · cug=物理T4 · sciif=1.7 · sci=Q3 · sciBase=物理2区 · sciUp=物理与天体物理3区 · sciUpSmall=物理：流体与等离子体4区。 · eii=EI · cscd=核心库 · scu=物理与天体物理E · sciif5=1.7 · jci=0.59 · zju=国内核心期刊 · cju=T1力学 · esi=物理学 · xr=物理与天体物理2区 · xrSmall=物理：流体与等离子体2区",
+      "similar_count": 1,
+      "notable_title": "Elemental and proximate analysis of coal by x-ray fluorescence assisted laser-induced breakdown spectroscopy",
+      "subjects": [
+        "Laser-induced breakdown spectroscopy",
+        "Coal",
+        "Analytical Chemistry (journal)",
+        "Spectroscopy",
+        "Chemistry",
+        "Artificial intelligence",
+        "Heat of combustion",
+        "Computer science"
+      ],
+      "is_seed": false,
+      "tier": 1
+    },
+    {
+      "name": "Chinese Journal of Analytical Chemistry",
+      "homepage_url": "#",
+      "is_oa": false,
+      "h_index": null,
+      "works_count": 1829,
+      "cited_by_count": 18992,
+      "issn": [
+        "1872-2040"
+      ],
+      "scope_score": 3,
+      "scope_reasoning": "Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (2/8 keywords match).",
+      "core_focus": 3,
+      "easyscholar_rank": "官方: xju=三区 · cug=化学T4 · sciif=1.4 · sci=Q4 · sciBase=化学3区 · sciUp=化学3区 · sciUpSmall=分析化学3区。 · eii=EI · scu=化学E · sciif5=1.2 · jci=0.31 · esi=化学 · xr=化学3区 · xrSmall=分析化学3区",
+      "similar_count": 0,
+      "notable_title": "—（种子候选，非 venue 分布得出）",
+      "subjects": [
+        "Analytical Chemistry",
+        "Chemometrics",
+        "Spectroscopy"
+      ],
+      "is_seed": true,
+      "tier": 1
+    },
+    {
+      "name": "Scientific Reports",
+      "homepage_url": "http://www.nature.com/srep/index.html",
+      "is_oa": true,
+      "h_index": null,
+      "works_count": 318645,
+      "cited_by_count": 8123254,
+      "issn": [
+        "2045-2322"
+      ],
+      "scope_score": 3,
+      "scope_reasoning": "Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (1/8 keywords match).",
+      "core_focus": 2,
+      "easyscholar_rank": "官方: swjtu=A++ · hhu=B类 · nju=A · xju=二区 · cug=综合性期刊T2 · sciif=4.9 · sci=Q1 · sciBase=综合性期刊3区 · sciUp=综合性期刊3区 · sciUpSmall=综合性期刊3区。 · scu=综合性期刊D · sciif5=4.8 · jci=1.13 · esi=多学科 · xr=综合性期刊3区 · xrSmall=综合性期刊3区",
+      "similar_count": 10,
+      "notable_title": "Laser-Induced Breakdown Spectroscopy Coupled with Multivariate Chemometrics for Variety Discrimination of Soil",
+      "subjects": [
+        "Laser-induced breakdown spectroscopy",
+        "Computer science",
+        "Spectroscopy",
+        "Artificial intelligence",
+        "Materials science",
+        "Environmental science",
+        "Machine learning",
+        "Pattern recognition (psychology)"
+      ],
+      "is_seed": false,
+      "tier": 2
+    },
+    {
+      "name": "Sensors",
+      "homepage_url": "http://www.mdpi.com/journal/sensors",
+      "is_oa": true,
+      "h_index": null,
+      "works_count": 82301,
+      "cited_by_count": 1987828,
+      "issn": [
+        "1424-8220"
+      ],
+      "scope_score": 3,
+      "scope_reasoning": "Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (1/8 keywords match).",
+      "core_focus": 2,
+      "easyscholar_rank": "官方: swjtu=A+ · hhu=C类 · xju=二区 · cug=工程技术T2 · sciif=4.0 · sci=Q2 · sciBase=工程技术3区 · sciUp=综合性期刊3区 · sciUpSmall=分析化学3区/工程：电子与电气3区/仪器仪表3区。 · eii=EI · scu=工程技术C · sciif5=4.1 · jci=0.81 · esi=化学 · xr=综合性期刊3区 · xrSmall=分析化学2区; 工程：电子与电气3区; 仪器仪表3区",
+      "similar_count": 2,
+      "notable_title": "A Review of Machine Learning for Near-Infrared Spectroscopy",
+      "subjects": [
+        "Laser-induced breakdown spectroscopy",
+        "Artificial intelligence",
+        "Spectroscopy",
+        "Principal component analysis",
+        "Computer science",
+        "Materials science",
+        "Support vector machine",
+        "Pattern recognition (psychology)"
+      ],
+      "is_seed": false,
+      "tier": 2
+    },
+    {
+      "name": "X-Disciplinarity",
+      "homepage_url": "https://instipub.com/index.php/xdi",
+      "is_oa": false,
+      "h_index": null,
+      "works_count": 54,
+      "cited_by_count": 15,
+      "issn": [
+        "3067-3127"
+      ],
+      "scope_score": 3,
+      "scope_reasoning": "Journal specializes in spectroscopy (exact sub-field match). Partial keyword overlap (2/8 keywords match).",
+      "core_focus": 1,
+      "easyscholar_rank": "（无等级数据）",
+      "similar_count": 7,
+      "notable_title": "Research and Analysis of Coal Volatile Matter and Calorific Value Based on Laser-Induced Breakdown Spectroscopy",
+      "subjects": [
+        "Coal",
+        "Laser-induced breakdown spectroscopy",
+        "Preprocessor",
+        "Computer science",
+        "Process engineering",
+        "Engineering",
+        "Reliability (semiconductor)",
+        "Feature selection"
+      ],
+      "is_seed": false,
+      "tier": 3
+    },
+    {
+      "name": "Optics and Precision Engineering",
+      "homepage_url": "#",
+      "is_oa": false,
+      "h_index": null,
+      "works_count": 8440,
+      "cited_by_count": 14922,
+      "issn": [
+        "1004-924X"
+      ],
+      "scope_score": 2,
+      "scope_reasoning": "Journal covers analytical chemistry (discipline match, not sub-field specific). Partial keyword overlap (1/8 keywords match).",
+      "core_focus": 1,
+      "easyscholar_rank": "官方: eii=EI",
+      "similar_count": 5,
+      "notable_title": "Highly stable analysis of coal calorific value using combined NIRS-XRF",
+      "subjects": [
+        "Materials science",
+        "Analytical Chemistry (journal)",
+        "Environmental science",
+        "Coal",
+        "Chemistry",
+        "Heat of combustion",
+        "Computer science",
+        "Physics"
+      ],
+      "is_seed": false,
+      "tier": 3
+    }
+  ]
+}

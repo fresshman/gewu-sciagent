@@ -170,6 +170,29 @@ METHODOLOGY NOTE (footer)
    - Ask whether they want it opened.
    - Only run `open {file_path}` after the user explicitly confirms.
 
+## AUTOMATED RUNNER（可选·一键重跑）
+
+本技能附带一个**数据驱动 + 反幻觉溯源**的自动化执行脚本，可直接复现上述流程，
+无需逐步手调 API：
+
+```
+python scripts/run_recommendation.py
+```
+
+脚本行为（与上文六步一一对应）：
+- 用 OpenAlex 检索相似论文并聚合 **venue 分布**（STEP 0/2，数据驱动候选集）；
+- 对每个候选调 OpenAlex 丰富元数据，同时作为 **D1 存在性核验**（STEP 3）；
+- 对每个候选调 **EasyScholar**（`sci-verify.get_journal_rank` 同源逻辑）取真实
+  等级/分区，失败不编造（STEP 3B）；
+- 用 `scope_score` 基于**真实 concepts** 做 scope 打分，并结合「领域专注度」分层（STEP 4）；
+- 可选 **种子候选**：在 `SEED_JOURNALS` 中显式纳入领域已知真实目标刊（如中文核心/EI），
+  其 subjects 用期刊公开真实范畴，存在性与等级仍由 OpenAlex / EasyScholar 真实核验；
+- 生成单文件 HTML 报告到 `<repo>/reports/<date>-journal-match-<slug>.html`
+  （遵循 `shared/report-template.md` 设计系统），并落一份机器可读 JSON。
+
+> 注意：脚本中的稿件 profile 与检索式针对「MIL+LIBS 大颗粒原煤热值回归」论文写死；
+> 换课题时需改 `PROFILE` / `QUERIES` / `SEED_JOURNALS` 三处。
+
 ## STEP 6 — NEXT ACTIONS
 
 Offer follow-up options:
