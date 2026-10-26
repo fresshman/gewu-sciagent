@@ -1,0 +1,48 @@
+{
+  "stage": 3,
+  "stage_name": "复现",
+  "status": "completed_with_caveat",
+  "created_by": "gewu-reproduction (handoff assembled from verified real cv_summary run)",
+  "created_at": "2026-10-26T16:02:00+08:00",
+  "inputs": [
+    "handoff_2_litreview.json",
+    "handoff_1_direction.json"
+  ],
+  "outputs": [
+    "handoff_3_repro.json",
+    "repro_lock.json"
+  ],
+  "real_tool_used": "mil-model__cv_summary (coal_infer.py cv-summary, 真实前向推理)",
+  "note": "agent 轮次内 cv_summary 成功取得真实 5 折指标；reproduce_fold(predict-fold) 工具报错未返回，故 baseline_metrics 取自已核验的真实 cv_summary 输出（非编造）。predict-fold 失败为工具/超时问题，已记录待修。",
+  "baseline_metrics": {
+    "n_folds": 5,
+    "n_per_fold": 14,
+    "mean_rmse_kcal_kg": 214.5699,
+    "std_rmse_kcal_kg": 25.7094,
+    "mean_rmse_MJ_kg": 0.8978,
+    "per_fold": [
+      {"fold": 0, "n": 14, "hybrid_rmse_kcal": 218.6108, "plsr_rmse_kcal": 231.2064},
+      {"fold": 1, "n": 14, "hybrid_rmse_kcal": 244.9214, "plsr_rmse_kcal": 248.8767},
+      {"fold": 2, "n": 14, "hybrid_rmse_kcal": 222.3821, "plsr_rmse_kcal": 255.2973},
+      {"fold": 3, "n": 14, "hybrid_rmse_kcal": 220.0729, "plsr_rmse_kcal": 230.6638},
+      {"fold": 4, "n": 14, "hybrid_rmse_kcal": 166.8624, "plsr_rmse_kcal": 203.7164}
+    ],
+    "official_cross_check": {
+      "official_mean_rmse": 214.5699,
+      "recomputed_mean_rmse": 214.5699,
+      "abs_diff": 1.1e-05,
+      "verdict": "可复现（差值 1.1e-05 属浮点精度）"
+    }
+  },
+  "repro_lock": {
+    "data_root": "COAL_PROJECT_ROOT (外部 coal-calorific-value 项目，按路径引用，不入库)",
+    "preprocessing": "sg 平滑 -> als 基线校正 -> MinMax 归一化 (bag 内共享)",
+    "plsr_n_components": 7,
+    "mil": "ResNet1D(base=16)+SupCon pretrain + TransMIL_attn + FiLM(plsr_dim=7)",
+    "fusion": "hybrid(kcal/kg)=PLSR(bag_mean)+MIL_residual; x0.004184 -> MJ/kg",
+    "random_seed": "kfold_split_bags(seed=42)",
+    "metric_caliber": "5 折 CV RMSE(kcal/kg)，每折 14 验证 bag"
+  },
+  "next": "improver",
+  "next_input": "handoff_3_repro.json"
+}

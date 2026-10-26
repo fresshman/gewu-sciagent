@@ -1,0 +1,103 @@
+{
+  "stage": 2,
+  "stage_name": "读论文找idea",
+  "status": "completed",
+  "title": "MIL+LIBS 大颗粒原煤热值预测 · 文献调研与 gap 分析",
+  "created_by": "gewu-ideation",
+  "created_at": "2026-10-26T15:17:00+08:00",
+  "inputs": [
+    "handoff_1_direction.json"
+  ],
+  "outputs": [
+    "handoff_2_litreview.json",
+    "literature_review.md"
+  ],
+  "search": {
+    "query": "multi-instance learning LIBS laser-induced breakdown spectroscopy coal calorific value",
+    "sources_requested": "arxiv,semantic,crossref,openalex,pubmed",
+    "sources_used": ["arxiv", "semantic", "crossref", "openalex", "pubmed"],
+    "total": 15,
+    "raw_total": 15,
+    "top_n": 5
+  },
+  "d1_verification": {
+    "verdict": "PASS",
+    "hallucination_rate": 0.0,
+    "pending_rate": 0.0,
+    "warnings": [],
+    "papers": [
+      {"id": "p1", "status": "verified", "method": "arxiv", "confidence": "high", "identifiers": {"arxiv_id": "1402.2062", "doi": "10.1016/j.sab.2014.06.017"}},
+      {"id": "p2", "status": "verified", "method": "arxiv", "confidence": "high", "identifiers": {"arxiv_id": "1402.2060"}},
+      {"id": "p3", "status": "verified", "method": "arxiv", "confidence": "high", "identifiers": {"arxiv_id": "2512.01287"}},
+      {"id": "p4", "status": "verified", "method": "crossref", "confidence": "high", "identifiers": {"doi": "10.3390/app13148158"}},
+      {"id": "p5", "status": "verified", "method": "crossref", "confidence": "high", "identifiers": {"doi": "10.1002/9781119758396.ch27"}}
+    ]
+  },
+  "candidates": [
+    {
+      "title": "A model combining spectrum standardization and dominant factor based partial least square method for carbon analysis in coal by laser-induced breakdown spectroscopy",
+      "doi": "10.1016/j.sab.2014.06.017",
+      "relevance": "高 — 直接对标「PLSR + 残差修正」范式，是 hybrid 方案的思想前身",
+      "d1_status": "verified"
+    },
+    {
+      "title": "The application of spectrum standardization method for carbon analysis in coal using laser-induced breakdown spectroscopy",
+      "doi": "",
+      "relevance": "高 — 基线方法来源（矩阵效应标准化），支撑预处理设计",
+      "d1_status": "verified"
+    },
+    {
+      "title": "milearn: A Python Package for Multi-Instance Machine Learning",
+      "doi": "",
+      "relevance": "高 — MIL 工具基线；支持回归 + 小数据集超参搜索，与 5 折小样本场景匹配",
+      "d1_status": "verified"
+    },
+    {
+      "title": "Rapid Classification and Quantification of Coal by Using Laser-Induced Breakdown Spectroscopy and Machine Learning",
+      "doi": "10.3390/app13148158",
+      "relevance": "中高 — 煤 LIBS + ML 路线，PLSR 定量基线数字可参照",
+      "d1_status": "verified"
+    },
+    {
+      "title": "Coal Analysis by Laser-Induced Breakdown Spectroscopy",
+      "doi": "10.1002/9781119758396.ch27",
+      "relevance": "中 — Wiley 专著章节，Introduction 领域背景与 method 谱系",
+      "d1_status": "verified"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "G1",
+      "title": "现有 LIBS 定量工作假设样品均匀/单谱代表整体，未建模大颗粒 intra-bag 异质性",
+      "evidence": "P1/P2/P4 均为粉煤压片或单谱输入；全检索未找到 LIBS+MIL+大颗粒煤组合"
+    },
+    {
+      "id": "G2",
+      "title": "残差修正停留在 PLS 全谱，无法区分异常实例与信息性实例",
+      "evidence": "P1 用 dominant-factor PLS 修残差，对 bag 内离群谱无鉴别机制"
+    },
+    {
+      "id": "G3",
+      "title": "小样本 MIL 建模缺少面向光谱的先验结构与超参调优框架",
+      "evidence": "milearn 提供通用小数据集超参搜索，但无光谱归纳偏置"
+    },
+    {
+      "id": "G4",
+      "title": "煤 LIBS 定量指标缺少按折单报的方差控制",
+      "evidence": "P4/P1 报告 RMSEP 均值，无逐折分布"
+    },
+    {
+      "id": "G5",
+      "title": "多击打位点谱的信息结构未被当作第一类对象",
+      "evidence": "P1/P2 的标准化方法把多次击打平均化，丢弃位点间差异"
+    }
+  ],
+  "risks": [
+    "Semantic Scholar 与 PubMed 返回 0；中文核心（光谱学与光谱分析、煤炭学报）未检索，可能遗漏更接近的已发表工作",
+    "未读全文（P1/P4 的样品粒度、击打次数、CV 划分未知），可能影响复现阶段的参数设定",
+    "无直接竞品 → novelty 空间大，但 baseline 选择必须保守，以 bag-mean+PLSR 为主基线"
+  ],
+  "next": "reproduction",
+  "next_input": "handoff_2_litreview.json",
+  "notes": "D1 全部核验通过，无幽灵引用。未下载 PDF、未渲染原页（任务有界要求）。本地 downloads/ 有 3 篇无关 PDF，未读。"
+}

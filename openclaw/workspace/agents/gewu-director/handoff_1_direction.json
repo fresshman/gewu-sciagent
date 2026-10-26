@@ -1,0 +1,37 @@
+{
+  "stage": 1,
+  "stage_name": "定方向",
+  "status": "completed",
+  "title": "MIL+LIBS 大颗粒原煤热值预测 · 研究立项书",
+  "created_by": "gewu-director",
+  "created_at": "2026-10-26T14:46:00+08:00",
+  "research_question": "在激光诱导击穿光谱（LIBS）大颗粒原煤场景下，能否用一个端到端的多示例学习（MIL）框架，把「一张 bag = 多张局部 LIBS 谱」这一结构显式建模，从而比「先袋均谱、再 PLSR」的经典两阶段基线更准地预测煤的发热量（热值）？",
+  "hypothesis": "大颗粒原煤的 LIBS 谱存在强 intra-bag 异质性（不同颗粒/不同击打位点的光谱差异携带了煤岩组分非均匀分布信息）。把 bag 当作多示例集合、用注意力机制聚合，可以学到对局部异常谱的鲁棒表示，并用残差方式修正 PLSR 的系统偏差，最终降低 RMSE。",
+  "technical_route": {
+    "input": "bag: N 张 LIBS 谱（每张 ~ 波长 x 强度），对应一个实测热值标签",
+    "preprocessing": "sg 平滑 → als 基线校正 → MinMax 归一化（bag 内共享参数）",
+    "baseline": "袋均谱 → PLSR(n_components=7) → kcal/kg → ×0.004184 → MJ/kg",
+    "proposed": "实例矩阵经 ResNet1D → TransMIL 注意力池化 → FiLM 条件调制 → MIL 残差；hybrid = PLSR + MIL 残差",
+    "output": "kcal/kg 与 MJ/kg",
+    "evaluation": "5 折交叉验证，RMSE / MAE / R² 每折单报 + 均值±标准差"
+  },
+  "milestones": [
+    {"id": 1, "name": "定方向", "owner": "gewu-director", "deliverable": "handoff_1_direction.json"},
+    {"id": 2, "name": "读论文找 idea", "owner": "gewu-ideation", "deliverable": "handoff_2_litreview.json, literature_review.md"},
+    {"id": 3, "name": "复现", "owner": "gewu-reproduction", "deliverable": "handoff_3_repro.json, repro_lock.json"},
+    {"id": 4, "name": "改进", "owner": "gewu-improver", "deliverable": "handoff_4_improve.json"},
+    {"id": 5, "name": "写论文", "owner": "gewu-writer", "deliverable": "handoff_5_draft.json, manuscript.md + 真实图"},
+    {"id": 6, "name": "发表追踪", "owner": "gewu-publication", "deliverable": "handoff_6_publish.json"},
+    {"id": 7, "name": "沉淀", "owner": "gewu-distillation", "deliverable": "handoff_7_distill.json, 新 Skill / MEMORY.md"}
+  ],
+  "constraints": {
+    "quality_gate": "improver 产出 quality_score < 0.8 时回退复现，最多 3 轮；超上限取最佳进 writer",
+    "anti_hallucination": "D1 文献存在性 / D2 数值注册表溯源 / D3 引用完整性 lint / D4 原页文本层 grounding；期刊等级经 EasyScholar 真实溯源，无数据者标「待核查」",
+    "tool_discipline": "mil-model / sci-data / sci-plot / paper-search 直连调用，不绕 tool_search；MIL 推理、绘图、PDF 解析各自单独一轮",
+    "truth_isolation": "真实热值仅来自实验测定；模型预测不得回填当真值；交叉验证测试折严格隔离",
+    "failure_mode_gate": "reproduction / improver / writer / distillation 四阶段末跑 failure_mode_selfcheck，SUSPECTED / INSUFFICIENT EVIDENCE 必须阻断"
+  },
+  "downstream_inputs": [],
+  "outputs": ["handoff_1_direction.json"],
+  "notes": "本节假设已由 director 与用户确认；若后续阶段推翻假设，由 improver 在 quality_score 中体现并触发回退。"
+}

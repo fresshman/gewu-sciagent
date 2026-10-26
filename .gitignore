@@ -63,3 +63,11 @@ web/.local/
 
 # ── sci-verify 反幻觉运行时缓存（本机私有，由核验服务落盘） ──
 .aris/
+
+# ── 原页理解（D4）运行产物：下载论文 PDF 与页面渲染图 ──────────
+# 由 ideation 在检索核验时落盘，涉及文献版权且属本机运行缓存，不入版本库。
+openclaw/workspace/agents/*/downloads/
+
+# ── 领域项目路径引用锁（含本机私有绝对路径，切勿提交） ──────────
+# 复现阶段锁定外部未发表项目的本机根目录，换机重新生成即可。
+openclaw/workspace/agents/*/repro_lock.json
