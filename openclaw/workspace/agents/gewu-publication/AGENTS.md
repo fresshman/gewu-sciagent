@@ -75,3 +75,7 @@ journal-match 本身**不做存在性核验**，完全依赖模型检索结果�
 - 两个脚本仅用 Python 标准库（`urllib`/`argparse`/`json`），格物 default venv 即可运行，无需额外 pip 安装。
 - 外部 API（S2 / OpenAlex / CrossRef）格物已在用，无需新凭据；OpenAlex 请求带 `mailto` 礼貌池。
 - SKILL.md 原引用的 LobeHub `skills/shared/report-template.md` 已本地化为同目录 `shared/report-template.md`。
+
+## 失败降级落盘铁律
+无论阶段以何种方式结束（完成 / 超时 / 工具报错 / 被 kill），**都必须写出 `handoff_<stage>.json`**，绝不允许空回复。失败也要写：填 `status:"partial|failed"` + `completed`(真实已得) + `failures`(工具/错误/影响/缓解) + `next`(续跑建议)，且不编造。
+完整规则、降级 schema 与 director 责任见 `research_lifecycle` 技能「失败降级落盘铁律」一节。

@@ -38,3 +38,7 @@
     `paper_unverified` 的声明，**不得落稿**，先回 `sci-exp` 取真值修正。
 - **结论（D4 延伸）**：对原页理解（③）得到的"该图显示 X"类结论，须保留原文 span /
   数据出处，不把模型自由文本结论当作事实直述；与原页矛盾处显式标注。
+
+## 失败降级落盘铁律
+无论阶段以何种方式结束（完成 / 超时 / 工具报错 / 被 kill），**都必须写出 `handoff_<stage>.json`**，绝不允许空回复。失败也要写：填 `status:"partial|failed"` + `completed`(真实已得) + `failures`(工具/错误/影响/缓解) + `next`(续跑建议)，且不编造。
+完整规则、降级 schema 与 director 责任见 `research_lifecycle` 技能「失败降级落盘铁律」一节。

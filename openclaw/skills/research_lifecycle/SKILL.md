@@ -28,6 +28,43 @@ description: 科研全生命周期 7 阶段工作流（定方向→读论文找i
 每阶段产出写为 `handoff_<stage>.json`，下游按 schema 消费，避免上下文丢失：
 `{stage, inputs:[paths], outputs:[paths], artifacts:[{type,path}], metrics:{}, next, status}`
 
+## 失败降级落盘铁律（fail-degrade-handoff）★ 最高优先级之一
+**任何阶段，无论以何种方式结束（正常完成 / 超时 / 工具报错 / 子智能体无响应 / 进程被 kill），都必须在自身工作区写出一份 `handoff_<stage>.json`，绝不允许"空回复"或"只回一句失败"就结束。**
+这是编排层的兜底：下游 agent / director 靠 handoff 续跑，缺失则整条链路断裂。本轮已踩坑——ideation 子会话挂起 28 分钟无 handoff、reproduction 工具失败后空回复，导致后续阶段无法接力。
+
+### 落盘规则
+1. **先落盘占位，再进场**：调用任何重工具、进入长循环**之前**，先写一份 `{status:"running"}` 的占位 handoff；阶段推进中持续更新；结束时写最终版。这样即便进程被超时斩杀，磁盘上也有"进度快照"供续跑。
+2. **失败也必须写**：超时 / 工具报错时，`status` 取 `"partial"` 或 `"failed"`，并填 `failures` 与 `completed`，不得只留一句失败。
+3. **禁止空回复**：若最终只产出"X 失败了"这种话、无配套 handoff，视为**未完成任务**。
+4. **不编造**：`completed` / `metrics` 只填**真实已产生**的部分；未得的指标写 `null` + 原因，不得填估算值或占位假数据（反幻觉红线）。
+5. **降级也要可续跑**：`next` 写明"建议下一步"（重试 / 换工具 / 人工介入 / 跳过本阶段），让下游或 director 能接手。
+
+### 降级 handoff schema（在基础 schema 上扩展）
+```json
+{
+  "stage": "reproduction",
+  "status": "partial | failed",
+  "inputs":  ["<上一阶段 handoff 路径>"],
+  "outputs": ["<已真实产出的文件，可为空数组>"],
+  "artifacts": [{"type": "...", "path": "..."}],
+  "metrics": {"rmse_kcal_per_kg": 214.5699, "fold0_rmse": null},
+  "completed": ["cv_summary 已真实跑通，5 折 RMSE=214.57 kcal/kg"],
+  "failures": [
+    {"tool": "mcp__mil-model__reproduce_fold",
+     "error": "predict-fold --fold 0 单次推理超出轮次超时预算",
+     "impact": "单折逐 bag 复现未产出",
+     "mitigation": "改用更长超时专线 / 异步 job；或下游直接用 cv_summary 汇总指标"}
+  ],
+  "next": "下游可直接消费 cv_summary 汇总指标续跑；如需逐 bag 复现，单独开长超时轮次",
+  "degrade_reason": "reproduce_fold 超时，非工具缺陷（直跑可通）"
+}
+```
+
+### director 责任
+director 派发子阶段后，若到时未收到 `handoff_<stage>.json`：
+- 先查子智能体工作区是否已有 `status:"running"` 占位 / 进度文件 → 据此决定续跑或重派；
+- 子会话疑似挂起（如某 MCP 子进程存活 > 父轮次预算）时，**主动 kill 并重派"有界任务"**，不要干等超时。
+
 ---
 
 ## 借鉴增强规则（方法论来自 academic-research-skills，已改写为格物实现）

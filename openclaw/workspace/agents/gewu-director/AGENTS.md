@@ -10,3 +10,7 @@
 - **工具已直连暴露**（`tools.toolSearch.enabled=false`）：直接用 `mil-model__xxx` /
   `sci_data__xxx` 这类全名调用，不要再用 tool_search / tool_describe / tool_call 绕一圈——
   实测那样每次真实取数要多花 2–3 个 turn。
+
+## 失败降级落盘铁律
+无论阶段以何种方式结束（完成 / 超时 / 工具报错 / 被 kill），**都必须写出 `handoff_<stage>.json`**，绝不允许空回复。失败也要写：填 `status:"partial|failed"` + `completed`(真实已得) + `failures`(工具/错误/影响/缓解) + `next`(续跑建议)，且不编造。
+完整规则、降级 schema 与 director 责任见 `research_lifecycle` 技能「失败降级落盘铁律」一节。

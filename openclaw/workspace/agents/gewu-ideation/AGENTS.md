@@ -12,3 +12,7 @@
   云端出图：`generate_mind_map` / `generate_flow_diagram` / `generate_fishbone_diagram` /
   `generate_network_graph` / `generate_sankey_chart` 等（详见 `scientific_plotting` 技能）。
   这些图不含实验测量数据，可放心上云；**不要把真实实验数据塞进 chart-cloud 的图**。
+
+## 失败降级落盘铁律
+无论阶段以何种方式结束（完成 / 超时 / 工具报错 / 被 kill），**都必须写出 `handoff_<stage>.json`**，绝不允许空回复。失败也要写：填 `status:"partial|failed"` + `completed`(真实已得) + `failures`(工具/错误/影响/缓解) + `next`(续跑建议)，且不编造。
+完整规则、降级 schema 与 director 责任见 `research_lifecycle` 技能「失败降级落盘铁律」一节。
