@@ -149,5 +149,18 @@ def cv_summary() -> dict:
     return _run(["cv-summary"], timeout=600)
 
 
+@mcp.tool()
+def get_cached_metrics() -> dict:
+    """秒级返回已缓存的 5 折交叉验证指标，**不加载 torch、不跑任何推理**。
+
+    优先读外部项目官方 summary.json；缺失时退而从各折缓存的 predictions.json 重算 RMSE
+    （同样不碰 torch，仅 numpy）。适用于 Agent 在 handoff 中即时、零风险地填真实
+    metrics，或作为耗时的 reproduce_fold / cv_summary 的即时替代。
+    返回字段含 `source` 标记（official_summary.json / recomputed_from_cached_predictions）
+    与 `cross_check`，便于反幻觉溯源；`torch_used` 恒为 False。
+    """
+    return _run(["get-cached-metrics"], timeout=60)
+
+
 if __name__ == "__main__":
     mcp.run()

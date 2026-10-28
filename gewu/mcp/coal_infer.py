@@ -417,6 +417,87 @@ def cv_summary() -> dict:
 
 
 
+def get_cached_metrics() -> dict:
+    """秒级返回已缓存的 5 折交叉验证指标，**不加载 torch、不跑任何推理**。
+
+    优先级：
+      1) 外部项目官方 ``summary.json``（最权威、最快）；
+      2) 若 official 缺失但各折缓存的 ``predictions.json`` 仍在，则从中重算 RMSE
+         （同样不碰 torch，仅 numpy）；
+      3) 两样都没有 → 返回 ``status=no-cached-metrics`` 并指向 cv_summary / reproduce_fold。
+
+    适用于 Agent 在 handoff 中**即时、零风险**地填真实 ``metrics``，
+    或作为耗时的 reproduce_fold / cv_summary 的即时替代。``source`` 字段标明数据出处，
+    便于反幻觉溯源。
+    """
+    summary_path = os.path.join(BEST_SOLUTION_DIR, "summary.json")
+    official = None
+    if os.path.exists(summary_path):
+        with open(summary_path, "r", encoding="utf-8") as f:
+            official = json.load(f)
+
+    per_fold = []
+    for fold in range(N_FOLDS):
+        p = os.path.join(BEST_SOLUTION_DIR, f"fold{fold}", "predictions.json")
+        if not os.path.exists(p):
+            continue
+        with open(p, "r", encoding="utf-8") as f:
+            recs = json.load(f)
+        if not recs:
+            continue
+        y = np.array([r["y_true"] for r in recs])
+        h = np.array([r["hybrid_pred"] for r in recs])
+        p_ = np.array([r["plsr_pred"] for r in recs])
+        per_fold.append({
+            "fold": fold,
+            "n": len(recs),
+            "hybrid_rmse": round(float(np.sqrt(np.mean((h - y) ** 2))), 4),
+            "plsr_rmse": round(float(np.sqrt(np.mean((p_ - y) ** 2))), 4),
+        })
+
+    out: dict[str, Any] = {
+        "source": None,
+        "project_root": PROJECT_ROOT,
+        "n_folds_cached": len(per_fold),
+        "per_fold": per_fold,
+        "torch_used": False,
+    }
+
+    if official:
+        out["source"] = "official_summary.json"
+        out["official_summary"] = {
+            "method": official.get("method"),
+            "encoder": official.get("encoder"),
+            "fusion": official.get("fusion"),
+            "mean_rmse": official.get("mean_rmse"),
+            "std_rmse": official.get("std_rmse"),
+            "mean_plsr_rmse": official.get("mean_plsr_rmse"),
+            "n_total_params": official.get("n_total_params"),
+        }
+    if per_fold:
+        vals = [r["hybrid_rmse"] for r in per_fold]
+        out["mean_rmse_kcal_kg"] = round(float(np.mean(vals)), 4)
+        out["std_rmse_kcal_kg"] = round(float(np.std(vals)), 4)
+        out["mean_rmse_MJ_kg"] = round(float(np.mean(vals)) * KCAL_TO_MJ, 4)
+        if official:
+            off = official.get("mean_rmse")
+            if off is not None:
+                out["cross_check"] = {
+                    "official_mean_rmse": round(float(off), 4),
+                    "recomputed_mean_rmse": out["mean_rmse_kcal_kg"],
+                    "abs_diff": round(abs(float(off) - out["mean_rmse_kcal_kg"]), 6),
+                }
+        out["source"] = out.get("source") or "recomputed_from_cached_predictions"
+        out["status"] = "ok"
+        out["verify_tool"] = "mcp__mil-model__cv_summary"
+        return out
+
+    out["status"] = "no-cached-metrics"
+    out["detail"] = "未找到官方 summary.json 或各折 predictions.json；请先运行 cv_summary / reproduce_fold 生成缓存"
+    out["howto"] = "调用 mcp__mil-model__cv_summary（读缓存交叉校验）或 reproduce_fold（实时 torch 复现）"
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="格物 × 煤热值 MIL 真实推理胶水层")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -432,6 +513,7 @@ def main() -> None:
     p3.add_argument("--fold", type=int, default=0)
 
     sub.add_parser("cv-summary", help="5 折指标汇总与交叉校验")
+    sub.add_parser("get-cached-metrics", help="秒级读已缓存的 5 折指标（不跑 torch）")
 
     args = ap.parse_args()
     try:
@@ -443,6 +525,8 @@ def main() -> None:
             res = predict_fold(args.fold)
         elif args.cmd == "cv-summary":
             res = cv_summary()
+        elif args.cmd == "get-cached-metrics":
+            res = get_cached_metrics()
     except (ProjectNotFound, FileNotFoundError, ValueError) as e:
         print(json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False, indent=2))
         sys.exit(2)
