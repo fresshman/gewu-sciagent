@@ -80,8 +80,10 @@ export default function App() {
   }, []);
 
   const handleSend = useCallback(
-    (text: string) => {
-      if (!selectedAgent || isStreaming) return;
+    (text: string, agentIdOverride?: string) => {
+      // 跨阶段衔接（送复现）会在切换 agent 前直接指定目标，不能等 selectedAgent 重渲染
+      const agentId = agentIdOverride ?? selectedAgent?.id;
+      if (!agentId || isStreaming) return;
       // 续跑：复用上一轮 session-key 让 agent 承接上下文
       const key = pendingResumeKey ?? undefined;
       if (pendingResumeKey) setPendingResumeKey(null);
@@ -91,7 +93,7 @@ export default function App() {
       const botMsg: ChatMessage = {
         id: botId,
         role: "assistant",
-        agentId: selectedAgent.id,
+        agentId,
         text: "",
         ts: Date.now(),
         streaming: true,
@@ -110,7 +112,7 @@ export default function App() {
         setIsStreaming(false);
       };
 
-      sendChat(selectedAgent.id, text, {
+      sendChat(agentId, text, {
         onStart: (_agent, rk) => setCurrentRunKey(rk),
         onStep: (step) => {
           if (step.kind === "ended" && step.disposition) setRunStatus(dispositionToStatus(step.disposition));
@@ -154,6 +156,18 @@ export default function App() {
     setRunStatus(null);
   }, []);
 
+  // 送复现：切到「对话」视图、选中复现员，并立即把指令发进 /api/chat 长任务通道
+  const handleReproduce = useCallback(
+    (instruction: string) => {
+      const reproAgent = agents.find((a) => a.id === "gewu-reproduction");
+      if (reproAgent) setSelectedAgent(reproAgent);
+      setViewMode("chat");
+      setMobileTab("chat");
+      handleSend(instruction, "gewu-reproduction");
+    },
+    [agents, handleSend]
+  );
+
   const gatewayHint =
     gatewayReachable === false
       ? "⚠️ 未连接到 OpenClaw Gateway，请先启动（openclaw gateway run --force）。"
@@ -176,7 +190,7 @@ export default function App() {
 
         {viewMode === "papers" ? (
           <div className="paper-reader-full">
-            <PaperReader />
+            <PaperReader onReproduce={handleReproduce} isStreaming={isStreaming} />
           </div>
         ) : isDesktop ? (
           <>

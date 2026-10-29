@@ -66,6 +66,42 @@ export function getPaperFileUrl(paperId: string): string {
   return `/api/papers/${encodeURIComponent(paperId)}/file`;
 }
 
+export function getPaperNotes(paperId: string): Promise<{ notes: string; path?: string; updated?: string }> {
+  return getJSON(`/api/papers/${encodeURIComponent(paperId)}/notes`);
+}
+
+export async function savePaperNotes(paperId: string, notes: string): Promise<{ success: boolean; path: string }> {
+  const res = await fetch(`/api/papers/${encodeURIComponent(paperId)}/notes`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ notes }),
+  });
+  if (!res.ok) {
+    let msg = `保存失败 (${res.status})`;
+    try { msg = (await res.json()).error || msg; } catch { /* 非 JSON 错误体 */ }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+// 送复现：后端落盘 repro_request handoff，返回给复现员的指令文本（前端拿去走 /api/chat 长任务通道）。
+export async function createReproduceHandoff(
+  paperId: string,
+  summary?: string
+): Promise<{ success: boolean; handoffPath: string; instruction: string; stageActivated: boolean }> {
+  const res = await fetch(`/api/papers/${encodeURIComponent(paperId)}/reproduce`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ summary: summary || "" }),
+  });
+  if (!res.ok) {
+    let msg = `送复现失败 (${res.status})`;
+    try { msg = (await res.json()).error || msg; } catch { /* 非 JSON 错误体 */ }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
 export function getRuns(): Promise<{ runs: RunListEntry[] }> {
   return getJSON("/api/runs");
 }
@@ -125,4 +161,69 @@ export async function sendChat(
     }
   }
   cb.onDone?.();
+}
+
+export interface PaperAiCallbacks {
+  onDelta?: (text: string) => void;
+  onError?: (text: string) => void;
+  onDone?: () => void;
+}
+
+// 通用一次性 SSE 桥（/api/papers/ai 与 /api/translate 共用事件协议）
+async function postSse(path: string, payload: unknown, cb: PaperAiCallbacks): Promise<void> {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    let msg = `服务异常 (${res.status})`;
+    try {
+      const err = await res.json();
+      msg = err.error || msg;
+    } catch { /* 非 JSON 错误体，用默认文案 */ }
+    cb.onError?.(msg);
+    cb.onDone?.();
+    return;
+  }
+  if (!res.body) { cb.onError?.("无响应流"); cb.onDone?.(); return; }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop() || "";
+    for (const part of parts) {
+      const line = part.trim();
+      if (!line.startsWith("data:")) continue;
+      const json = line.slice(5).trim();
+      if (!json) continue;
+      try {
+        const ev = JSON.parse(json);
+        if (ev.type === "delta") cb.onDelta?.(ev.text || "");
+        else if (ev.type === "error") cb.onError?.(ev.text || "error");
+        else if (ev.type === "done") cb.onDone?.();
+      } catch {
+        /* 忽略无法解析的分片 */
+      }
+    }
+  }
+}
+
+// 论文 AI 摘要/问答：走代理 /api/papers/ai（服务端提取全文并桥接 Gateway），SSE 流式回传
+export function askPaperAi(
+  paperId: string,
+  mode: "summary" | "qa",
+  question: string,
+  cb: PaperAiCallbacks,
+): Promise<void> {
+  return postSse("/api/papers/ai", { paperId, mode, question }, cb);
+}
+
+// 划词/段落翻译：选中文本 → /api/translate → SSE 流式回传译文
+export function translateText(text: string, cb: PaperAiCallbacks): Promise<void> {
+  return postSse("/api/translate", { text }, cb);
 }

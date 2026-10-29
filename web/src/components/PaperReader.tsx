@@ -4,8 +4,12 @@ import {
   getPapers,
   uploadPaper,
   getPaperMetadata,
-  getPaperText,
   getPaperFileUrl,
+  getPaperNotes,
+  savePaperNotes,
+  askPaperAi,
+  translateText,
+  createReproduceHandoff,
 } from "../api/client";
 import { PDFViewer } from "./PDFViewer";
 
@@ -19,7 +23,13 @@ interface Paper {
   added_at: string;
 }
 
-export function PaperReader() {
+export function PaperReader({
+  onReproduce,
+  isStreaming,
+}: {
+  onReproduce: (instruction: string) => void;
+  isStreaming: boolean;
+}) {
   const [papers, setPapers] = useState<Paper[]>([]);
   const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
   const [metadata, setMetadata] = useState<any>(null);
@@ -33,7 +43,61 @@ export function PaperReader() {
   const [qaQuestion, setQaQuestion] = useState("");
   const [qaAnswer, setQaAnswer] = useState("");
   const [qaLoading, setQaLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
   const [notes, setNotes] = useState("");
+  const [notesStatus, setNotesStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const notesSaveTimer = useRef<number | null>(null);
+  const selectedIdRef = useRef<string | null>(null);
+
+  // 划词翻译状态
+  const mainRef = useRef<HTMLDivElement>(null);
+  const [selBubble, setSelBubble] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [trans, setTrans] = useState<{ source: string; result: string } | null>(null);
+  const [transLoading, setTransLoading] = useState(false);
+
+  // 送复现状态
+  const [reproBusy, setReproBusy] = useState(false);
+  const [reproMsg, setReproMsg] = useState("");
+
+  // 选区被取消（点击别处/清空）时收起翻译气泡。
+  // 注意：selectionchange 是异步派发的，可能在 mouseup 设置气泡之后才到达，
+  // 因此只在选区真正塌缩时清除，否则会把刚弹的气泡误关。
+  useEffect(() => {
+    const onSelChange = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !sel.toString().trim()) setSelBubble(null);
+    };
+    document.addEventListener("selectionchange", onSelChange);
+    return () => document.removeEventListener("selectionchange", onSelChange);
+  }, []);
+
+  const handleTextSelect = useCallback((text: string, rect: { x: number; y: number }) => {
+    const box = mainRef.current?.getBoundingClientRect();
+    if (!box) return;
+    if (text.length > 2000) {
+      setSelBubble(null);
+      return;
+    }
+    const x = Math.min(Math.max(rect.x - box.left, 60), box.width - 60);
+    const y = Math.min(Math.max(rect.y - box.top, 8), box.height - 44);
+    setSelBubble({ text, x, y });
+  }, []);
+
+  const handleTranslate = useCallback(() => {
+    if (!selBubble || transLoading) return;
+    const source = selBubble.text;
+    setSelBubble(null);
+    setTrans({ source, result: "" });
+    setTransLoading(true);
+    translateText(source, {
+      onDelta: (t) => setTrans((s) => (s ? { ...s, result: s.result + t } : s)),
+      onError: (t) => {
+        setTrans((s) => (s ? { ...s, result: s.result + (s.result ? "\n" : "") + "⚠ " + t } : s));
+        setTransLoading(false);
+      },
+      onDone: () => setTransLoading(false),
+    });
+  }, [selBubble, transLoading]);
 
   // 加载论文列表
   useEffect(() => {
@@ -51,17 +115,46 @@ export function PaperReader() {
 
   // 选择论文
   async function handleSelect(paper: Paper) {
+    selectedIdRef.current = paper.id;
     setSelectedPaper(paper);
     setSummary("");
     setQaAnswer("");
     setNotes("");
+    setNotesStatus("idle");
+    setSelBubble(null);
+    setTrans(null);
 
     try {
       const meta = await getPaperMetadata(paper.id);
-      setMetadata(meta);
+      if (selectedIdRef.current === paper.id) setMetadata(meta);
     } catch {
-      setMetadata(null);
+      if (selectedIdRef.current === paper.id) setMetadata(null);
     }
+    // 载入该项目下这篇论文已保存的阅读笔记
+    try {
+      const d = await getPaperNotes(paper.id);
+      if (selectedIdRef.current === paper.id && d.notes) {
+        setNotes(d.notes);
+        setNotesStatus("saved");
+      }
+    } catch { /* 无笔记视为空，不打扰用户 */ }
+  }
+
+  // 笔记编辑：800ms 防抖后自动落盘（按论文 id 关闭闭包，切走也会保存旧论文的最后编辑）
+  function handleNotesChange(v: string) {
+    setNotes(v);
+    if (!selectedPaper) return;
+    const pid = selectedPaper.id;
+    setNotesStatus("saving");
+    if (notesSaveTimer.current) window.clearTimeout(notesSaveTimer.current);
+    notesSaveTimer.current = window.setTimeout(async () => {
+      try {
+        await savePaperNotes(pid, v);
+        if (selectedIdRef.current === pid) setNotesStatus("saved");
+      } catch {
+        if (selectedIdRef.current === pid) setNotesStatus("error");
+      }
+    }, 800);
   }
 
   // 上传 PDF
@@ -86,53 +179,47 @@ export function PaperReader() {
     }
   }
 
-  // 生成摘要（调用 AI）
-  const handleSummarize = useCallback(async () => {
-    if (!selectedPaper) return;
+  // 生成摘要（书生大模型，流式）
+  const handleSummarize = useCallback(() => {
+    if (!selectedPaper || summaryLoading) return;
     setSummaryLoading(true);
     setSummary("");
-    try {
-      const data = await getPaperText(selectedPaper.id, 5); // 前 5 页
-      // TODO: 接入真实 AI，这里先用文本前 500 字模拟
-      const text = data.text || "";
-      setSummary(
-        `【自动摘要】\n\n标题：${metadata?.title || selectedPaper.title}\n作者：${metadata?.authors || "未知"}\n页数：${metadata?.page_count || selectedPaper.page_count}\n\n` +
-        `【摘要内容】\n${metadata?.abstract || text.slice(0, 500) + "..." || "暂无摘要"}`,
-      );
-    } catch (e) {
-      setSummary("摘要生成失败：" + (e as Error).message);
-    } finally {
-      setSummaryLoading(false);
-    }
-  }, [selectedPaper, metadata]);
+    setAiError("");
+    askPaperAi(selectedPaper.id, "summary", "", {
+      onDelta: (t) => setSummary((s) => s + t),
+      onError: (t) => setAiError(t),
+      onDone: () => setSummaryLoading(false),
+    });
+  }, [selectedPaper, summaryLoading]);
 
-  // AI 问答
-  const handleAsk = useCallback(async () => {
-    if (!selectedPaper || !qaQuestion.trim()) return;
+  // AI 问答（书生大模型，流式）
+  const handleAsk = useCallback(() => {
+    if (!selectedPaper || qaLoading || !qaQuestion.trim()) return;
     setQaLoading(true);
     setQaAnswer("");
+    setAiError("");
+    askPaperAi(selectedPaper.id, "qa", qaQuestion, {
+      onDelta: (t) => setQaAnswer((s) => s + t),
+      onError: (t) => setAiError(t),
+      onDone: () => setQaLoading(false),
+    });
+  }, [selectedPaper, qaLoading, qaQuestion]);
+
+  // 送复现：落盘 repro_request handoff，拿到指令后交给 App 唤起复现员（走 /api/chat 长任务通道）
+  const handleReproduce = useCallback(async () => {
+    if (!selectedPaper || reproBusy) return;
+    setReproBusy(true);
+    setReproMsg("");
     try {
-      const data = await getPaperText(selectedPaper.id, 10);
-      const text = data.text || "";
-      // TODO: 接入真实 AI，这里用关键词匹配模拟
-      const q = qaQuestion.toLowerCase();
-      let answer = "基于论文内容的分析：\n\n";
-      if (q.includes("创新") || q.includes("贡献")) {
-        answer += "本文的主要创新点需要结合摘要和引言部分分析。请查看论文前 2 页的 Introduction 部分。";
-      } else if (q.includes("方法") || q.includes("model") || q.includes("approach")) {
-        answer += "本文的方法部分通常在 Section 3 或 Method 章节。关键方法描述如下：\n" + text.slice(500, 1500);
-      } else if (q.includes("结论") || q.includes("result")) {
-        answer += "论文的结论部分通常在最后 1-2 页。主要结论需要查看 Conclusion 章节。";
-      } else {
-        answer += `关于"${qaQuestion}"，论文中的相关内容：\n${text.slice(0, 800)}...`;
-      }
-      setQaAnswer(answer);
+      const r = await createReproduceHandoff(selectedPaper.id, summary);
+      setReproMsg(r.stageActivated ? "✓ 已激活「复现」阶段，复现员开跑中" : "✓ 已送复现，复现员开跑中");
+      onReproduce(r.instruction);
     } catch (e) {
-      setQaAnswer("问答失败：" + (e as Error).message);
+      setReproMsg("⚠ 送复现失败：" + (e as Error).message);
     } finally {
-      setQaLoading(false);
+      setReproBusy(false);
     }
-  }, [selectedPaper, qaQuestion]);
+  }, [selectedPaper, reproBusy, summary, onReproduce]);
 
   return (
     <div className="paper-reader">
@@ -179,14 +266,39 @@ export function PaperReader() {
         </div>
       </div>
 
-      {/* 中栏：PDF 阅读器 */}
-      <div className="paper-reader__main">
+      {/* 中栏：PDF 阅读器 + 划词翻译浮层 */}
+      <div className="paper-reader__main" ref={mainRef}>
         {selectedPaper ? (
-          <PDFViewer url={getPaperFileUrl(selectedPaper.id)} outline={metadata?.toc} />
+          <PDFViewer url={getPaperFileUrl(selectedPaper.id)} outline={metadata?.toc} onTextSelect={handleTextSelect} />
         ) : (
           <div className="paper-reader__empty-main">
             <div className="paper-reader__empty-icon">📄</div>
             <div className="paper-reader__empty-text">选择或上传一篇论文开始阅读</div>
+          </div>
+        )}
+
+        {selBubble && (
+          <button
+            className="paper-reader__trans-bubble"
+            style={{ left: selBubble.x, top: selBubble.y }}
+            onMouseDown={(e) => e.preventDefault() /* 防止点气泡时清空选区 */}
+            onClick={handleTranslate}
+            title={selBubble.text.length > 60 ? selBubble.text.slice(0, 60) + "…" : selBubble.text}
+          >
+            🌐 翻译
+          </button>
+        )}
+
+        {trans && (
+          <div className="paper-reader__trans-card">
+            <div className="paper-reader__trans-head">
+              <span className="paper-reader__trans-label">译文{transLoading ? "（生成中…）" : ""}</span>
+              <button className="paper-reader__trans-close" onClick={() => setTrans(null)}>✕</button>
+            </div>
+            <div className="paper-reader__trans-result">{trans.result || "…"}</div>
+            <div className="paper-reader__trans-source">
+              {trans.source.length > 160 ? trans.source.slice(0, 160) + "…" : trans.source}
+            </div>
           </div>
         )}
       </div>
@@ -204,6 +316,18 @@ export function PaperReader() {
               {metadata?.doi && (
                 <div className="paper-reader__meta-doi">DOI: {metadata.doi}</div>
               )}
+              {/* 跨阶段衔接：一键把论文+笔记打包成 handoff 并唤起复现员 */}
+              <div className="paper-reader__repro-row">
+                <button
+                  className="paper-reader__repro-btn"
+                  onClick={handleReproduce}
+                  disabled={reproBusy || isStreaming}
+                  title={isStreaming ? "有任务正在运行，稍后再送复现" : "把论文连同阅读笔记送到「复现」阶段，唤起复现员"}
+                >
+                  {reproBusy ? "打包中…" : "🔁 送复现"}
+                </button>
+                {reproMsg && <span className="paper-reader__repro-msg">{reproMsg}</span>}
+              </div>
             </div>
 
             {/* AI 功能 Tab */}
@@ -232,17 +356,18 @@ export function PaperReader() {
             <div className="paper-reader__ai-content">
               {aiTab === "summary" && (
                 <div className="paper-reader__summary">
-                  {summary ? (
-                    <pre className="paper-reader__summary-text">{summary}</pre>
-                  ) : (
-                    <button
-                      className="paper-reader__action-btn"
-                      onClick={handleSummarize}
-                      disabled={summaryLoading}
-                    >
-                      {summaryLoading ? "生成中…" : "生成 AI 摘要"}
-                    </button>
+                  {summary && <pre className="paper-reader__summary-text">{summary}</pre>}
+                  {aiError && <div className="paper-reader__ai-error">{aiError}</div>}
+                  {!summary && !summaryLoading && !aiError && (
+                    <div className="paper-reader__ai-hint">由书生大模型基于论文全文生成结构化摘要</div>
                   )}
+                  <button
+                    className="paper-reader__action-btn"
+                    onClick={handleSummarize}
+                    disabled={summaryLoading}
+                  >
+                    {summaryLoading ? "生成中…（首次约 10-60 秒）" : summary ? "重新生成" : "生成 AI 摘要"}
+                  </button>
                 </div>
               )}
 
@@ -267,6 +392,10 @@ export function PaperReader() {
                   {qaAnswer && (
                     <pre className="paper-reader__qa-answer">{qaAnswer}</pre>
                   )}
+                  {aiError && <div className="paper-reader__ai-error">{aiError}</div>}
+                  {qaLoading && !qaAnswer && (
+                    <div className="paper-reader__ai-hint">书生大模型思考中…</div>
+                  )}
                 </div>
               )}
 
@@ -274,10 +403,16 @@ export function PaperReader() {
                 <div className="paper-reader__notes">
                   <textarea
                     className="paper-reader__notes-area"
-                    placeholder="阅读笔记…（自动保存到项目 2-literature 阶段）"
+                    placeholder="阅读笔记…（停止输入 1 秒后自动保存到项目「读论文」阶段）"
                     value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
+                    onChange={(e) => handleNotesChange(e.target.value)}
                   />
+                  <div className="paper-reader__notes-status">
+                    {notesStatus === "saving" && "保存中…"}
+                    {notesStatus === "saved" && "✓ 已保存到 stages/2-literature/notes/"}
+                    {notesStatus === "error" && "⚠ 保存失败，继续编辑会自动重试"}
+                    {notesStatus === "idle" && "笔记按论文归档到当前项目，可随七阶段产出沉淀"}
+                  </div>
                 </div>
               )}
             </div>

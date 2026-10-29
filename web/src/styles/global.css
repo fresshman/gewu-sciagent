@@ -767,6 +767,62 @@ button { font-family: inherit; cursor: pointer; }
   background: #525659;
 }
 
+/* canvas 与其上文本层的定位容器 */
+.pdf-viewer__page {
+  position: relative;
+  flex: none;
+}
+
+/* pdf.js TextLayer 基础样式（摘自官方 pdf_viewer.css 的最小可用子集） */
+.textLayer {
+  color-scheme: only light;
+  position: absolute;
+  text-align: initial;
+  inset: 0;
+  overflow: clip;
+  opacity: 1;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  caret-color: CanvasText;
+  z-index: 0;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+
+.textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+}
+
+.textLayer > :not(.markedContent),
+.textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+
+.textLayer .markedContent {
+  display: contents;
+}
+
+.textLayer ::selection {
+  background: rgba(24, 95, 165, 0.4);
+  color: transparent;
+}
+
 .pdf-viewer__canvas-wrap canvas {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   max-width: 100%;
@@ -927,6 +983,89 @@ button { font-family: inherit; cursor: pointer; }
   flex-direction: column;
   overflow: hidden;
   background: #525659;
+  position: relative;
+}
+
+/* 划词翻译气泡 */
+.paper-reader__trans-bubble {
+  position: absolute;
+  transform: translate(-50%, 8px);
+  z-index: 20;
+  padding: 4px 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--brand, #185FA5);
+  color: #fff;
+  font-size: var(--fs-micro);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+}
+
+.paper-reader__trans-bubble:hover {
+  opacity: 0.9;
+}
+
+/* 译文卡片：贴中栏底部浮层 */
+.paper-reader__trans-card {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-4);
+  transform: translateX(-50%);
+  z-index: 19;
+  width: min(560px, 92%);
+  max-height: 40%;
+  overflow: auto;
+  background: var(--bg-raised, #fff);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  padding: var(--space-3) var(--space-4);
+}
+
+.paper-reader__trans-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.paper-reader__trans-label {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.paper-reader__trans-close {
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  opacity: 0.55;
+  font-size: var(--fs-micro);
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.paper-reader__trans-close:hover {
+  opacity: 1;
+}
+
+.paper-reader__trans-result {
+  font-size: var(--fs-body);
+  line-height: 1.7;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  font-family: var(--font-sans);
+}
+
+.paper-reader__trans-source {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--border);
+  font-size: var(--fs-micro);
+  color: var(--text-primary);
+  opacity: 0.55;
+  line-height: 1.5;
 }
 
 .paper-reader__empty-main {
@@ -984,6 +1123,42 @@ button { font-family: inherit; cursor: pointer; }
   margin-top: 2px;
 }
 
+/* 送复现：跨阶段衔接动作，落在元信息区底部 */
+.paper-reader__repro-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.paper-reader__repro-btn {
+  padding: 5px 12px;
+  background: transparent;
+  color: var(--accent-violet);
+  border: 1px solid var(--accent-violet);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.paper-reader__repro-btn:hover:not(:disabled) {
+  background: var(--accent-violet);
+  color: #fff;
+}
+
+.paper-reader__repro-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.paper-reader__repro-msg {
+  font-size: var(--fs-micro);
+  color: var(--text-secondary);
+}
+
 .paper-reader__ai-tabs {
   display: flex;
   border-bottom: 1px solid var(--border);
@@ -1023,6 +1198,24 @@ button { font-family: inherit; cursor: pointer; }
   background: var(--bg-sunken);
   padding: var(--space-3);
   border-radius: var(--radius-sm);
+}
+
+.paper-reader__ai-error {
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+  color: #b23a4e;
+  background: rgba(178, 58, 78, 0.08);
+  border: 1px solid rgba(178, 58, 78, 0.25);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+}
+
+.paper-reader__ai-hint {
+  font-size: var(--fs-micro);
+  color: var(--text-primary);
+  opacity: 0.55;
+  line-height: 1.5;
+  padding: var(--space-2) 0;
 }
 
 .paper-reader__action-btn {
@@ -1099,6 +1292,13 @@ button { font-family: inherit; cursor: pointer; }
   font-family: inherit;
   line-height: 1.6;
   resize: vertical;
+}
+
+.paper-reader__notes-status {
+  font-size: var(--fs-micro);
+  opacity: 0.6;
+  line-height: 1.5;
+  padding: var(--space-2) 0 0;
 }
 
 .paper-reader__notes-area:focus {
