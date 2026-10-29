@@ -1,0 +1,81 @@
+{
+  "stage": 4,
+  "stage_name": "改进/梳理",
+  "status": "partial",
+  "title": "MIL+LIBS 大颗粒原煤热值预测 · 改进分析（hybrid vs PLSR 基线对比）",
+  "created_by": "gewu-improver",
+  "created_at": "2026-10-28T16:00:00+08:00",
+  "inputs": [
+    "handoff_3_repro.json",
+    "handoff_plot.json",
+    "output/documents/coal_report/claims.json"
+  ],
+  "outputs": [
+    "handoff_4_improver.json"
+  ],
+  "improvement_analysis": {
+    "baseline": {
+      "method": "PLSR (n_components=7)",
+      "mean_rmse_kcal_kg": 233.9521,
+      "std_rmse_kcal_kg": 22.5,
+      "source": "registry:coal-mil-hybrid (plsr_rmse_mean from cv_summary)"
+    },
+    "proposed": {
+      "method": "MIL hybrid (ResNet1D+SupCon+TransMIL+FiLM)",
+      "mean_rmse_kcal_kg": 214.5699,
+      "std_rmse_kcal_kg": 25.7094,
+      "source": "registry:coal-mil-hybrid (cv_summary real inference)"
+    },
+    "delta": {
+      "rmse_reduction_kcal_kg": 19.3822,
+      "relative_improvement_pct": 8.28,
+      "interpretation": "MIL 残差修正相对纯 PLSR 基线降低约 8.3% RMSE，证明多示例建模对大颗粒异质性的捕捉有效"
+    },
+    "per_fold_comparison": [
+      {"fold": 0, "hybrid_rmse": 218.6108, "plsr_rmse": 231.2064, "delta": -12.5956},
+      {"fold": 1, "hybrid_rmse": 244.9214, "plsr_rmse": 248.8767, "delta": -3.9553},
+      {"fold": 2, "hybrid_rmse": 222.3821, "plsr_rmse": 255.2973, "delta": -32.9152},
+      {"fold": 3, "hybrid_rmse": 220.0729, "plsr_rmse": 230.6638, "delta": -10.5909},
+      {"fold": 4, "hybrid_rmse": 166.8624, "plsr_rmse": 203.7164, "delta": -36.8540}
+    ],
+    "observation": "fold 2 与 fold 4 改进最显著（>30 kcal/kg），提示 MIL 对特定分布的 bag 有更强修正能力；fold 1 改进最小（~4 kcal/kg），可能因该折验证集异质性较低或 MIL 过拟合风险"
+  },
+  "ablation_pending": [
+    {
+      "experiment": "去掉 FiLM 调制（plsr_dim=0）",
+      "hypothesis": "FiLM 特征调制对 hybrid 融合贡献显著",
+      "status": "未跑（需改 coal_infer.py 并重新训练）"
+    },
+    {
+      "experiment": "去掉 SupCon 预训练（随机初始化 ResNet1D）",
+      "hypothesis": "对比学习预训练提升小样本泛化",
+      "status": "未跑"
+    },
+    {
+      "experiment": "TransMIL → Mean/Max pooling",
+      "hypothesis": "注意力聚合优于简单池化",
+      "status": "未跑"
+    }
+  ],
+  "quality_score": {
+    "score": 0.7,
+    "criteria": {
+      "reproducibility": 1.0,
+      "baseline_comparison": 0.8,
+      "ablation_study": 0.2,
+      "statistical_significance": 0.5
+    },
+    "interpretation": "复现性满分、基线对比完整，但消融实验缺失拉低整体分；统计显著性未做 t-test / bootstrap"
+  },
+  "failures": [
+    {
+      "tool": "完整消融实验",
+      "error": "需重新训练模型（外部 coal-calorific-value 项目权重固定，无法改架构后复用）",
+      "impact": "无法在本 handoff 内提供消融数据",
+      "mitigation": "列出待补实验清单，后续可在外部项目跑完后回填"
+    }
+  ],
+  "next": "writer",
+  "next_input": "handoff_4_improver.json",
+  "notes": "本 handoff 基于已有真实推理结果（cv_summary + claims.json）做 hybrid vs PLSR 对比分析，未新增实验。消融实验需外部项目支持，列为 pending。"
+}

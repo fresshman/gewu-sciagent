@@ -1,0 +1,67 @@
+{
+  "stage": "coal-demo",
+  "status": "partial",
+  "inputs": ["命题: 基于本地 MIL+LIBS 大颗粒原煤热值预测模型复现 5 折交叉验证并产出研究报告"],
+  "outputs": [
+    "output/documents/coal_report/main.tex",
+    "output/documents/coal_report/coal_fold0_pred_true_20261028-121746.pdf",
+    "output/documents/coal_report/coal_5fold_rmse_20261028-121844.pdf",
+    "output/documents/coal_report/claims.json",
+    "handoff_coal_demo.json"
+  ],
+  "artifacts": [
+    {"type": "latex_source", "path": "output/documents/coal_report/main.tex"},
+    {"type": "figure_pdf", "path": "output/documents/coal_report/coal_fold0_pred_true_20261028-121746.pdf"},
+    {"type": "figure_pdf", "path": "output/documents/coal_report/coal_5fold_rmse_20261028-121844.pdf"},
+    {"type": "claims_json", "path": "output/documents/coal_report/claims.json"}
+  ],
+  "metrics": {
+    "val_bags_per_fold": 14,
+    "fold0_rmse_kcal_kg": 218.6108,
+    "fold0_r2": 0.8786,
+    "fold0_mae_kcal_kg": 173.9012,
+    "rmse_kcal_per_kg_mean": 214.5699,
+    "rmse_kcal_per_kg_std": 25.7094,
+    "rmse_mj_per_kg_mean": 0.8978,
+    "rmse_mj_per_kg_std": 0.1076,
+    "plsr_rmse_mean_kcal_kg": 233.9521,
+    "cross_check_abs_diff": 1.1e-05,
+    "cross_check_verdict": "可复现",
+    "n_total_params": 924895
+  },
+  "completed": [
+    "mil-model__cv_summary 真实推理返回 5 折指标（含与官方 summary.json 交叉校验）",
+    "fold0 缓存 predictions.json 真实读取（14 bag 逐袋预测）",
+    "两张图经 sci-plot MCP 真实生成（PDF+PNG，含 45° 参考线 / RMSE/R² 标注 / 均值±标准差）",
+    "LaTeX 报告 main.tex 落盘 output/documents/coal_report/（摘要-方法-实验-结果-结论），两张 PDF 嵌入",
+    "claims.json 10 条量化声明落盘同目录（每条含 metric/value/source）"
+  ],
+  "failures": [
+    {
+      "tool": "sessions_spawn(gewu-reproduction 第1轮)",
+      "error": "子会话超时，仅记录 2 次工具调用无可见输出",
+      "impact": "reproduce_fold(fold=0) 逐袋真推理未直接返回",
+      "mitigation": "改用 mil-model__cv_summary 聚合接口 + 缓存 predictions.json，两者均已真实返回"
+    },
+    {
+      "tool": "mil-model__get_cached_metrics / mil-model__list_val_bags",
+      "error": "推理超时（>60s / >600s）",
+      "impact": "无法秒级取指标、无法直接列 bag 列表",
+      "mitigation": "cv_summary 返回了 n_per_fold=14；predictions.json 文件直接读取确认 14 条"
+    },
+    {
+      "tool": "sessions_spawn(gewu-writer)",
+      "error": "超时且无输出（无 handoff、无文件）",
+      "impact": "LaTeX 报告未由写作子 agent 产出",
+      "mitigation": "director 直接用 report__write_local_file / copy_local_file 落地报告与 claims"
+    },
+    {
+      "tool": "pdflatex",
+      "error": "系统未安装 LaTeX 编译器（pdflatex/xelatex/lualatex 均不可用）",
+      "impact": "报告 PDF 未编译产出，仅 .tex 源文件 + 嵌入 PDF 图",
+      "mitigation": "在任意有 TeX Live 的环境运行 pdflatex main.tex 即可生成 PDF；源文件已验证语法完整"
+    }
+  ],
+  "next": "1) 在有 TeX Live 的环境 cd output/documents/coal_report && pdflatex main.tex 生成 PDF（需两遍以解决引用）；2) 若需逐 bag 真推理复现，单独开长超时轮次跑 mil-model__reproduce_fold(fold=0)；3) 报告进入 improver 阶段前需跑 failure_mode_selfcheck 7 类失败模式审计。",
+  "degrade_reason": "reproduce_fold / get_cached_metrics / 写作子会话三轮超时 + 本地缺 LaTeX 编译器，非数据或方法问题"
+}

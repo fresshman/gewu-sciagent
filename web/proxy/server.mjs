@@ -11,7 +11,7 @@
 import http from "node:http";
 import { spawn, execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
-import { existsSync, mkdirSync, writeFileSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, readdirSync, readFileSync, unlinkSync, openSync, closeSync, fstatSync, readSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -123,6 +123,301 @@ function listRuns() {
       .filter(Boolean)
       .sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
   } catch { return []; }
+}
+
+// ============================================================================
+// 长任务 RunManager —— ①后台化 + ③服务端预算闸门
+//
+// ① 后台化：agent CLI 以 detached 方式 spawn、stdout 落 <key>.out 文件，
+//    SSE 只是「观察窗」：客户端断开/关页不再杀任务；回复文本增量持久化进
+//    run 记录（此前 reply 从不落盘，超时=全丢）。重连走 GET /api/run-stream。
+// ③ 预算闸门：工具调用数 + 墙钟时间双阈值。软阈值打「预警」步骤；硬阈值
+//    触发时——OpenClaw 2026.10.5 实测**无中断网关进行中会话的 CLI 动词**
+//    （sessions 只有 archive/compact/delete），杀 CLI 杀不掉网关轮次、只会
+//    丢失回复，因此硬触发不杀进程，而是：标记 budget.exceeded + 服务端强制
+//    回写 repro_request handoff 为 over_budget（复现类指令可从 message 抽出
+//    落盘路径）。真正的终局兜底仍是网关 timeoutSeconds=1800。
+// 已知边界：代理重启会丢失内存态（detached 子进程仍在跑、.out 仍在写，但
+//    tail/回复不再被采集）→ 启动时把 status=running 的落盘记录标为
+//    interrupted_by_restart，杜绝「永久 running」假象。
+// ============================================================================
+const activeRuns = new Map(); // runKey -> entry
+// 阈值默认值来自实测：一轮 397B 长任务常见 15–25 分钟 / 20–30 次工具调用。
+// 注意：工具计数依赖 `sessions tail`，而它只在会话结束时一次性吐出（实测），
+// 所以**墙钟是主闸门**，工具数只在轨迹到达时才起作用。
+const BUDGET = {
+  warnTools: Number(process.env.GEWU_RUN_BUDGET_WARN_TOOLS) || 20,
+  hardTools: Number(process.env.GEWU_RUN_BUDGET_TOOLS) || 30,
+  warnMs: (Number(process.env.GEWU_RUN_BUDGET_WARN_MINUTES) || 18) * 60_000,
+  hardMs: (Number(process.env.GEWU_RUN_BUDGET_MINUTES) || 25) * 60_000,
+  slowGapMs: Number(process.env.GEWU_RUN_SLOW_GAP_MS) || 120_000,
+};
+const nowZ = () => new Date().toISOString().slice(11, 20) + "Z";
+
+// 预算硬触发时，服务端代写复现请求 handoff：从指令文本抽出落盘路径。
+function guardReproHandoff(run, noteText) {
+  try {
+    const m = String(run.message || "").match(/复现请求】[\s\S]*?落盘于：\r?\n(.+\.json)/);
+    if (!m) return null;
+    const p = m[1].trim();
+    if (!existsSync(p)) return null;
+    const j = JSON.parse(readFileSync(p, "utf8"));
+    if (j.type !== "repro_request" || !["queued", "running"].includes(j.status)) return null;
+    j.status = "over_budget";
+    j.updated_at = new Date().toISOString();
+    j.note = (j.note ? j.note + "\n" : "") + noteText;
+    writeFileSync(p, JSON.stringify(j, null, 2), "utf8");
+    return p;
+  } catch { return null; }
+}
+
+// Windows：openclaw CLI 会自我 re-exec（--stack-size=8192），只 kill 父 pid 会漏掉孙进程 → 树杀
+function killTree(child) {
+  if (!child || !child.pid) return;
+  if (process.platform === "win32") {
+    try { spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" }); return; } catch {}
+  }
+  try { child.kill(); } catch {}
+}
+
+// startRun 半途抛错时的兜底清理：不留孤儿 tail / 计时器
+function cleanupEntry(entry) {
+  if (!entry) return;
+  for (const t of ["outTimer", "flushTimer", "watchdog", "endGrace"]) clearInterval(entry[t]);
+  killTree(entry.tailChild);
+  for (const fd of [entry.outFd, entry.errFd]) { try { if (fd !== undefined) closeSync(fd); } catch {} }
+  try { if (entry.promptFile) unlinkSync(entry.promptFile); } catch {}
+}
+
+function startRun({ agent, message, runKey }) {
+  const run = {
+    key: runKey, agent, message,
+    startedAt: Date.now(), endedAt: null,
+    status: "running", steps: [], raw: [], reply: "", budget: null,
+  };
+  mkdirSync(RUNS_DIR, { recursive: true });
+  const entry = {
+    run, listeners: new Set(), toolCalls: 0,
+    warnFired: false, hardFired: false, slowWarned: true,
+    lastEventTs: Date.now(), finalized: false,
+    replyDirty: false, outPos: 0, seenRaw: new Set(),
+  };
+  activeRuns.set(runKey, entry);
+  writeRun(runKey, run);
+
+  const fanout = (obj) => {
+    for (const l of entry.listeners) {
+      try { if (!l.writableEnded) l.write(`data: ${JSON.stringify(obj)}\n\n`); } catch {}
+    }
+  };
+  const touch = () => { entry.lastEventTs = Date.now(); entry.slowWarned = false; };
+
+  // 步骤入册（含 tool.result 回填合并）+ 广播
+  const addStep = (step) => {
+    if (step.raw && entry.seenRaw.has(step.raw)) return; // tail 重连回放去重
+    if (step.raw) entry.seenRaw.add(step.raw);
+    let sent = step;
+    if (step.kind === "tool" && step.phase === "result") {
+      let idx = -1;
+      for (let i = run.steps.length - 1; i >= 0; i--) {
+        const s = run.steps[i];
+        if (s.kind === "tool" && s.tool === step.tool && s.status === "running") { idx = i; break; }
+      }
+      if (idx >= 0) {
+        run.steps[idx].status = step.status;
+        run.steps[idx].result = step.result;
+        run.steps[idx].endedTs = step.ts;
+        sent = run.steps[idx];
+      } else {
+        run.steps.push({ ...step, startedTs: step.ts });
+      }
+    } else {
+      run.steps.push(step);
+    }
+    if (step.kind === "tool" && step.phase === "call") entry.toolCalls++;
+    if (step.kind === "ended") {
+      run.status = step.disposition || run.status;
+      finishAfterTurn(run.status === "success" ? 0 : 1);
+    }
+    run.raw.push(step.raw);
+    touch();
+    writeRun(runKey, run);
+    fanout({ type: "step", step: sent });
+  };
+
+  // fd 尾读（.out 回复 / .err 报错）：detached 子进程没有 stdio 流，只能按位置读文件
+  entry.errPos = 0;
+  const readTail = (fd, posKey) => {
+    try {
+      const size = fstatSync(fd).size;
+      if (size <= entry[posKey]) return "";
+      const buf = Buffer.alloc(size - entry[posKey]);
+      const rd = readSync(fd, buf, 0, buf.length, entry[posKey]);
+      entry[posKey] += rd;
+      return rd > 0 ? buf.toString("utf8", 0, rd) : "";
+    } catch { return ""; }
+  };
+
+  const stopTail = () => { killTree(entry.tailChild); };
+
+  // 回复尾巴捞取：agent CLI 是在轮次结束时一次性打印回复的，最后一次捞取必须
+  // 同时广播给观察窗，否则前端气泡只剩空白（落盘有、屏幕没有）。
+  const sweepOutIntoReply = () => {
+    const rest = readTail(entry.outFd, "outPos");
+    if (!rest) return;
+    run.reply += rest;
+    entry.replyDirty = true;
+    touch();
+    fanout({ type: "delta", text: rest });
+  };
+
+  const cleanup = () => {
+    if (entry.cleaned) return;
+    entry.cleaned = true;
+    clearInterval(entry.outTimer); clearInterval(entry.flushTimer); clearTimeout(entry.cleanupTimer);
+    sweepOutIntoReply();
+    const restErr = readTail(entry.errFd, "errPos");
+    if (restErr.trim()) run.raw.push("[stderr] " + restErr.trim());
+    writeRun(runKey, run);
+    try { closeSync(entry.outFd); closeSync(entry.errFd); } catch {}
+    try { unlinkSync(entry.promptFile); } catch {}
+    stopTail();
+  };
+
+  const finalize = (code) => {
+    if (entry.finalized) return;
+    entry.finalized = true;
+    clearInterval(entry.watchdog); clearInterval(entry.endGrace);
+    // OpenClaw 2026.10.5 实测：`sessions tail --follow` 并不流式，整段轨迹是在会话结束时
+    // 一次性吐出的，而 agent CLI 退出几乎同时发生 —— 立刻杀 tail 会把刚拿到的步骤丢掉。
+    // 所以先落终态 + 通知观察窗，再给 tail 3s 宽限读完 burst，之后才做资源清理。
+    sweepOutIntoReply();
+    if (run.status === "running") run.status = code === 0 ? "success" : "error";
+    run.endedAt = Date.now();
+    writeRun(runKey, run);
+    fanout({ type: "done", exitCode: code, status: run.status, ts: run.endedAt });
+    for (const l of entry.listeners) { try { l.end(); } catch {} }
+    entry.listeners.clear();
+    activeRuns.delete(runKey);
+    entry.cleanupTimer = setTimeout(cleanup, 3_000);
+  };
+
+  // 网关轮次已结束（tail 报 session.ended）：正常情况 CLI 随即自行退出、由 close 收口；
+  // 若它挂住或 exit 事件丢失，这里探测退出码，最长 20s 后由服务端收口，
+  // 保证 endedAt / tail 清理 / 计时器清理一定发生（否则预算看门狗会在成功 run 上误触发）。
+  const finishAfterTurn = (fallbackCode) => {
+    if (entry.finalized || entry.endGrace) return;
+    const probeAt = Date.now();
+    entry.endGrace = setInterval(() => {
+      if (entry.finalized) { clearInterval(entry.endGrace); return; }
+      const code = entry.agentChild && entry.agentChild.exitCode;
+      if (code !== null && code !== undefined) { finalize(code); return; }
+      if (Date.now() - probeAt > 20_000) finalize(fallbackCode);
+    }, 2_000);
+  };
+
+  // tail 子进程：轨迹事件 → 步骤。
+  // 坑：`sessions tail` 对还不存在的 session key 会立即 exit 1（Session not found），
+  // 而 key 是 agent CLI 起来之后才创建的 → 首次 attach 是一场竞速。失败就重试，
+  // 重连时 --tail 200 会回放历史，配合 seenRaw 去重：既不丢步骤也不重复。
+  const tailArgs = ["sessions", "tail", "--session-key", runKey, "--follow", "--tail", "200"];
+  const onTailData = (d) => {
+    for (const ln of d.toString().split("\n")) {
+      const t = ln.trim();
+      if (t && !/Session not found/i.test(t)) addStep(parseTailLine(t));
+    }
+  };
+  const startTail = (attempt) => {
+    if (entry.finalized) return;
+    const child = spawn(OPENCLAW.cmd, [...OPENCLAW.prefix, ...tailArgs], { shell: OPENCLAW.shell, env: { ...process.env } });
+    entry.tailChild = child;
+    child.stdout.on("data", onTailData);
+    child.stderr.on("data", onTailData);
+    let settled = false; // 同一个 child 的 error/exit 只重试一次
+    const retry = (why, info) => {
+      if (settled) return;
+      settled = true;
+      if (entry.finalized) return; // finalize 主动杀 tail，退出是预期行为
+      const msg = `tail attempt#${attempt} ${why}${info ? ": " + info : ""}`;
+      run.raw.push(msg);
+      console.error("[gewu-proxy]", runKey, msg);
+      if (attempt >= 20) {
+        addStep({ kind: "info", type: "trace.unavailable", ts: nowZ(),
+          detail: "轨迹采集没连上会话（只保留最终回复，中间步骤不可见）",
+          raw: `tail give-up after ${attempt + 1} attempts` });
+        return;
+      }
+      setTimeout(() => startTail(attempt + 1), 1_200);
+    };
+    child.on("error", (e) => retry("spawn-error", e?.message || String(e)));
+    child.on("exit", (code, sig) => retry("exit", `code=${code} sig=${sig}`));
+  };
+  startTail(0);
+
+  // agent 轮次：detached + 输出落文件，脱离 HTTP 生命周期；长中文走 --message-file
+  entry.outFd = openSync(join(RUNS_DIR, safeName(runKey) + ".out"), "w+");
+  entry.errFd = openSync(join(RUNS_DIR, safeName(runKey) + ".err"), "w+");
+  entry.promptFile = join(tmpdir(), `gewu-chat-${randomUUID()}.txt`);
+  writeFileSync(entry.promptFile, message, "utf8");
+  const timeoutSec = String(Number(process.env.GEWU_AGENT_TIMEOUT) || 3600);
+  const agentArgs = ["agent", "--agent", agent, "--session-key", runKey, "--message-file", entry.promptFile, "--timeout", timeoutSec];
+  entry.agentChild = spawn(OPENCLAW.cmd, [...OPENCLAW.prefix, ...agentArgs], {
+    shell: OPENCLAW.shell, env: { ...process.env },
+    detached: true, stdio: ["ignore", entry.outFd, entry.errFd],
+  });
+  // 收口订阅紧跟 spawn：fd-stdio 下 child.stderr 是 null，任何在其上挂监听的代码
+  // 都会同步抛错并跳过这里的订阅，导致 finalize 永不执行（tail/计时器泄漏）。
+  entry.agentChild.on("close", (code) => finalize(code ?? 1));
+  entry.agentChild.on("error", (e) => {
+    fanout({ type: "error", text: "桥接失败：" + (e?.message || e) });
+    finalize(1);
+  });
+
+  // .out 尾读：回复持久化 + delta 广播；.err 尾读：网关侧报错翻译成人话推给观察窗
+  entry.outTimer = setInterval(() => {
+    sweepOutIntoReply();
+    const errText = readTail(entry.errFd, "errPos");
+    if (errText) {
+      for (const ln of errText.split("\n")) {
+        if (/error|拒绝|fail|denied|exception/i.test(ln)) fanout({ type: "error", text: friendly(ln) });
+      }
+    }
+  }, 700);
+  entry.flushTimer = setInterval(() => {
+    if (entry.replyDirty) { entry.replyDirty = false; writeRun(runKey, run); }
+  }, 2000);
+
+  // 预算/慢轮次看门狗
+  entry.watchdog = setInterval(() => {
+    if (entry.finalized) return;
+    const elapsed = Date.now() - run.startedAt;
+    const mins = (elapsed / 60_000).toFixed(1);
+    if (!entry.warnFired && (entry.toolCalls >= BUDGET.warnTools || elapsed >= BUDGET.warnMs)) {
+      entry.warnFired = true;
+      addStep({ kind: "info", type: "budget.warn", ts: nowZ(),
+        detail: `预算预警：工具 ${entry.toolCalls} 次 / 用时 ${mins} 分钟（硬阈值 ${BUDGET.hardTools} 次 / ${(BUDGET.hardMs / 60_000).toFixed(1)} 分钟）`,
+        raw: `budget.warn tools=${entry.toolCalls} elapsed=${mins}m` });
+    }
+    if (!entry.hardFired && (entry.toolCalls >= BUDGET.hardTools || elapsed >= BUDGET.hardMs)) {
+      entry.hardFired = true;
+      run.budget = { exceeded: true, toolCalls: entry.toolCalls, elapsedMs: elapsed, at: new Date().toISOString() };
+      const note = `[gewu-proxy 预算闸门] ${new Date().toISOString()} 触发：工具调用 ${entry.toolCalls} 次、用时 ${mins} 分钟。网关轮次不支持外部中断（OpenClaw 2026.10.5 实测），此为服务端强制落盘的终态标记，可据 note 决策续跑或止损。`;
+      const hp = guardReproHandoff(run, note);
+      addStep({ kind: "info", type: "budget.hard", ts: nowZ(),
+        detail: `预算闸门触发：${hp ? "已回写 handoff → over_budget" : "已记录 budget.exceeded（无关联 handoff）"}`,
+        raw: note });
+      writeRun(runKey, run);
+    }
+    if (!entry.slowWarned && Date.now() - entry.lastEventTs >= BUDGET.slowGapMs) {
+      entry.slowWarned = true;
+      const gapS = Math.round((Date.now() - entry.lastEventTs) / 1000);
+      addStep({ kind: "info", type: "turn.slow", ts: nowZ(),
+        detail: `慢轮次：${gapS}s 无轨迹事件（上下文膨胀或网关排队，后续轮次会更快触顶预算）`,
+        raw: `turn.slow gap=${gapS}s` });
+    }
+  }, 10_000);
+
+  return entry;
 }
 
 const MIME = {
@@ -807,108 +1102,66 @@ const server = http.createServer(async (req, res) => {
       "Connection": "keep-alive",
       "X-Accel-Buffering": "no",
     });
-    const send = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+    const send = (obj) => { try { res.write(`data: ${JSON.stringify(obj)}\n\n`); } catch {} };
 
-    // 内存中的本次运行记录，逐步写盘（A3 落盘核心：超时/关页也能复盘已完成步骤）
-    const run = {
-      key: runKey, agent, message, startedAt: Date.now(), endedAt: null,
-      status: "running", steps: [], raw: [],
-    };
-    writeRun(runKey, run);
-    send({ type: "start", agent, runKey, ts: run.startedAt });
+    // 同一 key 已有在跑的 run：不重复开轮次，直接接入回放 + 实时轨迹。
+    const existing = activeRuns.get(runKey);
+    if (existing) {
+      send({ type: "start", agent: existing.run.agent, runKey, ts: existing.run.startedAt, attached: true });
+      for (const s of existing.run.steps) send({ type: "step", step: s });
+      if (existing.run.reply) send({ type: "delta", text: existing.run.reply });
+      send({ type: "error", text: "该会话仍在运行，已接入实时轨迹；请等本轮结束（或看磁盘产出）后再发新指令。" });
+      existing.listeners.add(res);
+      req.on("close", () => existing.listeners.delete(res));
+      return;
+    }
 
-    // 通过官方 CLI 桥接 Gateway；单次 agent 轮次超时默认 1500s。
-    const timeoutSec = String(Number(process.env.GEWU_AGENT_TIMEOUT) || 1500);
-    const agentArgs = ["agent", "--agent", agent, "--session-key", runKey, "-m", message, "--timeout", timeoutSec];
-    const tailArgs = ["sessions", "tail", "--session-key", runKey, "--follow", "--tail", "200"];
-
-    let agentChild, tailChild;
-
-    // 把一条轨迹事件落盘并实时推给前端
-    const finishStep = (step) => {
-      let sent;
-      if (step.kind === "tool" && step.phase === "result") {
-        // 回填到最近一个同工具、仍在运行的步骤
-        let realIdx = -1;
-        for (let i = run.steps.length - 1; i >= 0; i--) {
-          const s = run.steps[i];
-          if (s.kind === "tool" && s.tool === step.tool && s.status === "running") { realIdx = i; break; }
-        }
-        if (realIdx >= 0) {
-          run.steps[realIdx].status = step.status;
-          run.steps[realIdx].result = step.result;
-          run.steps[realIdx].endedTs = step.ts;
-          sent = run.steps[realIdx];
-        } else {
-          const merged = { ...step, startedTs: step.ts };
-          run.steps.push(merged);
-          sent = merged;
-        }
-      } else {
-        run.steps.push(step);
-        sent = step;
-      }
-      if (step.kind === "ended") run.status = step.disposition || run.status;
-      run.raw.push(step.raw);
-      writeRun(runKey, run);
-      send({ type: "step", step: sent });
-    };
-
-    const stopTail = () => { try { tailChild && !tailChild.killed && tailChild.kill(); } catch {} };
-
+    send({ type: "start", agent, runKey, ts: Date.now() });
+    let entry;
     try {
-      // 先起 tail（follow），再起 agent，避免漏掉 session.started 等早期事件。
-      // 注意：sessions tail 的轨迹可能写到 stdout 或 stderr，两者都解析。
-      tailChild = spawn(OPENCLAW.cmd, [...OPENCLAW.prefix, ...tailArgs], {
-        shell: OPENCLAW.shell, env: { ...process.env },
-      });
-      const onTailData = (d) => {
-        for (const ln of d.toString().split("\n")) {
-          const t = ln.trim();
-          if (t) finishStep(parseTailLine(t));
-        }
-      };
-      tailChild.stdout.on("data", onTailData);
-      tailChild.stderr.on("data", onTailData);
-      tailChild.on("error", () => {});
-
-      agentChild = spawn(OPENCLAW.cmd, [...OPENCLAW.prefix, ...agentArgs], {
-        shell: OPENCLAW.shell, env: { ...process.env },
-      });
+      entry = startRun({ agent, message, runKey });
     } catch (e) {
+      console.error("[gewu-proxy] startRun failed:", e);
+      cleanupEntry(activeRuns.get(runKey));
+      activeRuns.delete(runKey);
+      const partial = readRun(runKey) || { key: runKey, agent, message, startedAt: Date.now(), steps: [], raw: [], reply: "", budget: null };
+      partial.status = "error";
+      partial.endedAt = Date.now();
+      partial.raw = [...(partial.raw || []), "startRun failed: " + (e?.message || e)];
+      writeRun(runKey, partial);
       send({ type: "error", text: "无法启动 openclaw：" + (e?.message || e) });
       return res.end();
     }
+    entry.listeners.add(res);
+    // 关键差异：客户端断开只是关掉「观察窗」，不再 kill 子进程。
+    req.on("close", () => { const en = activeRuns.get(runKey); if (en) en.listeners.delete(res); });
+    return;
+  }
 
-    let errored = false;
-    agentChild.stdout.on("data", (d) => send({ type: "delta", text: d.toString() }));
-    agentChild.stderr.on("data", (d) => {
-      const t = d.toString();
-      if (/error|拒绝|fail|denied|exception/i.test(t)) {
-        errored = true;
-        send({ type: "error", text: friendly(t) });
-      }
+  // 重连接口：对活跃 run 接实时轨迹；对已结束 run 回放落盘记录（含 reply）。
+  if (p === "/api/run-stream" && req.method === "GET") {
+    const key = url.searchParams.get("key");
+    if (!key) return sendJSON(res, 400, { error: "missing key" });
+    const live = activeRuns.get(key);
+    const d = live ? live.run : readRun(key);
+    if (!d) return sendJSON(res, 404, { error: "run not found" });
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no",
     });
-    agentChild.on("close", (code) => {
-      stopTail();
-      if (run.status === "running") run.status = code === 0 ? "success" : "error";
-      run.endedAt = Date.now();
-      writeRun(runKey, run);
-      if (!errored && code !== 0)
-        send({ type: "error", text: `智能体异常退出（code ${code}）。可稍后重试或缩小任务范围。` });
-      send({ type: "done", exitCode: code, status: run.status, ts: run.endedAt });
+    const send = (obj) => { try { res.write(`data: ${JSON.stringify(obj)}\n\n`); } catch {} };
+    send({ type: "start", agent: d.agent, runKey: d.key, ts: d.startedAt, replay: true });
+    for (const s of d.steps) send({ type: "step", step: s });
+    if (d.reply) send({ type: "delta", text: d.reply });
+    if (live && !live.finalized) {
+      live.listeners.add(res);
+      req.on("close", () => live.listeners.delete(res));
+    } else {
+      send({ type: "done", status: d.status, ts: d.endedAt });
       res.end();
-    });
-    agentChild.on("error", (e) => {
-      stopTail();
-      send({ type: "error", text: "桥接失败：" + (e?.message || e) });
-      res.end();
-    });
-    req.on("close", () => {
-      try { agentChild.kill(); } catch {}
-      stopTail();
-      try { run.status = "aborted"; run.endedAt = Date.now(); writeRun(runKey, run); } catch {}
-    });
+    }
     return;
   }
 
@@ -916,7 +1169,22 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
+  // 代理重启会丢内存态（detached 子进程可能仍在跑，但轨迹/回复无人采集）：
+  // 把落盘里仍是 running 的记录标为 interrupted_by_restart，杜绝「永久 running」。
+  try {
+    for (const r of listRuns()) {
+      if (r.status === "running") {
+        const d = readRun(r.key);
+        if (d) {
+          d.status = "interrupted_by_restart";
+          d.endedAt = d.endedAt || Date.now();
+          d.raw = [...(d.raw || []), `proxy.restart ${new Date().toISOString()}：未完成 run 标记为 interrupted_by_restart（detached 轮次可能仍在网关侧进行）`];
+          writeRun(r.key, d);
+        }
+      }
+    }
+  } catch {}
   console.log(`[gewu-proxy] listening on http://localhost:${PORT}`);
   console.log(`[gewu-proxy] gateway=${GATEWAY}  openclaw=${OPENCLAW.cmd} ${OPENCLAW.prefix.join(" ")}`);
-  console.log(`[gewu-proxy] agent timeout=${process.env.GEWU_AGENT_TIMEOUT || 1500}s`);
+  console.log(`[gewu-proxy] agent CLI wait timeout=${process.env.GEWU_AGENT_TIMEOUT || 3600}s | budget: tools ${BUDGET.warnTools}/${BUDGET.hardTools} | wall ${(BUDGET.warnMs / 60000).toFixed(1)}/${(BUDGET.hardMs / 60000).toFixed(1)} min | slow gap ${BUDGET.slowGapMs / 1000}s`);
 });

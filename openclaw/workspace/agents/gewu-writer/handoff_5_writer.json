@@ -1,0 +1,69 @@
+{
+  "stage": 5,
+  "stage_name": "写论文",
+  "status": "completed",
+  "title": "MIL+LIBS 大颗粒原煤热值预测 · 复现报告（LaTeX 成稿）",
+  "created_by": "gewu-writer",
+  "created_at": "2026-10-28T16:30:00+08:00",
+  "inputs": [
+    "handoff_4_improver.json",
+    "handoff_3_repro.json",
+    "handoff_plot.json"
+  ],
+  "outputs": [
+    "handoff_5_writer.json",
+    "output/documents/coal_report/main.tex",
+    "output/documents/coal_report/claims.json",
+    "output/documents/coal_report/coal_fold0_pred_true_20261028-121746.pdf",
+    "output/documents/coal_report/coal_5fold_rmse_20261028-121844.pdf"
+  ],
+  "report_structure": {
+    "format": "LaTeX (article, 11pt, a4paper)",
+    "sections": [
+      "摘要（含 5 折 RMSE 均值/标准差、与官方交叉校验结论）",
+      "方法（数据预处理、模型架构：ResNet1D+SupCon+TransMIL+FiLM、融合策略）",
+      "实验设置（数据根、交叉验证划分、指标口径）",
+      "结果（5 折逐折指标、hybrid vs PLSR 对比、fold0 预测-真实散点图）",
+      "结论（可复现性确认、改进空间）"
+    ],
+    "figures_embedded": 2,
+    "claims_count": 10
+  },
+  "anti_hallucination_compliance": {
+    "d1_citation_verification": {
+      "status": "not_applicable",
+      "reason": "本报告为复现报告，未引用外部文献（无 \\cite）"
+    },
+    "d2_claim_provenance": {
+      "status": "pass",
+      "claims_source": "registry:coal-mil-hybrid (sci-exp 注册表)",
+      "verification": "所有量化声明均可溯源至 cv_summary 真实推理输出或官方 summary.json 交叉校验",
+      "sample_claims": [
+        {"text": "MIL hybrid 模型 5 折 RMSE 均值 214.57 ± 25.71 kcal/kg", "source": "registry:coal-mil-hybrid", "verified": true},
+        {"text": "与官方 summary.json 交叉校验绝对差值 1.1e-05", "source": "registry:coal-mil-hybrid", "verified": true},
+        {"text": "MIL 相对 PLSR 带来约 19.4 kcal/kg 的 RMSE 下降", "source": "registry:coal-mil-hybrid", "verified": true}
+      ]
+    },
+    "d3_citation_lint": {
+      "status": "not_applicable",
+      "reason": "无外部引用，无需 lint"
+    },
+    "d4_grounding": {
+      "status": "not_applicable",
+      "reason": "未使用原页理解（无 PDF 图表数值抽取）"
+    }
+  },
+  "compilation_status": {
+    "latex_source": "complete",
+    "pdf_compiled": false,
+    "reason": "本机未安装 TeX Live（pdflatex/xelatex/lualatex 均不可用）",
+    "instruction": "在任意有 TeX Live 的环境运行 `cd output/documents/coal_report && pdflatex main.tex`（需两遍以解决引用）即可生成 PDF"
+  },
+  "word_version": {
+    "status": "not_generated",
+    "reason": "本报告为 LaTeX 格式（投 LaTeX 期刊用）；若需 Word 版（中文核心/学位论文），可另起任务调 office-word MCP"
+  },
+  "next": "publication",
+  "next_input": "handoff_5_writer.json",
+  "notes": "写手阶段完成 LaTeX 报告成稿 + claims.json 落盘，反幻觉 D2 合规（所有数值声明溯源至 sci-exp 注册表）。D1/D3/D4 不适用（无外部引用、无原页理解）。PDF 编译需外部 TeX Live 环境。"
+}

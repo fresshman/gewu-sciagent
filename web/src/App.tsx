@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { useIsDesktop } from "./hooks/useMediaQuery";
-import { getAgents, getStages, getModels, getHealth, sendChat } from "./api/client";
+import { getAgents, getStages, getModels, getHealth, sendChat, getRun } from "./api/client";
 import type { Agent, Stage, ModelOption, ChatMessage, RunStep, RunStatus } from "./types";
 import { TopBar } from "./components/TopBar";
 import { PipelinePanel } from "./components/PipelinePanel";
@@ -86,6 +86,7 @@ export default function App() {
       if (!agentId || isStreaming) return;
       // 续跑：复用上一轮 session-key 让 agent 承接上下文
       const key = pendingResumeKey ?? undefined;
+      let liveRunKey = key ?? "";
       if (pendingResumeKey) setPendingResumeKey(null);
 
       const userMsg: ChatMessage = { id: uid(), role: "user", text, ts: Date.now() };
@@ -113,7 +114,7 @@ export default function App() {
       };
 
       sendChat(agentId, text, {
-        onStart: (_agent, rk) => setCurrentRunKey(rk),
+        onStart: (_agent, rk) => { liveRunKey = rk; setCurrentRunKey(rk); },
         onStep: (step) => {
           if (step.kind === "ended" && step.disposition) setRunStatus(dispositionToStatus(step.disposition));
           setRunSteps((prev) => mergeStep(prev, step));
@@ -133,6 +134,16 @@ export default function App() {
         onDone: (status) => {
           if (status) setRunStatus(status);
           finalize();
+          // 轨迹 burst：OpenClaw 的 sessions tail 在会话结束时才一次性吐出全部步骤，
+          // done 往往先于它落盘 → 稍后回读 run 记录，把已完成步骤补进面板。
+          if (liveRunKey) {
+            setTimeout(async () => {
+              try {
+                const rec = await getRun(liveRunKey);
+                setRunSteps((prev) => (rec.steps?.length > prev.length ? rec.steps : prev));
+              } catch {}
+            }, 4000);
+          }
         },
       }).catch((e) => {
         setRunStatus("error");

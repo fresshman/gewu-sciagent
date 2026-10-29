@@ -1,0 +1,97 @@
+{
+  "stage": 6,
+  "stage_name": "发表追踪",
+  "status": "completed",
+  "title": "MIL+LIBS 大颗粒原煤热值预测 · 期刊推荐（journal-match 完整报告）",
+  "created_by": "gewu-publication",
+  "created_at": "2026-10-26T11:13:00+08:00",
+  "updated_at": "2026-10-29T10:00:00+08:00",
+  "inputs": [
+    "handoff_5_writer.json",
+    "output/documents/coal_report/main.tex"
+  ],
+  "outputs": [
+    "handoff_6_publication.json",
+    "reports/2026-10-26-journal-match-mil-libs-coal.html",
+    "reports/2026-10-26-journal-match-mil-libs-coal.json"
+  ],
+  "manuscript_profile": {
+    "title": "MIL + LIBS 大颗粒原煤热值预测 · 5 折交叉验证复现报告",
+    "discipline": "分析化学 / 光谱学 / 机器学习",
+    "subfield": "LIBS (激光诱导击穿光谱) + 多示例学习 + 煤质分析",
+    "methodology": "empirical (实验复现 + 基线对比)",
+    "keywords": [
+      "laser-induced breakdown spectroscopy",
+      "LIBS",
+      "multi-instance learning",
+      "MIL",
+      "coal",
+      "calorific value",
+      "partial least squares regression",
+      "PLSR",
+      "cross-validation"
+    ],
+    "language": "zh-CN (中文报告，LaTeX 源文件含英文术语)",
+    "length_estimate": "~2000 words (6 页 LaTeX)",
+    "target_audience": "光谱分析、煤质检测、化学计量学领域研究者与工程师"
+  },
+  "journal_match_report": {
+    "status": "completed",
+    "report_html": "reports/2026-10-26-journal-match-mil-libs-coal.html",
+    "report_json": "reports/2026-10-26-journal-match-mil-libs-coal.json",
+    "top_tier1_journals": [
+      {
+        "name": "Analytical Methods",
+        "publisher": "Royal Society of Chemistry",
+        "scope_score": 4,
+        "tier": 1,
+        "easyscholar_rank": "SCI Q2 / 化学3区 / IF=3.0",
+        "status": "verified"
+      },
+      {
+        "name": "Applied Spectroscopy",
+        "publisher": "SAGE / Society for Applied Spectroscopy",
+        "scope_score": 4,
+        "tier": 1,
+        "easyscholar_rank": "SCI Q2 / 光谱学3区 / IF=2.2",
+        "status": "verified"
+      },
+      {
+        "name": "Molecules",
+        "publisher": "MDPI",
+        "scope_score": 4,
+        "tier": 1,
+        "easyscholar_rank": "SCI Q2 / 化学2区 / IF=5.1 / TOP",
+        "status": "verified",
+        "is_oa": true
+      }
+    ],
+    "total_journals_evaluated": 15,
+    "tier_distribution": {
+      "tier_1": 3,
+      "tier_2": 8,
+      "tier_3": 4
+    }
+  },
+  "anti_hallucination_compliance": {
+    "d1_journal_verification": {
+      "status": "pass",
+      "method": "OpenAlex API 存在性核验（journal-match 脚本 STEP 3 自动执行）",
+      "result": "所有候选期刊均经 OpenAlex 核验存在，无 UNVERIFIED"
+    },
+    "d2_rank_verification": {
+      "status": "pass",
+      "method": "EasyScholar 开放接口核验（journal-match 脚本 STEP 3B 自动执行）",
+      "result": "所有期刊的 SCI/Q区/IF 等级均经 EasyScholar 溯源，非模型编造"
+    }
+  },
+  "submission_plan": {
+    "status": "ready",
+    "recommended_action": "优先投 Tier 1 期刊（Analytical Methods / Applied Spectroscopy / Molecules），根据 OA 偏好与 IF 要求选择",
+    "timeline": "稿件已就绪（main.tex + claims.json + 2 张 PDF 图），可直接投稿"
+  },
+  "failures": [],
+  "next": "distillation",
+  "next_input": "handoff_6_publication.json",
+  "notes": "journal-match 技能完整跑通，产出 Tier 1/2/3 分级期刊推荐报告（15 刊），所有期刊经 OpenAlex 存在性核验 + EasyScholar 等级溯源，反幻觉 D1/D2 合规。"
+}

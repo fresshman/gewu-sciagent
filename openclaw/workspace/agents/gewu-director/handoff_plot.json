@@ -1,0 +1,49 @@
+{
+  "status": "completed",
+  "agent": "gewu-reproduction",
+  "round": 2,
+  "task": "绘图 (fold0 预测-真实散点图 + 5 折 RMSE 柱状图)",
+  "started_at": "2026-10-28T12:13:00+08:00",
+  "finished_at": "2026-10-28T12:19:00+08:00",
+  "completed": [
+    "调用 sci-plot__plot_pred_true 产出 fold0 预测 vs 真实散点图（PDF+PNG），含 45° 参考线与 RMSE/R² 标注",
+    "调用 sci-plot__plot_bar 产出 5 折 hybrid RMSE 柱状图（PDF+PNG），带误差棒、均值线与均值±标准差标注",
+    "独立复核 fold0 指标与 5 折均值/标准差，与核验来源一致"
+  ],
+  "outputs": {
+    "plot_pred_true": {
+      "stem": "coal_fold0_pred_true",
+      "title": "fold0: MIL hybrid 预测 vs 真实",
+      "pdf": "F:\\python-exercise\\Industrial_LLM\\langchain-learn\\gewu-sciagent\\output\\figures\\coal_fold0_pred_true_20261028-121746.pdf",
+      "png": "F:\\python-exercise\\Industrial_LLM\\langchain-learn\\gewu-sciagent\\output\\figures\\coal_fold0_pred_true_20261028-121746.png",
+      "metrics": { "r2": 0.8786, "rmse": 218.6108, "mae": 173.9012, "n": 14 }
+    },
+    "plot_5fold_rmse": {
+      "stem": "coal_5fold_rmse",
+      "title": "5 折交叉验证 RMSE (MIL hybrid)",
+      "pdf": "F:\\python-exercise\\Industrial_LLM\\langchain-learn\\gewu-sciagent\\output\\figures\\coal_5fold_rmse_20261028-121844.pdf",
+      "png": "F:\\python-exercise\\Industrial_LLM\\langchain-learn\\gewu-sciagent\\output\\figures\\coal_5fold_rmse_20261028-121844.png",
+      "annotation": "均值±标准差 = 214.57 ± 25.71 kcal/kg (0.8978 ± 0.1076 MJ/kg)"
+    }
+  },
+  "artifacts": [
+    "F:\\python-exercise\\Industrial_LLM\\langchain-learn\\gewu-sciagent\\output\\figures\\coal_fold0_pred_true_20261028-121746.pdf",
+    "F:\\python-exercise\\Industrial_LLM\\langchain-learn\\gewu-sciagent\\output\\figures\\coal_fold0_pred_true_20261028-121746.png",
+    "F:\\python-exercise\\Industrial_LLM\\langchain-learn\\gewu-sciagent\\output\\figures\\coal_5fold_rmse_20261028-121844.pdf",
+    "F:\\python-exercise\\Industrial_LLM\\langchain-learn\\gewu-sciagent\\output\\figures\\coal_5fold_rmse_20261028-121844.png"
+  ],
+  "metrics": {
+    "fold0": { "hybrid_rmse": 218.6108, "plsr_rmse": 231.2064, "r2": 0.8786, "mae": 173.9012, "n": 14 },
+    "5fold_hybrid": { "mean": 214.5699, "std": 25.7094, "mean_mj": 0.8978, "std_mj": 0.1076, "values": [218.6108, 244.9214, 222.3821, 220.0729, 166.8624] },
+    "cross_check": { "official_vs_local": 1.1e-05, "verdict": "可复现" }
+  },
+  "failures": [
+    {
+      "tool": "mil-model__get_cached_metrics",
+      "error": "推理超时（>60s）",
+      "impact": "无法通过 MCP 实时取数；不影响本任务——数值来源为任务内已核验的真实数据",
+      "mitigation": "改用 predict_fold 分批或加大 timeout；本轮不阻塞"
+    }
+  ],
+  "next": "绘图阶段交付物已就绪，可合并入 reproducibility handoff 并交由 writer 阶段落稿。注意：view_image 受路径白名单限制无法内联看图，已改为以文件尺寸/独立数值复核确认产出。"
+}

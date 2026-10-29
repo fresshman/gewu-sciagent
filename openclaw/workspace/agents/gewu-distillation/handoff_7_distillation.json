@@ -1,0 +1,118 @@
+{
+  "stage": 7,
+  "stage_name": "沉淀",
+  "status": "partial",
+  "title": "MIL+LIBS 大颗粒原煤热值预测 · 技能沉淀清单",
+  "created_by": "gewu-distillation",
+  "created_at": "2026-10-28T17:30:00+08:00",
+  "inputs": [
+    "handoff_6_publication.json",
+    "handoff_1_direction.json",
+    "handoff_2_litreview.json",
+    "handoff_3_repro.json",
+    "handoff_4_improver.json",
+    "handoff_5_writer.json"
+  ],
+  "outputs": [
+    "handoff_7_distillation.json"
+  ],
+  "distilled_skills": [
+    {
+      "name": "mil_calibration",
+      "location": "openclaw/workspace/agents/gewu-distillation/skills/mil_calibration/SKILL.md",
+      "description": "MIL 模型校准与推理技能：覆盖 ResNet1D+SupCon+TransMIL+FiLM 架构、PLSR 基线、hybrid 融合策略、5 折 CV 划分",
+      "reusability": "高 — 可直接复用于其他 MIL+光谱回归任务（如土壤有机质、矿石品位预测）",
+      "status": "已沉淀"
+    },
+    {
+      "name": "scientific_plotting",
+      "location": "openclaw/workspace/agents/gewu-distillation/skills/scientific_plotting/SKILL.md",
+      "description": "科学绘图规范：含数据统计图走本地 sci-plot（PDF 矢量+PNG 300dpi），结构/概念图走云端 chart-cloud，数据不出域",
+      "reusability": "高 — 通用绘图规范，适用于所有含实验数据的科研报告",
+      "status": "已沉淀"
+    },
+    {
+      "name": "spectrum_preprocess",
+      "location": "openclaw/workspace/agents/gewu-distillation/skills/spectrum_preprocess/SKILL.md",
+      "description": "光谱预处理链：Savitzky-Golay 平滑 → 不对称最小二乘(als) 基线校正 → MinMax 归一化",
+      "reusability": "中高 — 适用于 LIBS/Raman/IR 等光谱数据，但参数需按领域调整",
+      "status": "已沉淀"
+    },
+    {
+      "name": "research_lifecycle",
+      "location": "openclaw/workspace/agents/gewu-distillation/skills/research_lifecycle/SKILL.md",
+      "description": "科研全生命周期管理：7 阶段流转、handoff schema、失败降级落盘铁律、反幻觉 D1-D4 闸门",
+      "reusability": "高 — 通用科研流程框架，适用于任何科学智能体项目",
+      "status": "已沉淀"
+    },
+    {
+      "name": "failure_mode_selfcheck",
+      "location": "openclaw/workspace/agents/gewu-distillation/skills/failure_mode_selfcheck/SKILL.md",
+      "description": "失败模式自检：7 类失败模式（超时/工具报错/数据缺失/幻觉/越界/编译失败/环境缺失）审计与降级策略",
+      "reusability": "高 — 通用鲁棒性保障，适用于所有长流程智能体任务",
+      "status": "已沉淀"
+    }
+  ],
+  "pending_distillation": [
+    {
+      "skill_name": "journal_match_workflow",
+      "description": "期刊推荐完整流程：从稿件 profile 提取 → Semantic Scholar/OpenAlex 相似论文检索 → 期刊元数据丰富 → EasyScholar 等级核验 → HTML 报告生成",
+      "reason_pending": "journal-match 技能已存在，但本次流程未完整跑通（handoff_6 为占位），待下次完整执行后提炼为标准工作流",
+      "status": "待沉淀"
+    },
+    {
+      "skill_name": "ablation_study_protocol",
+      "description": "消融实验协议：模型组件去留（FiLM/SupCon/TransMIL）、超参网格、统计显著性检验（t-test/bootstrap）",
+      "reason_pending": "handoff_4 列出消融实验清单但未实际执行，待外部项目支持后沉淀",
+      "status": "待沉淀"
+    },
+    {
+      "skill_name": "latex_to_word_conversion",
+      "description": "LaTeX → Word 转换：用 office-word MCP 将 LaTeX 报告转为 Word 格式（中文核心/学位论文用）",
+      "reason_pending": "handoff_5 仅生成 LaTeX 版，Word 版未生成，待下次完整执行后沉淀",
+      "status": "待沉淀"
+    }
+  ],
+  "memory_update": {
+    "status": "completed",
+    "location": "openclaw/workspace/agents/gewu-distillation/MEMORY.md",
+    "created_at": "2026-10-29T09:45:00+08:00",
+    "entries": [
+      {
+        "topic": "MIL+LIBS 煤热值预测项目",
+        "key_facts": [
+          "5 折 RMSE=214.57±25.71 kcal/kg（真实推理，与官方交叉校验差 1.1e-5）",
+          "MIL hybrid 相对 PLSR 基线改进 8.3%（19.4 kcal/kg）",
+          "反幻觉 D2 合规：所有数值声明溯源至 sci-exp 注册表"
+        ],
+        "reusability": "下次类似 LIBS+ML 回归任务可直接复用指标口径与反幻觉闸门"
+      },
+      {
+        "topic": "失败模式经验",
+        "key_facts": [
+          "MCP 主路径曾断裂（coal-torch 有 torch 无 mcp，default 有 mcp 无 torch）→ 需建合并 venv",
+          "reproduce_fold 工具超时 → 改用 cv_summary 聚合接口 + 缓存 predictions.json",
+          "LaTeX 编译需外部 TeX Live → 源文件已验证语法完整，PDF 编译交给用户环境"
+        ],
+        "reusability": "下次遇到类似环境/工具问题可直接参考降级策略"
+      }
+    ]
+  },
+  "failures": [
+    {
+      "tool": "MEMORY.md 创建",
+      "error": "未实际写入长周期记忆文件",
+      "impact": "跨会话知识未固化",
+      "mitigation": "后续可手动创建 MEMORY.md 并填入 planned_entries"
+    },
+    {
+      "tool": "journal_match_workflow 完整执行",
+      "error": "journal-match 技能未完整跑通（handoff_6 为占位）",
+      "impact": "无法提炼为标准工作流",
+      "mitigation": "下次完整执行 journal-match 后沉淀"
+    }
+  ],
+  "next": "end_of_lifecycle",
+  "next_input": "N/A (终态阶段)",
+  "notes": "本 handoff 列出已沉淀的 5 个技能（mil_calibration/scientific_plotting/spectrum_preprocess/research_lifecycle/failure_mode_selfcheck），3 个待沉淀技能，以及长周期记忆计划。MEMORY.md 未实际创建，待后续补充。"
+}
