@@ -127,12 +127,15 @@ function listRuns() {
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon",
   ".png": "image/png",
+  ".pdf": "application/pdf",
   ".woff2": "font/woff2",
+  ".map": "application/json",
 };
 
 function sendJSON(res, code, obj) {
@@ -207,6 +210,229 @@ const server = http.createServer(async (req, res) => {
         reason: "本机尚未生成案例数据（运行 scripts/export_case_bundle.py）",
         hint: "python scripts/export_case_bundle.py",
       });
+    }
+  }
+
+  // ── 多项目隔离：项目列表与切换 ──────────────────────────────────────
+  const GEWU_CONFIG = join(process.env.HOME || process.env.USERPROFILE, ".gewu", "config.json");
+
+  if (p === "/api/projects" && req.method === "GET") {
+    try {
+      const txt = await readFile(GEWU_CONFIG, "utf8");
+      const config = JSON.parse(txt);
+      return sendJSON(res, 200, {
+        active_project: config.active_project,
+        projects: config.projects || {},
+      });
+    } catch {
+      return sendJSON(res, 200, {
+        active_project: null,
+        projects: {},
+        error: "无法读取 ~/.gewu/config.json",
+      });
+    }
+  }
+
+  if (p === "/api/projects/active" && req.method === "GET") {
+    try {
+      const txt = await readFile(GEWU_CONFIG, "utf8");
+      const config = JSON.parse(txt);
+      const activeName = config.active_project;
+      const project = config.projects?.[activeName];
+      if (!project) {
+        return sendJSON(res, 404, { error: "无活跃项目" });
+      }
+      // 读取 config.json（包含七阶段状态）
+      const projectConfigPath = join(project.path, "config.json");
+      let projectConfig = {};
+      try {
+        const configTxt = await readFile(projectConfigPath, "utf8");
+        projectConfig = JSON.parse(configTxt);
+      } catch {
+        // config.json 可能不存在（旧项目）
+      }
+      return sendJSON(res, 200, {
+        project_name: activeName,
+        ...project,
+        research_question: projectConfig.research_question || "",
+        hypothesis: projectConfig.hypothesis || "",
+        stages: projectConfig.stages || {},
+        metrics: projectConfig.metrics || {},
+        outputs: projectConfig.outputs || {},
+      });
+    } catch (e) {
+      return sendJSON(res, 500, { error: "读取活跃项目失败", detail: e.message });
+    }
+  }
+
+  if (p.startsWith("/api/projects/") && p.endsWith("/switch") && req.method === "POST") {
+    const projectName = p.split("/")[3];
+    try {
+      const txt = await readFile(GEWU_CONFIG, "utf8");
+      const config = JSON.parse(txt);
+      if (!config.projects[projectName]) {
+        return sendJSON(res, 404, { error: `项目 ${projectName} 不存在` });
+      }
+      config.active_project = projectName;
+      writeFileSync(GEWU_CONFIG, JSON.stringify(config, null, 2), "utf8");
+      return sendJSON(res, 200, {
+        success: true,
+        active_project: projectName,
+        message: `已切换到项目: ${config.projects[projectName].display_name}`,
+      });
+    } catch (e) {
+      return sendJSON(res, 500, { error: "切换项目失败", detail: e.message });
+    }
+  }
+
+  // ---- 论文管理 API ----
+  // 获取活跃项目的论文列表
+  if (p === "/api/papers" && req.method === "GET") {
+    try {
+      const txt = await readFile(GEWU_CONFIG, "utf8");
+      const config = JSON.parse(txt);
+      const activeName = config.active_project;
+      const project = config.projects?.[activeName];
+      if (!project) return sendJSON(res, 404, { error: "无活跃项目" });
+
+      const papersDir = join(project.path, "papers");
+      if (!existsSync(papersDir)) {
+        return sendJSON(res, 200, { papers: [] });
+      }
+
+      const files = readdirSync(papersDir).filter(f => f.endsWith(".pdf"));
+      const papers = files.map(f => {
+        const metaPath = join(papersDir, f.replace(/\.pdf$/, ".meta.json"));
+        let meta = {};
+        try { meta = JSON.parse(readFileSync(metaPath, "utf8")); } catch {}
+        return {
+          id: f.replace(/\.pdf$/, ""),
+          filename: f,
+          title: meta.title || f.replace(/\.pdf$/, ""),
+          authors: meta.authors || "",
+          doi: meta.doi || "",
+          page_count: meta.page_count || 0,
+          added_at: meta.added_at || "",
+        };
+      });
+      return sendJSON(res, 200, { papers });
+    } catch (e) {
+      return sendJSON(res, 500, { error: "读取论文列表失败", detail: e.message });
+    }
+  }
+
+  // 上传 PDF
+  if (p === "/api/papers/upload" && req.method === "POST") {
+    let raw = "";
+    for await (const chunk of req) raw += chunk;
+    let payload;
+    try { payload = JSON.parse(raw); } catch { return sendJSON(res, 400, { error: "invalid json" }); }
+
+    const pdfBase64 = payload.pdf;
+    const filename = payload.filename || "unknown.pdf";
+    if (!pdfBase64) return sendJSON(res, 400, { error: "missing pdf data" });
+
+    try {
+      const txt = await readFile(GEWU_CONFIG, "utf8");
+      const config = JSON.parse(txt);
+      const project = config.projects?.[config.active_project];
+      if (!project) return sendJSON(res, 404, { error: "无活跃项目" });
+
+      const papersDir = join(project.path, "papers");
+      mkdirSync(papersDir, { recursive: true });
+
+      // 清理文件名
+      const safeName = filename.replace(/[^a-zA-Z0-9_\-\.\u4e00-\u9fff]/g, "_").replace(/_+/g, "_");
+      const pdfPath = join(papersDir, safeName);
+      const pdfBuffer = Buffer.from(pdfBase64, "base64");
+      writeFileSync(pdfPath, pdfBuffer);
+
+      // 提取元信息
+      const pdfTool = join(ROOT, "..", "scripts", "pdf_tool.py");
+      let meta = {};
+      try {
+        const out = execFileSync("python", [pdfTool, "metadata", pdfPath], { encoding: "utf8", timeout: 30000 });
+        meta = JSON.parse(out);
+      } catch { /* 元信息提取失败不阻断上传 */ }
+
+      meta.added_at = new Date().toISOString();
+      const metaPath = join(papersDir, safeName.replace(/\.pdf$/, ".meta.json"));
+      writeFileSync(metaPath, JSON.stringify(meta, null, 2), "utf8");
+
+      return sendJSON(res, 200, {
+        success: true,
+        id: safeName.replace(/\.pdf$/, ""),
+        filename: safeName,
+        ...meta,
+      });
+    } catch (e) {
+      return sendJSON(res, 500, { error: "上传失败", detail: e.message });
+    }
+  }
+
+  // 获取论文元信息
+  if (p.startsWith("/api/papers/") && p.endsWith("/metadata") && req.method === "GET") {
+    const paperId = p.split("/")[3];
+    try {
+      const txt = await readFile(GEWU_CONFIG, "utf8");
+      const config = JSON.parse(txt);
+      const project = config.projects?.[config.active_project];
+      if (!project) return sendJSON(res, 404, { error: "无活跃项目" });
+
+      const metaPath = join(project.path, "papers", `${paperId}.meta.json`);
+      if (!existsSync(metaPath)) return sendJSON(res, 404, { error: "论文元信息不存在" });
+
+      const meta = JSON.parse(readFileSync(metaPath, "utf8"));
+      return sendJSON(res, 200, meta);
+    } catch (e) {
+      return sendJSON(res, 500, { error: "读取元信息失败", detail: e.message });
+    }
+  }
+
+  // 获取论文文本（用于 AI 问答）
+  if (p.startsWith("/api/papers/") && p.endsWith("/text") && req.method === "GET") {
+    const paperId = p.split("/")[3];
+    const maxPages = url.searchParams.get("max_pages") || "0";
+    try {
+      const txt = await readFile(GEWU_CONFIG, "utf8");
+      const config = JSON.parse(txt);
+      const project = config.projects?.[config.active_project];
+      if (!project) return sendJSON(res, 404, { error: "无活跃项目" });
+
+      const pdfPath = join(project.path, "papers", `${paperId}.pdf`);
+      if (!existsSync(pdfPath)) return sendJSON(res, 404, { error: "PDF 文件不存在" });
+
+      const pdfTool = join(ROOT, "..", "scripts", "pdf_tool.py");
+      const out = execFileSync("python", [pdfTool, "text", pdfPath, maxPages], { encoding: "utf8", timeout: 60000 });
+      const result = JSON.parse(out);
+      return sendJSON(res, 200, result);
+    } catch (e) {
+      return sendJSON(res, 500, { error: "提取文本失败", detail: e.message });
+    }
+  }
+
+  // 提供 PDF 文件下载/预览
+  if (p.startsWith("/api/papers/") && p.endsWith("/file") && req.method === "GET") {
+    const paperId = p.split("/")[3];
+    try {
+      const txt = await readFile(GEWU_CONFIG, "utf8");
+      const config = JSON.parse(txt);
+      const project = config.projects?.[config.active_project];
+      if (!project) return sendJSON(res, 404, { error: "无活跃项目" });
+
+      const pdfPath = join(project.path, "papers", `${paperId}.pdf`);
+      if (!existsSync(pdfPath)) return sendJSON(res, 404, { error: "PDF 文件不存在" });
+
+      const pdfBuffer = readFileSync(pdfPath);
+      res.writeHead(200, {
+        "Content-Type": "application/pdf",
+        "Content-Length": pdfBuffer.length,
+        "Cache-Control": "public, max-age=3600",
+      });
+      res.end(pdfBuffer);
+      return;
+    } catch (e) {
+      return sendJSON(res, 500, { error: "读取 PDF 失败", detail: e.message });
     }
   }
 

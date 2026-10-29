@@ -1,12 +1,14 @@
-// 右栏：工具 / 数据面板（PC 全量常驻）
-// 数据来自 /api/case —— 由 scripts/export_case_bundle.py 从本机真实课题导出，
+// 右栏：项目仪表盘 + 案例数据面板（PC 全量常驻）
+// 项目仪表盘来自 /api/projects/active —— 显示七阶段进度、指标、产出物
+// 案例数据来自 /api/case —— 由 scripts/export_case_bundle.py 从本机真实课题导出，
 // 仓库内不含任何实验数据副本；取不到时降级为占位提示，绝不用假数据顶替。
 import { useEffect, useState } from "react";
-import { getCase } from "../api/client";
+import { getCase, getActiveProject } from "../api/client";
 import type { CaseBundle } from "../types";
 import { SpectrumChart } from "./SpectrumChart";
 import { FoldBars } from "./FoldBars";
 import { PredScatter } from "./PredScatter";
+import { ProjectDashboard } from "./ProjectDashboard";
 
 const fmt = (v: number | null | undefined, d = 2) =>
   v === null || v === undefined ? "—" : v.toFixed(d);
@@ -120,6 +122,7 @@ function CaseBody({ data }: { data: CaseBundle }) {
 
 export function RightPanel({ variant = "desktop" }: { variant?: "desktop" | "mobile" }) {
   const [data, setData] = useState<CaseBundle | null>(null);
+  const [project, setProject] = useState<any>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -127,6 +130,9 @@ export function RightPanel({ variant = "desktop" }: { variant?: "desktop" | "mob
     getCase()
       .then((d) => alive && setData(d))
       .catch((e) => alive && setErr(String(e)));
+    getActiveProject()
+      .then((p) => alive && setProject(p))
+      .catch(() => { /* 无活跃项目时静默 */ });
     return () => {
       alive = false;
     };
@@ -135,6 +141,8 @@ export function RightPanel({ variant = "desktop" }: { variant?: "desktop" | "mob
   if (variant === "mobile") {
     return (
       <div className="settings" style={{ padding: "var(--space-4)" }}>
+        <ProjectDashboard project={project} />
+        <div style={{ borderTop: "1px dashed var(--border)", margin: "var(--space-4) 0" }} />
         {data?.available ? (
           <CaseBody data={data} />
         ) : (
@@ -149,9 +157,13 @@ export function RightPanel({ variant = "desktop" }: { variant?: "desktop" | "mob
   }
 
   return (
-    <aside className="right" aria-label="工具与数据面板">
+    <aside className="right" aria-label="项目与数据面板">
       <div className="right__title">
-        工具 / 数据
+        项目概览
+      </div>
+      <ProjectDashboard project={project} />
+      <div className="right__title" style={{ borderTop: "1px dashed var(--border)", paddingTop: "var(--space-4)" }}>
+        案例数据
         {data?.available && data.generated_at ? (
           <span className="case-stamp">{data.generated_at}</span>
         ) : null}

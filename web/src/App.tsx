@@ -10,6 +10,7 @@ import { RightPanel } from "./components/RightPanel";
 import { RunPanel } from "./components/RunPanel";
 import { MobileTabBar, type MobileTab } from "./components/MobileTabBar";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { PaperReader } from "./components/PaperReader";
 
 let msgSeq = 0;
 const uid = () => `m${++msgSeq}`;
@@ -55,6 +56,7 @@ export default function App() {
   const [currentRunKey, setCurrentRunKey] = useState<string | null>(null);
   const [runStatus, setRunStatus] = useState<RunStatus | null>(null);
   const [pendingResumeKey, setPendingResumeKey] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"chat" | "papers">("chat");
 
   useEffect(() => {
     (async () => {
@@ -168,9 +170,15 @@ export default function App() {
           models={models}
           selectedModel={selectedModel}
           onSelectModel={setSelectedModel}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
         />
 
-        {isDesktop ? (
+        {viewMode === "papers" ? (
+          <div className="paper-reader-full">
+            <PaperReader />
+          </div>
+        ) : isDesktop ? (
           <>
             <div className="col-left">
               <PipelinePanel stages={stages} agents={agents} />

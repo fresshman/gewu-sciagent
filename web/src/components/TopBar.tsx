@@ -1,5 +1,6 @@
 import type { Agent, ModelOption } from "../types";
 import { useTheme } from "../theme/ThemeProvider";
+import { ProjectSelector } from "./ProjectSelector";
 
 export function TopBar({
   topic,
@@ -9,6 +10,8 @@ export function TopBar({
   models,
   selectedModel,
   onSelectModel,
+  viewMode,
+  onViewModeChange,
 }: {
   topic: string;
   agents: Agent[];
@@ -17,6 +20,8 @@ export function TopBar({
   models: ModelOption[];
   selectedModel: string;
   onSelectModel: (id: string) => void;
+  viewMode: "chat" | "papers";
+  onViewModeChange: (mode: "chat" | "papers") => void;
 }) {
   const { theme, toggle } = useTheme();
   return (
@@ -26,6 +31,7 @@ export function TopBar({
         格物
       </div>
       <div className="topbar__topic">· {topic}</div>
+      <ProjectSelector />
       <div className="topbar__spacer" />
 
       <div className="topbar__actions">
@@ -61,6 +67,15 @@ export function TopBar({
             </option>
           ))}
         </select>
+
+        <button
+          className={`topbar__btn ${viewMode === "papers" ? "topbar__btn--active" : ""}`}
+          onClick={() => onViewModeChange(viewMode === "chat" ? "papers" : "chat")}
+          aria-label="切换论文阅读器"
+          title={viewMode === "chat" ? "打开论文阅读器" : "返回对话"}
+        >
+          {viewMode === "chat" ? "📄" : "💬"}
+        </button>
 
         <button className="topbar__btn" onClick={toggle} aria-label="切换主题">
           {theme === "light" ? "🌙" : "☀"}

@@ -180,7 +180,52 @@ openclaw config validate         # 校验配置
 openclaw mcp probe               # 验证 8 个 MCP 服务
 ```
 
-### 5. 发起科研目标
+### 5. 创建科研项目（多项目隔离）
+
+格物支持**多项目并行隔离**：每个科研项目有独立的目录结构、数据集、模型权重、handoff 文件，互不干扰。
+
+```bash
+# 创建 LLM 微调项目
+python scripts/create_project.py llm-finetune \
+  --domain nlp \
+  --display-name "LLM 微调实验" \
+  --description "基于书生大模型的 LoRA/QLoRA 微调"
+
+# 创建 YOLO 目标检测项目
+python scripts/create_project.py yolo-detection \
+  --domain cv \
+  --display-name "YOLO 目标检测" \
+  --description "基于 YOLOv8 的工业缺陷检测"
+
+# 查看已创建项目
+cat ~/.gewu/config.json | jq .projects
+```
+
+**项目目录结构**：
+```
+~/.gewu/
+├── config.json                   # 全局配置（活跃项目、项目列表）
+├── projects/
+│   ├── coal-thermal/             # 煤炭热值项目（示例）
+│   │   ├── project.json          # 项目元数据
+│   │   ├── data/                 # 数据集
+│   │   ├── models/               # 模型权重
+│   │   ├── handoffs/             # 七阶段 handoff 文件
+│   │   ├── output/               # 报告、图表
+│   │   └── logs/                 # 运行日志
+│   ├── llm-finetune/             # LLM 微调项目
+│   └── yolo-detection/           # YOLO 检测项目
+└── global/
+    ├── mcp-servers/              # 全局 MCP server
+    ├── skills/                   # 通用技能
+    └── templates/                # 项目模板
+```
+
+**切换活跃项目**：编辑 `~/.gewu/config.json` 的 `active_project` 字段。
+
+> 💡 **当前状态**：阶段1（项目注册表）已实现，支持多项目隔离。阶段2（书生大模型 Computer Use 接入）待实现，届时书生可自动控制电脑安装依赖、运行脚本。
+
+### 6. 发起科研目标
 
 ```bash
 openclaw agent --agent gewu-director \

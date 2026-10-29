@@ -23,6 +23,49 @@ export function getCase(): Promise<CaseBundle> {
   return getJSON("/api/case");
 }
 
+export function getProjects(): Promise<{ active_project: string | null; projects: Record<string, any> }> {
+  return getJSON("/api/projects");
+}
+
+export async function switchProject(projectName: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`/api/projects/${encodeURIComponent(projectName)}/switch`, {
+    method: "POST",
+  });
+  if (!res.ok) throw new Error(`切换失败 ${res.status}`);
+  return res.json();
+}
+
+export function getActiveProject(): Promise<any> {
+  return getJSON("/api/projects/active");
+}
+
+export function getPapers(): Promise<{ papers: any[] }> {
+  return getJSON("/api/papers");
+}
+
+export async function uploadPaper(pdfBase64: string, filename: string): Promise<any> {
+  const res = await fetch("/api/papers/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pdf: pdfBase64, filename }),
+  });
+  if (!res.ok) throw new Error(`上传失败 ${res.status}`);
+  return res.json();
+}
+
+export function getPaperMetadata(paperId: string): Promise<any> {
+  return getJSON(`/api/papers/${encodeURIComponent(paperId)}/metadata`);
+}
+
+export function getPaperText(paperId: string, maxPages?: number): Promise<{ text: string }> {
+  const params = maxPages ? `?max_pages=${maxPages}` : "";
+  return getJSON(`/api/papers/${encodeURIComponent(paperId)}/text${params}`);
+}
+
+export function getPaperFileUrl(paperId: string): string {
+  return `/api/papers/${encodeURIComponent(paperId)}/file`;
+}
+
 export function getRuns(): Promise<{ runs: RunListEntry[] }> {
   return getJSON("/api/runs");
 }

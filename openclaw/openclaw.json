@@ -92,7 +92,7 @@
   mcp: {
     servers: {
       "sci-compute": {
-        command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
+        command: "C:/Users/SHJ/.workbuddy/binaries/python/envs/gewu/Scripts/python.exe",
         args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/sci_compute.py"],
         cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
       },
@@ -104,13 +104,13 @@
       // 请求超时（实测必需）：领域模型 5 折推理单次可达数十秒，绘图/PDF 解析也会跑满
       // 一个 CPU 核，OpenClaw 默认请求超时会在中途判 -32001 超时。重活服务单独放宽。
       "sci-data": {
-        command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
+        command: "C:/Users/SHJ/.workbuddy/binaries/python/envs/gewu/Scripts/python.exe",
         args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/sci_data.py"],
         cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
         requestTimeoutMs: 600000,
       },
       "mil-model": {
-        command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
+        command: "C:/Users/SHJ/.workbuddy/binaries/python/envs/gewu/Scripts/python.exe",
         args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/mil_model.py"],
         cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
         requestTimeoutMs: 900000,
@@ -119,7 +119,7 @@
       // 通用实验注册表（领域无关）：list/get/rerun/audit。领域包只需提供一份
       // registry/<domain>.json + 计算脚本即可接入（coverage example: coal-mil）。
       "sci-exp": {
-        command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
+        command: "C:/Users/SHJ/.workbuddy/binaries/python/envs/gewu/Scripts/python.exe",
         args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/sci_exp.py"],
         cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
         requestTimeoutMs: 1800000,
@@ -129,20 +129,20 @@
       // （arXiv→CrossRef→S2→CrossRef标题→OpenAlex）暴露成 MCP 工具，7 个智能体
       // 任一均可直接调用，对检索到的参考文献做"存在性"反幻觉，阻断编造引用扩散。
       "sci-verify": {
-        command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
+        command: "C:/Users/SHJ/.workbuddy/binaries/python/envs/gewu/Scripts/python.exe",
         args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/verify_server.py"],
         cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
         requestTimeoutMs: 180000,
         connectionTimeoutMs: 60000,
       },
       "report": {
-        command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
+        command: "C:/Users/SHJ/.workbuddy/binaries/python/envs/gewu/Scripts/python.exe",
         args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/report.py"],
         cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
         requestTimeoutMs: 600000,
       },
       "sci-plot": {
-        command: "C:/Users/<user>/.workbuddy/binaries/python/envs/default/Scripts/python.exe",
+        command: "C:/Users/SHJ/.workbuddy/binaries/python/envs/gewu/Scripts/python.exe",
         args: ["F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent/gewu/mcp/sci_plot.py"],
         cwd: "F:/python-exercise/Industrial_LLM/langchain-learn/gewu-sciagent",
         requestTimeoutMs: 600000,

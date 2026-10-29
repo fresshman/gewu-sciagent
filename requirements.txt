@@ -1,7 +1,8 @@
 # 书生大模型客户端（Intern 系列兼容 OpenAI 协议，用 openai 客户端 + base_url）
 openai>=1.30
 # MCP 工具服务（注意：需 mcp 1.x；2.x 重命名 FastMCP 会导致导入失败）
-mcp>=1.0
+# 必须钉 <2，否则 pip 可能拉到 2.x，mcp.server.fastmcp.FastMCP 在 2.x 已被移除，导入即失败。
+mcp>=1.0,<2
 # 科学计算
 numpy>=1.26
 pandas>=2.0
@@ -19,6 +20,9 @@ pdfplumber>=0.11
 pillow>=10.0
 # 本地推理（MIL 模型 MCP）
 openvino>=2024.0
+# PyTorch（MIL 真实推理需 torch 加载 .pt 权重；建议 CPU 版以减小体积）
+# CPU 安装：pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch>=2.0
 # 配置
 pyyaml>=6.0
 # HTTP

@@ -6,6 +6,8 @@
   --bg-page: #FAF9F7;
   --bg-surface: #FFFFFF;
   --bg-sunken: #F1EFE8;
+  --bg-card: #FFFFFF;
+  --bg-hover: #F5F4F1;
 
   /* 文字 */
   --text-primary: #1A1A1A;
@@ -59,6 +61,8 @@
   --bg-page: #0E1015;
   --bg-surface: #161922;
   --bg-sunken: #0E1015;
+  --bg-card: #1A1D26;
+  --bg-hover: #1F222C;
 
   --text-primary: #F1EFE8;
   --text-secondary: #B4B2A9;
