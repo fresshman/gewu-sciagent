@@ -99,6 +99,16 @@ toolSummary: { calls: 1, tools: ["mil-model__cv_summary"], failures: 0 }   // 74
 → hybrid 均值 = 214.5699 kcal/kg，标准差 = 25.7094（与官方 214.5699 差 1.1e-05）
 ```
 
+> **【2026-10-30 更正：A1 的因果记错了，本表的"已修"方向已反转】**
+> 本节当时把"多步任务撞超时"归给 toolSearch 的三步桥接，于是关掉它。2026-10-30 实测证明那次
+> 挂死的真因是 **mil-model 的 subprocess 子进程继承了 MCP 的 stdin 管道，卡在 CPython 解释器
+> 自身的 stdio 初始化里**（剥掉守护 60.02s 超时 ×4 / 加守护 0.17s），与 toolSearch 无关。
+> A1 描述的现象（1 次取数要 3 次调用）是真的，但它不是超时的原因。
+> 出厂默认已改回 `tools.toolSearch.mode="tools"`（开启）：同一份复现任务实测每轮
+> `estimatedPromptTokens` 95,310 → 12,265、模型往返 13 → 6 轮、墙钟 285.0s → 158.5s，
+> handoff 四个数值字段逐字一致。原始记录保留不改，判读以本段为准。
+> 见 `docs/architecture.md` §4.5 两条铁律、`tests/test_stdio_subprocess_guard.py`。
+
 ### 1.5 Web 代理自身的两个 bug（对话功能此前是坏的）
 
 实测 Web 端发消息，SSE 立刻返回 `智能体异常退出（code 1）`：
