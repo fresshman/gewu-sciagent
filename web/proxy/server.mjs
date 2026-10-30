@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { dirname, join } from "node:path";
 import { AGENTS, STAGES, MODELS, RESEARCH_TOPIC } from "../shared/seed.mjs";
+import { buildNotesDigest } from "../shared/notes_digest.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -890,15 +891,15 @@ const server = http.createServer(async (req, res) => {
     let meta = {};
     try { meta = JSON.parse(readFileSync(join(projectPath, "papers", `${paperId}.meta.json`), "utf8")); } catch {}
 
-    // 阅读笔记（front-matter 剥离后截 4000 字符进 handoff）
+    // 阅读笔记（T2：handoff 不装正文，装「分层摘要 + 原文路径」）
+    // 原来是 front-matter 剥离后 slice(0, 4000) 硬截断——被切掉的正是后半篇里的
+    // 数值与结论，复现员只能凭半截笔记定方案。改成有预算的结构化摘要。
     const notesPath = join(projectPath, "stages", "2-literature", "notes", `${paperId}.md`);
-    let notesFull = "";
+    let notesDigest = null;
     if (existsSync(notesPath)) {
-      const raw = readFileSync(notesPath, "utf8");
-      const m = raw.match(/^---\n([\s\S]*?)\n---\n\n?([\s\S]*)$/);
-      notesFull = m ? m[2] : raw;
+      notesDigest = buildNotesDigest(readFileSync(notesPath, "utf8"));
+      notesDigest.full_text_path = notesPath;
     }
-    const notesExcerpt = notesFull.trim().slice(0, 4000);
 
     // 项目级信息（研究问题等，缺失不阻断）
     let projMeta = {};
@@ -909,14 +910,27 @@ const server = http.createServer(async (req, res) => {
     const handoffDir = join(projectPath, "handoffs");
     const handoffPath = join(handoffDir, `repro_request_${paperId}_${ts}.json`);
 
+    // 笔记读法只在真有笔记时给；没笔记就送复现是常见路径，此时明确告诉复现员缺的是
+    // 整份阅读笔记（只能靠 PDF 原文），而不是让他对着一个 null 字段猜形态。
+    const notesGuidance = notesDigest
+      ? `笔记读法：notes_digest 有两种形态——mode=full_verbatim 时 text 就是笔记全文，直接用；\n` +
+        `  mode=digest 时它是分层摘要（目录 + 段首 + 逐条原样的数值/主张句），需要上下文就用 Read\n` +
+        `  打开 notes_digest.full_text_path（本地读盘，零网关往返，别靠猜）。\n` +
+        `数值铁律：内联的数值句是整句保留的，可直接引用；key_lines_status 若不是 inline，` +
+        `说明有数值句未内联（partial/read_full_text）或同形明细被折叠（inline_with_folds），` +
+        `引用汇总值可以，逐袋/逐点核对必须先读原文，禁止凭目录编造。\n`
+      : `阅读阶段**没有落盘笔记**（notes_digest/notes_path 为 null）：方案依据只能来自 PDF 原文与\n` +
+        `  handoff 里的阅读器摘要，缺的部分在结论里写清楚，不要假装有笔记、不要凭标题猜。\n`;
+
     const instruction =
       `【来自文献阅读器的复现请求】\n` +
       `论文《${meta.title || paperId}》已由阅读阶段送来的复现请求，落盘于：\n${handoffPath}\n` +
-      `请先读取该 handoff（含论文元信息、PDF 路径、阅读笔记摘录、阅读器摘要），然后：\n` +
+      `请先读取该 handoff（含论文元信息、PDF 路径、阅读笔记分层摘要、阅读器摘要），然后：\n` +
       `1) 检查论文代码与数据是否可获取，说明可得性；\n` +
       `2) 制定复现方案并与研究问题对齐（研究问题：${projMeta.research_question || "见项目配置"}）；\n` +
       `3) 执行复现，把**真实跑出的指标**（含数据路径与日志位置）写入 ${join(projectPath, "stages", "3-reproduction")}/ 下；\n` +
       `4) 更新 handoff 文件中的 status 字段（queued → running → done/failed），并在 note 中记录结论。\n` +
+      notesGuidance +
       `禁止编造指标；无法复现的部分要明确说明原因。`;
 
     const handoff = {
@@ -934,7 +948,7 @@ const server = http.createServer(async (req, res) => {
         pdf_path: pdfPath,
       },
       notes_path: existsSync(notesPath) ? notesPath : null,
-      notes_excerpt: notesExcerpt,
+      notes_digest: notesDigest,
       reader_summary: readerSummary,
       project: {
         name: projMeta.project_name || config.active_project,

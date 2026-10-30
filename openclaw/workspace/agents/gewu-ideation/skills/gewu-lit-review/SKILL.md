@@ -14,8 +14,9 @@ PDF 原页（图+表+公式同帧）直接作为 `image_url` 喂给 `sheng/inter
 ## 常量
 - `MAX_PAPERS = 15` — 检索召回上限
 - `REVIEW_TOP_N = 5` — 进入「下载全文+原页理解」的 top 论文数（吃 256K 上下文，克制）
-- `RENDER_DPI = 110~150` — 原页渲染分辨率（实测 130 即可读图内小字标注；
-  150 时 A4 单页 base64 ≈ 570KB，两页合计 ≈ 5.5K prompt tokens）
+- `RENDER_DPI = 110~130` — 原页渲染分辨率。实测（arXiv 1402.1349 整页）dpi=130 →
+  base64 572,204 字符、dpi=110 → 410,500、dpi=150 → 706,800。130 已能读图内小字，
+  而 150 会被 `image_to_data_uri` 的 600,000 字符上限直接拒掉（见 Step 4）
 - `RENDER_PAGES` — **默认 `"figtab"`**（只渲染含图页）；或先用 `pdf_page_map`
   拿到 `suggested_pages` 再按需精选。**不要按正文图号猜页码**（见下方实测教训）
 - 反幻觉脚本：`gewu/mcp/verify_papers.py`（纯标准库，零依赖）
@@ -133,8 +134,9 @@ JSON
 > D1/D2/D3 的区别：D4 只覆盖"文本层/表格层可查"的原页理解，纯图内读数仍是人工复核面。
 
 > ⚠️ 上下文纪律：256K 也有限。每批评 `REVIEW_TOP_N` 篇的原页分次给 intern-s2，
-> 不要一次性塞入所有 PDF 全页。base64 单图超 4MB 时 `image_to_data_uri` 会告警，
-> 此时降 dpi 或缩小 pages。
+> 不要一次性塞入所有 PDF 全页。`image_to_data_uri` 对 base64 超过 600,000 字符（≈150dpi
+> 整页量级）的单图**直接返回 truncated=true、不给 data_uri**；被拒就降 dpi 或缩小 pages，
+> 不要调大 max_bytes 硬塞——几十万字符的字符串一旦进了工具结果，后续每一轮都要背着它走。
 
 ### Step 5 — 归纳输出
 产出结构化文献表（含 verification 列与 D4 源 span 列）：
@@ -147,3 +149,17 @@ JSON
 + 叙事性 gap 分析（3–5 段），重点写出**原页理解发现的图文矛盾/未言明假设**——
 这是纯文本路线拿不到的增量。输出到 `literature_review.md`，把 top idea 候选
 回传 director（A2A announce）。
+
+### Step 6 — 阅读笔记的落盘写法（决定「送复现」能不能读懂）
+笔记存 `<project>/stages/2-literature/notes/<paperId>.md`（`PUT /api/papers/:id/notes`）。
+一键送复现时，handoff 里**不再内联笔记正文**，只带 `notes_digest`（分层摘要 + `full_text_path`），
+所以笔记的写法直接决定复现员看到什么：
+
+- **每个小节用 `##` 小标题分开**（方法 / 数据 / 指标 / 局限 / 待验证）。摘要的目录按标题切段，
+  一坨不分段的文章在摘要里只剩一句段首，等于没有目录。
+- **指标写成整句，别只填表**。`RMSE=214.5699±25.7094 kcal/kg（seed=42，130 bag）` 这样的整句
+  会被逐字内联进 digest；而只存在于大表里的数值会被同形折叠（保留前 5 行 + 计数），
+  复现员想逐袋核对就得多一次读盘。
+- **结论/局限/无法复现的部分显式起行**（含"创新/结论/局限/待验证/无法复现"等词的句子会被当主张句收）。
+- 笔记 ≤4000 字符时是 `mode=full_verbatim`（整篇原样，零损失）；超出才走 `digest`。
+  实测 2.4K 字符的笔记做摘要只省 14.2% 却挤出 8/10 条核心数值，所以短笔记根本不会被压缩。

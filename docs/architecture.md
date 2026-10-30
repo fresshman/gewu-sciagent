@@ -317,6 +317,40 @@ token 删减（`RMSE=214.5699±25.7094` 这类串一旦被改写，整条复现�
 摘要化等于废掉工具；它改由 600,000 字符硬闸把关（实测整页 dpi=150 = 706,800 字符会被拒，
 dpi=130 = 572,204 可用），并把 `render_pdf_pages` 默认 dpi 从 150 降到 130。
 
+### 4.7 送复现 handoff 的笔记表示层（同一套「摘要 + 落盘 + 回取」，handoff 侧）
+
+`POST /api/papers/:id/reproduce` 原来把阅读笔记 `slice(0, 4000)` 塞进 handoff 的
+`notes_excerpt`——超出部分**无声丢失**，而笔记后半篇往往正是「局限/待验证/逐袋明细」。
+现在由 `web/shared/notes_digest.mjs` 决定 handoff 里放什么（`notes_digest` 字段）：
+
+- **装得下就整篇原样带上**（`mode=full_verbatim`）。这条是被实测逼出来的：一份 2,363 字符的
+  真实规模笔记做摘要后体积只降 14.2%，却把 8/10 条核心数值句挤出内联，比旧截断更亏。
+- 装不下才进 `mode=digest`：目录（每级标题 + 该段字符数）→ 段首（只在句子/空白边界收尾，
+  找不到安全边界就整段不给，标 `head_omitted=no_safe_boundary`）→ **数值句/主张句整句内联**。
+- 数值句按文档顺序吃预算，且**同形行折叠**（每个形状只留前 5 条，其余计入 `key_lines_folded`）：
+  不折叠的话 140 条逐袋明细会先把预算吃光，把 `RMSE=214.5699±25.7094 kcal/kg` 这种唯一结论句
+  挤到全文里去。折叠只作用于「只差数字」的行，唯一句永远优先。
+- 三态降级都是**如实标注**，不给「留半句」的第四种状态：`inline` / `inline_with_folds`（明细被折叠）
+  / `partial_read_full_text`（有唯一句没进来，报条数与字符数）/ `read_full_text`（一条都没进来）。
+- 回取路径就是笔记原文 `full_text_path`：复现员用 Read **本地读盘**，零网关往返
+  （这是 handoff 侧比工具侧更便宜的地方，T1 的 `expand` 才需要付一次远程往返）。
+- front-matter（含 `updated` 时间戳）不进 handoff，避免把过期标记带给下游阶段。
+- 生产侧也定了写法：`gewu-lit-review/SKILL.md` Step 6 要求笔记**按 `##` 分节**（摘要目录靠标题切段）、
+  **指标写成整句**（整句才会被逐字内联，纯表格行会被同形折叠）、局限/待验证显式起行；
+  `gewu-reproduction/AGENTS.md` 对应要求"`key_lines_status≠inline` 就本地 Read 全文再逐袋核对"。
+- **没笔记就送复现是常见路径**（`notes_digest` 与 `notes_path` 都是 `null`）：instruction 里这段读法
+  是按分支拼的——无笔记时明确说"依据只能来自 PDF 原文与阅读器摘要，缺口写进结论"，
+  而不是让复现员对着 `null` 猜形态。实测（3999 临时实例）两分支各自命中，占位 handoff 与临时 PDF 已删。
+
+**实测**（同一份 5,920 字符、带 120 袋明细的笔记走真实端点）：旧路径内联 4,000 字符并**丢掉尾部
+1,920 字符**（其中「尾部结论：灰分误差是系统性的」整条消失）；新路径内联 3,412 字符，146 条
+数值/主张句中 35 条整句内联、110 条同形明细折叠成计数、1 条未内联如实报出，尾部结论保住，
+`整句保留自检` 0 条被切断。行为由 `web/tests/notes_digest.test.mjs`（`npm --prefix web test`，
+14 项）锁住，重点锁的就是「不裁断」这三条不变量。测试脚本用 glob 形式
+`node --test "tests/**/*.test.mjs"` 而非目录形式——实测 Node 24.13 跑 `node --test tests/` 直接
+`MODULE_NOT_FOUND`，glob 形式在 Node 24 与 26 上都绿。
+
+
 ## 5. 领域包（参考实现：coal_libs）
 - `knowledge.md`：LIBS 原理、煤质热值背景、MIL 方法说明（供 RAG / 长周期记忆）。
 - `tools.py`：用**通用工具组合**出「LIBS 谱图 → 预处理 → MIL 预测」的领域工作流，而非写死。

@@ -11,6 +11,7 @@
     "build": "vite build",
     "preview": "vite preview --port 5173",
     "start": "node proxy/server.mjs",
+    "test": "node --test \"tests/**/*.test.mjs\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
