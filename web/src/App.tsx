@@ -15,19 +15,41 @@ import { PaperReader } from "./components/PaperReader";
 let msgSeq = 0;
 const uid = () => `m${++msgSeq}`;
 
-// 工具结果回填到同工具、仍在运行的步骤，避免重复显示
-function mergeStep(prev: RunStep[], step: RunStep): RunStep[] {
-  if (step.kind === "tool" && step.phase === "result") {
+// 同一次工具调用只占一行。优先按 toolCallId 定位，id 缺失时退回「同工具且仍在运行」。
+function findToolSlot(prev: RunStep[], step: RunStep): number {
+  if (step.callId) {
     for (let i = prev.length - 1; i >= 0; i--) {
-      const s = prev[i];
-      if (s.kind === "tool" && s.tool === step.tool && s.status === "running") {
-        const copy = [...prev];
-        copy[i] = { ...copy[i], status: step.status, result: step.result, endedTs: step.ts };
-        return copy;
-      }
+      if (prev[i].kind === "tool" && prev[i].callId === step.callId) return i;
+    }
+    return -1;
+  }
+  for (let i = prev.length - 1; i >= 0; i--) {
+    const s = prev[i];
+    if (s.kind === "tool" && s.tool === step.tool && s.status === "running") return i;
+  }
+  return -1;
+}
+
+// 结果到达后服务端广播的是「已合并」的那一步（phase=call、status=ok/error），不再是新步骤。
+// 若只认 phase=result，这条会被追加成新行，原行永远停在「运行中」。
+function mergeStep(prev: RunStep[], step: RunStep): RunStep[] {
+  if (step.kind === "tool" && (step.status === "ok" || step.status === "error")) {
+    const idx = findToolSlot(prev, step);
+    if (idx >= 0) {
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], ...step, startedTs: copy[idx].startedTs ?? copy[idx].ts };
+      return copy;
     }
   }
   return [...prev, step];
+}
+
+// done 时回读的 run 记录是权威列表（服务端每步都落盘），只把本地独有的工具行补在末尾。
+function reconcileSteps(server: RunStep[], local: RunStep[]): RunStep[] {
+  if (!server.length) return local;
+  const ids = new Set(server.map((s) => s.callId).filter(Boolean));
+  const missing = local.filter((s) => s.kind === "tool" && s.callId && !ids.has(s.callId));
+  return missing.length ? [...server, ...missing] : server;
 }
 
 function dispositionToStatus(d: string | undefined): RunStatus {
@@ -134,13 +156,13 @@ export default function App() {
         onDone: (status) => {
           if (status) setRunStatus(status);
           finalize();
-          // 轨迹 burst：OpenClaw 的 sessions tail 在会话结束时才一次性吐出全部步骤，
-          // done 往往先于它落盘 → 稍后回读 run 记录，把已完成步骤补进面板。
+          // 步骤已改由网关 transcript_events 轮询生成，实时可见；done 后仍回读一次 run 记录，
+          // 把 finalize 时补发的尾部步骤对齐进来（服务端记录为权威）。
           if (liveRunKey) {
             setTimeout(async () => {
               try {
                 const rec = await getRun(liveRunKey);
-                setRunSteps((prev) => (rec.steps?.length > prev.length ? rec.steps : prev));
+                setRunSteps((prev) => reconcileSteps(rec.steps ?? [], prev));
               } catch {}
             }, 4000);
           }

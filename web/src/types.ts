@@ -42,6 +42,7 @@ export interface RunStep {
   raw: string;
   kind: "tool" | "model" | "ended" | "info" | "raw";
   tool?: string;
+  callId?: string;
   phase?: "call" | "result";
   status?: "running" | "ok" | "error";
   result?: string;

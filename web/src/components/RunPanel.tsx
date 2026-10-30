@@ -20,7 +20,12 @@ const STATUS_CLASS: Record<RunStatus, string> = {
 function StepRow({ step }: { step: RunStep }) {
   if (step.kind === "tool") {
     if (step.status === "running")
-      return <li className="runstep runstep--running">🔄 调用 <code>{step.tool}</code></li>;
+      return (
+        <li className="runstep runstep--running">
+          🔄 调用 <code>{step.tool}</code>
+          {step.detail ? <span className="runstep-args"> · {step.detail}</span> : null}
+        </li>
+      );
     if (step.status === "error")
       return <li className="runstep runstep--error">❌ <code>{step.tool}</code> · {step.result || "失败"}</li>;
     return (

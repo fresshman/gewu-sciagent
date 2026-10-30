@@ -19,6 +19,10 @@ import path from "node:path";
 import { dirname, join } from "node:path";
 import { AGENTS, STAGES, MODELS, RESEARCH_TOPIC } from "../shared/seed.mjs";
 import { buildNotesDigest } from "../shared/notes_digest.mjs";
+import { canonicalSessionKey } from "../shared/session_key.mjs";
+import { BudgetGate, budgetFromEnv } from "../shared/run_budget.mjs";
+import { TraceReader, agentStateDb } from "../shared/trace_source.mjs";
+import { isCurrentRoundLine } from "../shared/tail_time.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -138,21 +142,20 @@ function listRuns() {
 //    丢失回复，因此硬触发不杀进程，而是：标记 budget.exceeded + 服务端强制
 //    回写 repro_request handoff 为 over_budget（复现类指令可从 message 抽出
 //    落盘路径）。真正的终局兜底仍是网关 timeoutSeconds=1800。
+//    判定不再只挂在 10 秒轮询上：轨迹事件到达和轨迹轮询都会即时判定（见
+//    shared/run_budget.mjs），且「轮次已收尾后才补上越限」只记 overrun，不把
+//    成功轮次追溯打成 exceeded。
 // 已知边界：代理重启会丢失内存态（detached 子进程仍在跑、.out 仍在写，但
 //    tail/回复不再被采集）→ 启动时把 status=running 的落盘记录标为
 //    interrupted_by_restart，杜绝「永久 running」假象。
 // ============================================================================
 const activeRuns = new Map(); // runKey -> entry
 // 阈值默认值来自实测：一轮 397B 长任务常见 15–25 分钟 / 20–30 次工具调用。
-// 注意：工具计数依赖 `sessions tail`，而它只在会话结束时一次性吐出（实测），
-// 所以**墙钟是主闸门**，工具数只在轨迹到达时才起作用。
-const BUDGET = {
-  warnTools: Number(process.env.GEWU_RUN_BUDGET_WARN_TOOLS) || 20,
-  hardTools: Number(process.env.GEWU_RUN_BUDGET_TOOLS) || 30,
-  warnMs: (Number(process.env.GEWU_RUN_BUDGET_WARN_MINUTES) || 18) * 60_000,
-  hardMs: (Number(process.env.GEWU_RUN_BUDGET_MINUTES) || 25) * 60_000,
-  slowGapMs: Number(process.env.GEWU_RUN_SLOW_GAP_MS) || 120_000,
-};
+// 计数有两个来源，取较大者：① `sessions tail` 解析出的步骤（不流式，只在终态一次性到位，
+//    且会把上一轮历史回放进来 —— 必须按行首时间划界后才可用）；
+// ② 网关边跑边写的会话事件表 transcript_events（实测在飞真值来源，见 shared/trace_source.mjs）。
+const BUDGET = budgetFromEnv();
+const TRACE_POLL_MS = Number(process.env.GEWU_RUN_TRACE_POLL_MS) || 5_000;
 const nowZ = () => new Date().toISOString().slice(11, 20) + "Z";
 
 // 预算硬触发时，服务端代写复现请求 handoff：从指令文本抽出落盘路径。
@@ -184,13 +187,16 @@ function killTree(child) {
 // startRun 半途抛错时的兜底清理：不留孤儿 tail / 计时器
 function cleanupEntry(entry) {
   if (!entry) return;
-  for (const t of ["outTimer", "flushTimer", "watchdog", "endGrace"]) clearInterval(entry[t]);
+  for (const t of ["outTimer", "flushTimer", "watchdog", "endGrace", "traceTimer"]) clearInterval(entry[t]);
   killTree(entry.tailChild);
   for (const fd of [entry.outFd, entry.errFd]) { try { if (fd !== undefined) closeSync(fd); } catch {} }
   try { if (entry.promptFile) unlinkSync(entry.promptFile); } catch {}
 }
 
 function startRun({ agent, message, runKey }) {
+  // 对外仍用调用方给的 runKey（run 记录、SSE、续跑都用它）；对 CLI 必须用带 agent 前缀的
+  // 规范 key，否则 tail 与轮次落在两个不同会话名下，轨迹与工具闸门全程失明。
+  const sessionKey = canonicalSessionKey(agent, runKey);
   const run = {
     key: runKey, agent, message,
     startedAt: Date.now(), endedAt: null,
@@ -198,10 +204,12 @@ function startRun({ agent, message, runKey }) {
   };
   mkdirSync(RUNS_DIR, { recursive: true });
   const entry = {
-    run, listeners: new Set(), toolCalls: 0,
-    warnFired: false, hardFired: false, slowWarned: true,
+    run, listeners: new Set(),
+    slowWarned: true,
     lastEventTs: Date.now(), finalized: false,
     replyDirty: false, outPos: 0, seenRaw: new Set(),
+    lastTraceMs: 0, traceReason: "not-polled", tailHistorySkipped: 0,
+    stepsToolSource: null, tailToolStepsDropped: 0,
   };
   activeRuns.set(runKey, entry);
   writeRun(runKey, run);
@@ -213,17 +221,84 @@ function startRun({ agent, message, runKey }) {
   };
   const touch = () => { entry.lastEventTs = Date.now(); entry.slowWarned = false; };
 
+  // 预算判定：由「轨迹轮询 + 看门狗 tick + 收尾」三个时刻驱动，全部走同一个状态机，
+  // 不再只有一个 10 秒轮询去读阶跃前的 0。
+  // 计数取两个来源的较大值：
+  //   trace.toolCalls —— 网关边跑边写的会话事件表 transcript_events（实测一轮 134s 里
+  //     从 +15s 到 +145s 行数持续增长，是在飞真值）；
+  //   entry 侧的 tail 计数直接由 run.steps 推出（步骤已按行首时间划过界、按 raw 去过重），
+  //     不再另存一个累加器 —— 实测踩过：burst 在 cleanup 之后才到，另存的计数器停在 0。
+  const gate = new BudgetGate(BUDGET);
+  const trace = new TraceReader({ sessionKey, dbPath: agentStateDb(agent), startedAtMs: run.startedAt });
+  let traceCallsSeen = 0;
+  const tailToolCalls = () => run.steps.filter((s) => s.kind === "tool" && s.phase === "call").length;
+  const effectiveToolCalls = () => trace.ok
+    ? Math.max(tailToolCalls(), trace.toolCalls) : tailToolCalls();
+  // 把在飞用量写进 run 记录：/api/run 因此能在轮次进行中就报出工具数（tail 做不到，
+  // 它只在终态一次性吐出），闸门是否在飞触发也靠这个字段被外部验证。
+  const recordUsage = () => {
+    run.usage = {
+      source: trace.ok ? "transcript_events" : "tail-only:" + trace.reason,
+      toolCalls: effectiveToolCalls(),
+      traceToolCalls: trace.toolCalls, tailToolCalls: tailToolCalls(),
+      toolResults: trace.toolResults, toolErrors: trace.toolErrors,
+      turns: trace.turns, tailHistorySkipped: entry.tailHistorySkipped,
+      stepsToolSource: entry.stepsToolSource, tailToolStepsDropped: entry.tailToolStepsDropped,
+      elapsedMs: Date.now() - run.startedAt,
+      at: new Date().toISOString(),
+    };
+  };
+  const checkBudget = () => {
+    for (const e of gate.observe({
+      toolCalls: effectiveToolCalls(),
+      elapsedMs: Date.now() - run.startedAt,
+      inFlight: !entry.finalized,
+    })) applyBudgetEvent(e);
+  };
+
+  const applyBudgetEvent = (e) => {
+    const mins = (e.elapsedMs / 60_000).toFixed(1);
+    const src = `tools=${e.toolCalls} tail=${tailToolCalls()} trace=${trace.toolCalls} elapsed=${mins}m dim=${e.dimension}`;
+    if (e.type === "budget.warn") {
+      addStep({ kind: "info", type: "budget.warn", ts: nowZ(),
+        detail: `预算预警：工具 ${e.toolCalls} 次 / 用时 ${mins} 分钟（硬阈值 ${BUDGET.hardTools} 次 / ${(BUDGET.hardMs / 60_000).toFixed(1)} 分钟，越线维度 ${e.dimension}）`,
+        raw: `budget.warn ${src}` });
+      return;
+    }
+    if (e.type === "budget.hard") {
+      run.budget = gate.summary({ toolCalls: e.toolCalls, elapsedMs: e.elapsedMs });
+      const note = `[gewu-proxy 预算闸门] ${new Date().toISOString()} 轮次进行中触发（维度 ${e.dimension}）：工具调用 ${e.toolCalls} 次、用时 ${mins} 分钟。网关轮次不支持外部中断（OpenClaw 2026.10.5 实测），此为服务端强制落盘的止损标记：据此停止续跑/不进入下一阶段，当前轮次仍会跑完并保留回复。`;
+      const hp = guardReproHandoff(run, note);
+      addStep({ kind: "info", type: "budget.hard", ts: nowZ(),
+        detail: `预算闸门触发：${hp ? "已回写 handoff → over_budget" : "已记录 budget.exceeded（无关联 handoff）"}`,
+        raw: note });
+      writeRun(runKey, run);
+      return;
+    }
+    // budget.overrun：轮次已收尾，用量事后才补上越线 → 只记档，不回写 handoff、不改终态。
+    run.budget = gate.summary({ toolCalls: e.toolCalls, elapsedMs: e.elapsedMs });
+    addStep({ kind: "info", type: "budget.overrun", ts: nowZ(),
+      detail: `超预算记档：本轮已收尾（${run.status}）但用量越过硬阈值（维度 ${e.dimension}：工具 ${e.toolCalls} 次 / ${mins} 分钟）；未改终态、未回写 handoff`,
+      raw: `budget.overrun ${src}` });
+    writeRun(runKey, run);
+  };
+
   // 步骤入册（含 tool.result 回填合并）+ 广播
   const addStep = (step) => {
     if (step.raw && entry.seenRaw.has(step.raw)) return; // tail 重连回放去重
     if (step.raw) entry.seenRaw.add(step.raw);
     let sent = step;
     if (step.kind === "tool" && step.phase === "result") {
-      let idx = -1;
+      // 配对优先用 callId（transcript 里 toolResult 带 toolCallId，一对一准确），
+      // 退化情况（tail 行没有 id、或调用步骤尚未入册）再按同名最近一条 running 合并。
+      let idx = -1, nameIdx = -1;
       for (let i = run.steps.length - 1; i >= 0; i--) {
         const s = run.steps[i];
-        if (s.kind === "tool" && s.tool === step.tool && s.status === "running") { idx = i; break; }
+        if (s.kind !== "tool" || s.status !== "running") continue;
+        if (step.callId && s.callId === step.callId) { idx = i; break; }
+        if (nameIdx < 0 && s.tool === step.tool) nameIdx = i;
       }
+      if (idx < 0) idx = nameIdx;
       if (idx >= 0) {
         run.steps[idx].status = step.status;
         run.steps[idx].result = step.result;
@@ -235,7 +310,6 @@ function startRun({ agent, message, runKey }) {
     } else {
       run.steps.push(step);
     }
-    if (step.kind === "tool" && step.phase === "call") entry.toolCalls++;
     if (step.kind === "ended") {
       run.status = step.disposition || run.status;
       finishAfterTurn(run.status === "success" ? 0 : 1);
@@ -244,6 +318,28 @@ function startRun({ agent, message, runKey }) {
     touch();
     writeRun(runKey, run);
     fanout({ type: "step", step: sent });
+  };
+
+  // 步骤面板的来源锁：一轮只认一个生产者，先写者赢。两个生产者都往 run.steps 塞同一批
+  // 调用会重复铺满时间线，而 tail 只在终态一次性吐、表从第二轮询起就有行 —— 正常是 trace 赢。
+  const takeToolSteps = (src) => {
+    if (!entry.stepsToolSource) entry.stepsToolSource = src;
+    return entry.stepsToolSource === src;
+  };
+  const hhmmssZ = (ms) => new Date(ms).toISOString().slice(11, 20) + "Z";
+  // 表里的 arguments 是完整 JSON（命令行原文、绝对路径都在里面），只带摘要上屏；
+  // 原文本来就一直留在网关会话库内，要回取随时能取。type 与 tail 的行类型同名，前端不用分叉。
+  const emitTraceSteps = (snap) => {
+    if (!snap.events.length || !takeToolSteps("trace")) return;
+    for (const ev of snap.events) {
+      addStep(ev.kind === "tool.call"
+        ? { kind: "tool", type: "tool.call", phase: "call", tool: ev.name, callId: ev.id,
+            status: "running", detail: ev.detail, ts: hhmmssZ(ev.ms),
+            raw: `#${ev.id} tool.call ${ev.name} ${ev.detail}` }
+        : { kind: "tool", type: "tool.result", phase: "result", tool: ev.name, callId: ev.id,
+            status: ev.isError ? "error" : "ok", result: ev.detail,
+            ts: hhmmssZ(ev.ms), raw: `#${ev.id} tool.result ${ev.name} ${ev.detail}` });
+    }
   };
 
   // fd 尾读（.out 回复 / .err 报错）：detached 子进程没有 stdio 流，只能按位置读文件
@@ -279,6 +375,10 @@ function startRun({ agent, message, runKey }) {
     sweepOutIntoReply();
     const restErr = readTail(entry.errFd, "errPos");
     if (restErr.trim()) run.raw.push("[stderr] " + restErr.trim());
+    // burst 之后再取一次轨迹读数：网关写 transcript 行可能略晚于 CLI 退出，
+    // 这一行让落盘的 usage 成为本轮最终值（tail 计数此刻也已按 session.started 去掉历史）。
+    trace.poll();
+    recordUsage();
     writeRun(runKey, run);
     try { closeSync(entry.outFd); closeSync(entry.errFd); } catch {}
     try { unlinkSync(entry.promptFile); } catch {}
@@ -288,13 +388,18 @@ function startRun({ agent, message, runKey }) {
   const finalize = (code) => {
     if (entry.finalized) return;
     entry.finalized = true;
-    clearInterval(entry.watchdog); clearInterval(entry.endGrace);
+    clearInterval(entry.watchdog); clearInterval(entry.endGrace); clearInterval(entry.traceTimer);
+    const traceSnap = trace.poll(); // 收尾前最后一次权威读数
+    emitTraceSteps(traceSnap);      // 补上最后一个轮询间隔里的调用；锁在 tail 手里时自动跳过
     // OpenClaw 2026.10.5 实测：`sessions tail --follow` 并不流式，整段轨迹是在会话结束时
     // 一次性吐出的，而 agent CLI 退出几乎同时发生 —— 立刻杀 tail 会把刚拿到的步骤丢掉。
     // 所以先落终态 + 通知观察窗，再给 tail 3s 宽限读完 burst，之后才做资源清理。
     sweepOutIntoReply();
     if (run.status === "running") run.status = code === 0 ? "success" : "error";
     run.endedAt = Date.now();
+    // 此刻 inFlight=false：越线只记 overrun，不会把成功轮次打成 exceeded。
+    checkBudget();
+    recordUsage();
     writeRun(runKey, run);
     fanout({ type: "done", exitCode: code, status: run.status, ts: run.endedAt });
     for (const l of entry.listeners) { try { l.end(); } catch {} }
@@ -321,11 +426,25 @@ function startRun({ agent, message, runKey }) {
   // 坑：`sessions tail` 对还不存在的 session key 会立即 exit 1（Session not found），
   // 而 key 是 agent CLI 起来之后才创建的 → 首次 attach 是一场竞速。失败就重试，
   // 重连时 --tail 200 会回放历史，配合 seenRaw 去重：既不丢步骤也不重复。
-  const tailArgs = ["sessions", "tail", "--session-key", runKey, "--follow", "--tail", "200"];
+  const tailArgs = ["sessions", "tail", "--session-key", sessionKey, "--follow", "--tail", "200"];
   const onTailData = (d) => {
     for (const ln of d.toString().split("\n")) {
       const t = ln.trim();
-      if (t && !/Session not found/i.test(t)) addStep(parseTailLine(t));
+      if (!t || /Session not found/i.test(t)) continue;
+      const step = parseTailLine(t);
+      // 复用同一 session key 续跑时 --tail 200 会把上一轮的历史一起回放。实测踩过两类污染：
+      // 历史工具调用 4 秒内就把预算闸门打炸；历史 session.ended 让本轮被提前 finalize、回复丢失。
+      // 所以在本轮开始时刻之前的轨迹行一律不入账、不驱动生命周期（判定见 tail_time.mjs）。
+      if (step.ts && !isCurrentRoundLine(step.ts, run.startedAt, Date.now())) {
+        entry.tailHistorySkipped++;
+        continue;
+      }
+      // 表已经在这轮铺过工具步骤的话，tail 终态 burst 里同批 tool.call/tool.result 不再入册
+      if ((step.type === "tool.call" || step.type === "tool.result") && !takeToolSteps("tail")) {
+        entry.tailToolStepsDropped++;
+        continue;
+      }
+      addStep(step);
     }
   };
   const startTail = (attempt) => {
@@ -361,7 +480,7 @@ function startRun({ agent, message, runKey }) {
   entry.promptFile = join(tmpdir(), `gewu-chat-${randomUUID()}.txt`);
   writeFileSync(entry.promptFile, message, "utf8");
   const timeoutSec = String(Number(process.env.GEWU_AGENT_TIMEOUT) || 3600);
-  const agentArgs = ["agent", "--agent", agent, "--session-key", runKey, "--message-file", entry.promptFile, "--timeout", timeoutSec];
+  const agentArgs = ["agent", "--agent", agent, "--session-key", sessionKey, "--message-file", entry.promptFile, "--timeout", timeoutSec];
   entry.agentChild = spawn(OPENCLAW.cmd, [...OPENCLAW.prefix, ...agentArgs], {
     shell: OPENCLAW.shell, env: { ...process.env },
     detached: true, stdio: ["ignore", entry.outFd, entry.errFd],
@@ -388,33 +507,33 @@ function startRun({ agent, message, runKey }) {
     if (entry.replyDirty) { entry.replyDirty = false; writeRun(runKey, run); }
   }, 2000);
 
-  // 预算/慢轮次看门狗
-  entry.watchdog = setInterval(() => {
-    if (entry.finalized) return;
-    const elapsed = Date.now() - run.startedAt;
-    const mins = (elapsed / 60_000).toFixed(1);
-    if (!entry.warnFired && (entry.toolCalls >= BUDGET.warnTools || elapsed >= BUDGET.warnMs)) {
-      entry.warnFired = true;
-      addStep({ kind: "info", type: "budget.warn", ts: nowZ(),
-        detail: `预算预警：工具 ${entry.toolCalls} 次 / 用时 ${mins} 分钟（硬阈值 ${BUDGET.hardTools} 次 / ${(BUDGET.hardMs / 60_000).toFixed(1)} 分钟）`,
-        raw: `budget.warn tools=${entry.toolCalls} elapsed=${mins}m` });
-    }
-    if (!entry.hardFired && (entry.toolCalls >= BUDGET.hardTools || elapsed >= BUDGET.hardMs)) {
-      entry.hardFired = true;
-      run.budget = { exceeded: true, toolCalls: entry.toolCalls, elapsedMs: elapsed, at: new Date().toISOString() };
-      const note = `[gewu-proxy 预算闸门] ${new Date().toISOString()} 触发：工具调用 ${entry.toolCalls} 次、用时 ${mins} 分钟。网关轮次不支持外部中断（OpenClaw 2026.10.5 实测），此为服务端强制落盘的终态标记，可据 note 决策续跑或止损。`;
-      const hp = guardReproHandoff(run, note);
-      addStep({ kind: "info", type: "budget.hard", ts: nowZ(),
-        detail: `预算闸门触发：${hp ? "已回写 handoff → over_budget" : "已记录 budget.exceeded（无关联 handoff）"}`,
-        raw: note });
+  // 预算/慢轮次看门狗。工具维度不再依赖这里：判定已经挂在事件到达点上，
+  // 这里只补两件事——墙钟阈值（不依赖任何轨迹）和「轨迹静默」告警。
+  entry.traceTimer = setInterval(() => {
+    const snap = trace.poll();
+    entry.traceReason = snap.reason;
+    if (!snap.ok) return;
+    emitTraceSteps(snap); // 中间步骤边跑边上屏，不再等 tail 的终态 burst
+    if (snap.toolCalls > traceCallsSeen) {
+      traceCallsSeen = snap.toolCalls;
+      touch(); // 在飞活动 = 真实心跳
+      recordUsage();
       writeRun(runKey, run);
     }
-    if (!entry.slowWarned && Date.now() - entry.lastEventTs >= BUDGET.slowGapMs) {
+    if (snap.lastEventMs) entry.lastTraceMs = snap.lastEventMs;
+    checkBudget();
+  }, TRACE_POLL_MS);
+
+  entry.watchdog = setInterval(() => {
+    if (entry.finalized) return;
+    checkBudget();
+    const lastRealMs = Math.max(entry.lastEventTs, entry.lastTraceMs || 0);
+    if (!entry.slowWarned && Date.now() - lastRealMs >= BUDGET.slowGapMs) {
       entry.slowWarned = true;
-      const gapS = Math.round((Date.now() - entry.lastEventTs) / 1000);
+      const gapS = Math.round((Date.now() - lastRealMs) / 1000);
       addStep({ kind: "info", type: "turn.slow", ts: nowZ(),
-        detail: `慢轮次：${gapS}s 无轨迹事件（上下文膨胀或网关排队，后续轮次会更快触顶预算）`,
-        raw: `turn.slow gap=${gapS}s` });
+        detail: `慢轮次：${gapS}s 无轨迹活动（上下文膨胀或网关排队，后续轮次会更快触顶预算）`,
+        raw: `turn.slow gap=${gapS}s trace=${entry.traceReason}` });
     }
   }, 10_000);
 
@@ -1200,5 +1319,5 @@ server.listen(PORT, () => {
   } catch {}
   console.log(`[gewu-proxy] listening on http://localhost:${PORT}`);
   console.log(`[gewu-proxy] gateway=${GATEWAY}  openclaw=${OPENCLAW.cmd} ${OPENCLAW.prefix.join(" ")}`);
-  console.log(`[gewu-proxy] agent CLI wait timeout=${process.env.GEWU_AGENT_TIMEOUT || 3600}s | budget: tools ${BUDGET.warnTools}/${BUDGET.hardTools} | wall ${(BUDGET.warnMs / 60000).toFixed(1)}/${(BUDGET.hardMs / 60000).toFixed(1)} min | slow gap ${BUDGET.slowGapMs / 1000}s`);
+  console.log(`[gewu-proxy] agent CLI wait timeout=${process.env.GEWU_AGENT_TIMEOUT || 3600}s | budget: tools ${BUDGET.warnTools}/${BUDGET.hardTools} | wall ${(BUDGET.warnMs / 60000).toFixed(1)}/${(BUDGET.hardMs / 60000).toFixed(1)} min | slow gap ${BUDGET.slowGapMs / 1000}s | 在飞计数：网关 transcript_events 表轮询 ${TRACE_POLL_MS / 1000}s（OPENCLAW_HOME=${process.env.OPENCLAW_HOME || "~/.openclaw"}）`);
 });

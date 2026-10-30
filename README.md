@@ -122,18 +122,35 @@ gewu-sciagent/
 ├── data/                      # 数据集（大文件建议放网盘，仅留索引）
 ├── web/                       # 自研轻量 Web 前端 + 本地代理
 │   ├── src/                   # React + Vite + TypeScript 前端
-│   └── proxy/server.mjs       # 零依赖 Node 代理（托管前端 + 反代 Gateway + SSE 透传）
+│   ├── proxy/server.mjs       # 零依赖 Node 代理（托管前端 + 反代 Gateway + SSE 透传 + 长任务后台化/预算闸门）
+│   ├── shared/                # 代理里可单测的那一层：
+│   │   ├── run_budget.mjs     #   预算阈值状态机（在飞 exceeded / 收尾后 overrun 分开）
+│   │   ├── trace_source.mjs   #   在飞轨迹真值：只读网关 transcript_events 表，边跑边数工具调用
+│   │   ├── tail_time.mjs      #   `sessions tail` 回放划界：上一轮的历史不入账、不驱动收口
+│   │   ├── session_key.mjs    #   agent:<id>:<key> 会话名归一（否则 tail 与轮次落在两个会话）
+│   │   └── notes_digest.mjs   #   工具结果压缩（摘要 + 原文落盘 + 回取）
+│   └── tests/                 # node --test "tests/**/*.test.mjs"
 ├── openclaw/                  # OpenClaw 配置与 Agent 工作区
 │   ├── openclaw.json          # 网关配置（模型 / Agents / MCP；凭据用占位符）
 │   ├── skills/                # Skill 源（research_lifecycle 等）
 │   └── workspace/
 │       ├── MEMORY.md          # 共享长周期记忆
 │       └── agents/<role>/     # 7 个 Agent 工作区（AGENTS.md + skills/ + MEMORY.md）
+├── output/                    # 运行产物与一次性脚本（Git 忽略）
+│   └── scratch/               # 调试/校验/演练驱动脚本统一放这里，新建前先在本节留指针
 └── gewu/                      # Python 工具层（经 MCP 被 OpenClaw 调用）
     ├── mcp/                   # 8 个 stdio MCP Server（sci_compute/sci_data/mil_model/report/sci_plot/office-word 为 Python；chart_cloud.mjs 为 Node 包装）
     ├── skills/                # OpenClaw Skills 源（SKILL.md）
     └── domain_packs/          # 可插拔领域包：coal_libs（LIBS 煤热值参考实现）
 ```
+
+`output/scratch/` 里放的是不留存证据的一次性驱动脚本，同一个校验目标只保留一个入口脚本，
+新的检查项应作为该脚本的函数、命令行参数或用例表追加，而不是另建兄弟文件。
+当前指针：`drill_check.py`（七阶段演练校验唯一入口）——`mcp` 子命令直接起 mil-model MCP 复算
+stage3/stage4 声明的数字（`get_cached_metrics`/`cv_summary`/`reproduce_fold`/`predict_calorific_value`
+与逐 bag 预测）；`post`/`poll` 走同一 sessionKey 续跑验断点续跑；`gate`/`probe` 用裸 sessionKey
+打一轮轻量指令，每 3 秒采一次 `/api/run` 的在飞用量，验「轨迹在轮次进行中就到位、预算闸门
+在越线那一刻触发（`budget.exceeded`，而不是收尾后补记）、历史回放既不计数也不提前收口」。
 
 ## 快速开始
 
