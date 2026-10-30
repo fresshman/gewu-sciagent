@@ -98,6 +98,7 @@ def gewu_commit() -> str:
         out = subprocess.run(
             ["git", "rev-parse", "HEAD"], cwd=_REPO_ROOT,
             capture_output=True, text=True, timeout=10,
+            stdin=subprocess.DEVNULL,  # 不继承 MCP 的 stdin 管道，否则子进程挂到 timeout
         )
         if out.returncode == 0 and out.stdout.strip():
             return out.stdout.strip()
@@ -159,6 +160,7 @@ def _run_cli(spec: dict, timeout_default: int = 1800) -> dict:
         proc = subprocess.run(
             argv, capture_output=True, text=True, encoding="utf-8",
             cwd=cwd, timeout=spec.get("timeout", timeout_default), env=env,
+            stdin=subprocess.DEVNULL,
         )
     except subprocess.TimeoutExpired:
         return {"error": f"rerun 超时(>{spec.get('timeout', timeout_default)}s)"}

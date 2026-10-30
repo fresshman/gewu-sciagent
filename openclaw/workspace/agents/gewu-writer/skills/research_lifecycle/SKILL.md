@@ -103,3 +103,23 @@ director 派发子阶段后，若到时未收到 `handoff_<stage>.json`：
 - 每阶段末（尤其复现结束、改进定稿、写稿定稿）对照 7 类失败模式（实现 bug 过审 / 幻觉引用 / 幻觉实验结果 / 走捷径 / bug 包装成新发现 / 方法编造 / 早期 frame-lock）逐条四态裁决（CLEAR / SUSPECTED / INSUFFICIENT EVIDENCE / NOT APPLICABLE）。
 - **门控铁律**：SUSPECTED 或 INSUFFICIENT EVIDENCE 必须阻断并索要证据，**绝不静默放行**；仅当全部 CLEAR / NOT APPLICABLE 才放行。
 - **distillation 主场**：固化 Skill / 更新 MEMORY.md 前必须跑一遍，并把 `failure_audit_log.json` 随沉淀一并写入（避免把 bug 当经验复利固化）。
+
+### ⑧ 大结果读取纪律（CCR：摘要 + 落盘 + 回取）· 所有调 MCP 的阶段
+`sci-verify` / `mil-model` / `sci-data` 单次返回超过 3000 字符时不再整份吐给模型，而是回一个信封：
+`{__compacted, digest, __raw_path, expand, raw_chars}`。
+
+- **digest 里的数值 / ID / tally 逐字未改**（不四舍五入、不缩写、不重排），可直接引用；
+  `tally`（如 `{"unverified": 3, "verified": 17}`）就是整批统计口径，**不必回取原文**就能下结论。
+- **digest 里没有的条目 = 没看过**。禁止凭印象判定"已核验 / 不存在 / 只有这些"；
+  要么 `mcp__<server>__expand_result(path, selector)` 取原文（如
+  `selector="results[8:14].title"`、`"val_bags[*].bag_dir"`），要么把缺口交给人。
+- **抽过前缀的字符串不能当路径用**：digest 会提取长公共前缀（如实测 14 个 bag 的绝对路径前缀），
+  内联的剩余片段拼不回可用路径——要真路径必须 expand。
+- **一次 expand ≈ 一次网关往返**（实测轮次粒度 10–20s）。先读 digest，确有必要再取；
+  压得太狠比不压更快撞 25 分钟墙钟闸门。
+- 原文默认留 7 天（`~/.gewu/mcp-raw/<日期>/<server>.<tool>.<hash>.json`，文件名由内容决定，
+  所以摘要与原文必定同源）。文件被清理时 expand 返回"重新调用原工具"，不要拿旧路径反复重试。
+- 例外：`sci-data.image_to_data_uri` 不走压缩——它的返回值是喂给模型的图像载荷而非数据，
+  由 600,000 字符上限硬闸把关，超限只回 truncated 警告。
+- 同一套 CCR 也用在「送复现」的 handoff 上：`handoff.notes_digest` 是分层摘要，不是笔记正文。
+  回取是**本地 Read** `notes_digest.full_text_path`，零网关往返，所以缺上下文就直接读，别猜。

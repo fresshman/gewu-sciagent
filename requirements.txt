@@ -16,6 +16,9 @@ matplotlib>=3.8
 arxiv>=2.1
 # PDF / 论文解析
 pdfplumber>=0.11
+# PyMuPDF：sci-data 的 pdf_page_map/render_pdf_pages 与 source_ground(D4 原页理解)
+# 依赖 fitz/pymupdf；缺失时原页链路整条不可用（实测踩过，网关 venv 必须装）。
+pymupdf>=1.24
 # 图像（多模态解析用）
 pillow>=10.0
 # 本地推理（MIL 模型 MCP）

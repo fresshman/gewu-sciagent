@@ -273,7 +273,7 @@ def _curl_get(url: str, headers: dict, timeout: float) -> bytes | None:
     cmd = [curl, "-sf", "--max-time", str(int(timeout))]
     for key, value in headers.items():
         cmd += ["-H", f"{key}: {value}"]
-    proc = subprocess.run(cmd + [url], capture_output=True)
+    proc = subprocess.run(cmd + [url], capture_output=True, stdin=subprocess.DEVNULL)
     return proc.stdout if proc.returncode == 0 else None
 
 

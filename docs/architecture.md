@@ -263,10 +263,59 @@ bag(多张 LIBS 谱 CSV)
 
 #### 暴露的工具
 `predict_calorific_value`（单 bag 真实预测）/ `list_val_bags` / `reproduce_fold`（复现某折）
-/ `cv_summary`（5 折指标 + 与官方 summary.json 交叉校验）。
+/ `cv_summary`（5 折指标 + 与官方 summary.json 交叉校验）
+/ `get_cached_metrics`（秒级读缓存指标，零 torch）/ `expand_result`（回取被瘦身的大结果）。
 
 > **设计原则**：模型权重与未发表实验数据**始终留在用户本机原目录**，格物只按路径读取；
 > 换领域 = 换 `COAL_PROJECT_ROOT`，内核零改动。
+
+> **部署铁律（实测纠正 2026-10-29）**：`mil_model.py` 以 subprocess 起 torch 孩子进程，
+> 必须 `stdin=subprocess.DEVNULL`。少了这一行，孩子进程会继承 MCP 那根 JSON-RPC stdin 管道并
+> 挂到自己的 timeout——历史上把这误诊为"MIL 推理慢/单步要 1~2 分钟"，于是 `cv_summary`
+> 判 60s 超时、`list_val_bags` 判 600s 超时。修复后实测：`cv_summary` 0.2s、
+> `list_val_bags` 2.7s、`predict_calorific_value`（真实 torch 前向）18.8s、
+> `reproduce_fold` 整折 14 bag 10.7s。回归守护见 `tests/test_stdio_subprocess_guard.py`。
+
+> **超时层级铁律（实测纠正 2026-10-30）**：工具内的 `timeout` 必须**严格小于** MCP 客户端的
+> `requestTimeoutMs`，并留出把错误 JSON 送回模型的余量（`mil-model` 客户端 900s − 60s = 840s 上限，
+> `_run()` 会把更大的入参夹回来）。错配的代价实测过：会话 `coal-demo-v3`（2026-10-28）里
+> `reproduce_fold` 内部允许跑 1800s，客户端 900s 先炸成 `MCP error -32001: Request timed out`，
+> 模型**拿不到**我们那句「改用逐 bag / 分批」的可执行建议，退化成一串 `exec` 摸索，
+> 整会话 2404s 撞墙超时——90% 的墙钟花在 4 次 MCP 调用内部，与 prompt 体积无关。
+> 常量与守护：`gewu/mcp/mil_model.py` 的 `CLIENT_REQUEST_TIMEOUT_S / TIMEOUT_HEADROOM_S /
+> MAX_TOOL_TIMEOUT_S` + `tests/test_mcp_timeout_hierarchy.py`（同时校验源码 gate 与
+> `openclaw/openclaw.json` 模板里的 `requestTimeoutMs` 仍自洽）。
+> 另一条链路 `gewu/domain_packs/coal_libs/tools.py` 的 `_call(timeout=900)` 不经 MCP 客户端拉起，
+> 不受此层级约束。
+
+### 4.6 工具结果瘦身层（CCR：摘要 + 落盘 + 回取）
+
+大结果直接灌进上下文会让长任务在写论文阶段之前就被截断，但格物的卖点是**数值可溯源**，
+所以 `gewu/mcp/context_compactor.py` 只做**结构化去冗**，不做截断、也不做 LLMLingua 式
+token 删减（`RMSE=214.5699±25.7094` 这类串一旦被改写，整条复现链就失效）。规则：
+
+- 标量（数值、短字符串）**逐字保留**；超长同构列表只内联前 `head` 条，其余给出可直接
+  使用的 `selector`；列表内重复的长公共前缀提取一次、逐条去掉；低基数字段给 `_tally`
+  全量计数；数值字段给真实 `numeric_min_max`。
+- 原文**字节级落盘**（`~/.gewu/mcp-raw/<日期>/<server>.<tool>.<sha1前12>.json`），
+  `expand_result(path, selector)` 读的就是那份文件。文件名由**内容**决定：同一份原文
+  只会有一份文件，摘要与原文永远同源（若按 `(tool,args)` 命名，`verify_papers` 这类
+  两次调用之间本身会漂移的结果会让第二次的摘要指向第一次的原文）。
+- **省不到 12% 就不压**（`MIN_SAVING`）：信封自身有 400–500 字符固定开销，实测
+  `reproduce_fold` 压缩后反而 3,128→3,219 字符；压了却更长等于白付一次回取往返的风险。
+- 代价与纪律：一次 `expand` ≈ 一次网关往返（轮次粒度 10–20s），所以阈值默认只处理
+  超过 3,000 字符的结果，小结果零开销透出。`digest` 里没有的条目等于没看过，
+  不许凭印象补——该纪律写进 `research_lifecycle` 技能「⑧ 大结果读取纪律」，
+  由三个服务的 `expand_result` docstring 各自复述一遍。
+
+已接入 `mil-model` / `sci-verify` / `sci-data` 三个服务。**实测瘦身比**（传输口径
+`json.dumps(..., indent=2)`，与 MCP lowlevel server 序列化一致）：
+`sci-data.pdf_page_map`(32 页) 5,531→2,851（48.5%）、`mil-model.list_val_bags`(14 bag)
+3,700→2,749（25.7%，14 条完整 `bag_dir` 可由 `expand_result` 逐字恢复）、
+`sci-verify.verify_papers`(20 篇) 4,162→2,637（36.6%，`tally` 让"几条未核验"不回取也能下结论）。
+例外：`sci-data.image_to_data_uri` **不走瘦身**——它返回的 base64 是喂给模型的图像载荷而非数据，
+摘要化等于废掉工具；它改由 600,000 字符硬闸把关（实测整页 dpi=150 = 706,800 字符会被拒，
+dpi=130 = 572,204 可用），并把 `render_pdf_pages` 默认 dpi 从 150 降到 130。
 
 ## 5. 领域包（参考实现：coal_libs）
 - `knowledge.md`：LIBS 原理、煤质热值背景、MIL 方法说明（供 RAG / 长周期记忆）。

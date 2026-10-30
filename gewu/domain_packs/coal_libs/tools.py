@@ -71,6 +71,7 @@ def _call(args: list[str], timeout: int = 900) -> dict:
             [_coal_python(), COAL_INFER, *args],
             capture_output=True, text=True, encoding="utf-8",
             env=env, timeout=timeout, cwd=os.path.dirname(COAL_INFER),
+            stdin=subprocess.DEVNULL,  # 同 mil_model：不让子进程继承 MCP 的 stdin 管道
         )
     except subprocess.TimeoutExpired:
         return {"status": "error", "detail": f"推理超时（>{timeout}s）"}

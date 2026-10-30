@@ -8,11 +8,24 @@
 """
 import base64
 import os
+import sys
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("sci-data")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from context_compactor import compact as _compact, expand as _expand  # noqa: E402
+
+SERVER = "sci-data"
+mcp = FastMCP(SERVER)
+
+
+def _out(payload: dict, tool: str) -> dict:
+    """大结果（整页清单、几十张渲染图路径）只回摘要，原文落盘可回取。
+
+    例外：image_to_data_uri 不走这里——它的返回值是给模型的图像载荷，不是给模型读的数据。
+    """
+    return _compact(payload, server=SERVER, tool=tool)
 
 # 渲染图输出目录（默认与 sci-plot 共用 GEWU_FIG_DIR，避免散落）
 _FIG_DIR = os.environ.get("GEWU_FIG_DIR", "output/figures")
@@ -86,18 +99,18 @@ def pdf_page_map(pdf_path: str) -> dict:
     stats = _page_stats(doc)
     doc.close()
     fig_pages = [s["page"] for s in stats if s["is_figure_page"]]
-    return {
+    return _out({
         "pdf": os.path.abspath(pdf_path),
         "n_pages": len(stats),
         "pages": stats,
         "figure_pages": fig_pages,
         "suggested_pages": ",".join(str(p) for p in fig_pages),
         "note": "把 suggested_pages（或按需精选）传给 render_pdf_pages.pages",
-    }
+    }, "pdf_page_map")
 
 
 @mcp.tool()
-def render_pdf_pages(pdf_path: str, pages: str = "all", dpi: int = 150, out_dir: str = "") -> dict:
+def render_pdf_pages(pdf_path: str, pages: str = "all", dpi: int = 130, out_dir: str = "") -> dict:
     """把论文 PDF 渲染成 PNG 图片，供书生(intern-s2)多模态原页理解。
 
     这是"科学多模态原页理解"的本地前置：把 PDF 原页转成模型能吃的图像，
@@ -109,8 +122,10 @@ def render_pdf_pages(pdf_path: str, pages: str = "all", dpi: int = 150, out_dir:
         pages: "all"=全页；或逗号分隔 1-based 页码（如 "1,3,5"）；
                或 "figtab"=只渲染含图的页（推荐：省 token）。
                不确定该渲染哪页时，先用 pdf_page_map 探明含图页。
-        dpi: 渲染分辨率，默认 150。省 token 可降到 110~130；
-             过高会显著增大后续 base64 体积。
+        dpi: 渲染分辨率，默认 130。为什么不是 150：实测整页 dpi=150 的 base64 有
+             706,800 字符，会被 image_to_data_uri 的 600,000 上限直接拒掉；
+             dpi=130 → 572,204、dpi=110 → 410,500 才可用。要更高清就显式传 dpi
+             并同时放大 max_bytes。
         out_dir: 输出目录，默认 <GEWU_FIG_DIR>/pdf_pages/。
 
     Returns:
@@ -155,26 +170,36 @@ def render_pdf_pages(pdf_path: str, pages: str = "all", dpi: int = 150, out_dir:
         images.append({"page": i + 1, "path": os.path.abspath(fpath), "width": w, "height": h})
     doc.close()
 
-    return {
+    return _out({
         "pdf": os.path.abspath(pdf_path),
         "n_pages": total,
         "rendered": len(images),
         "images": images,
         "note": "下一步用 image_to_data_uri 转 base64，再作为 image_url 发给 sheng/intern-s2 做原页理解",
-    }
+    }, "render_pdf_pages")
 
 
 @mcp.tool()
-def image_to_data_uri(image_path: str, max_bytes: int = 4_000_000) -> dict:
+def image_to_data_uri(image_path: str, max_bytes: int = 600_000) -> dict:
     """把本地 PNG/JPG 转成 data:image/...;base64,... URI，供 Agent 直接发给多模态模型。
 
     书生 intern-s2 走 openai-completions 兼容接口，支持 image_url 内联 base64。
-    警告：base64 会显著占用上下文（150dpi A4 ≈ 数十 KB→数万 token/图），
-    请配合 render_pdf_pages 的 dpi/pages 精选使用；单图超过 max_bytes 会提示降分辨率。
+
+    【这个工具刻意不做 CCR 压缩】它返回的 base64 就是"发给模型的载荷"本身，而不是
+    给模型读的数据。压缩它等于让工具失效（模型拿不到图，expand_result 也补不回来——
+    把 46 万字符原样取回正是我们要防的上下文爆炸）。所以本工具用 max_bytes 硬闸把关，
+    其余 sci-data 工具仍走摘要+落盘。
+
+    体积口径（本机实测，arXiv 1402.1349 第 1 页整页）：dpi=150 → base64 706,800 字符；
+    dpi=130 → 572,204；dpi=110 → 410,500。所以默认上限 600,000 字符就是把"dpi≤130、
+    一轮最多 1 页"这条纪律变成硬闸：一个整页就吃掉 256K 窗口的两三成，多喂几轮必然
+    在后续阶段被截断（这是实测过的会话杀手）。确实需要更高分辨率时显式传大 max_bytes。
 
     Args:
         image_path: 图片路径（通常是 render_pdf_pages 的输出）。
-        max_bytes: 单图 base64 上限（默认 4MB），超出返回警告与建议。
+        max_bytes : 单图 base64 字符上限，默认 600,000（介于实测 dpi=130 与 dpi=150 之间，
+                    即默认拒绝 150dpi 整页）。超出返回 truncated=true + 降 dpi 建议，
+                    不返回 data_uri。
 
     Returns:
         {path, media_type, data_uri, size_bytes, truncated, note}
@@ -200,18 +225,33 @@ def image_to_data_uri(image_path: str, max_bytes: int = 4_000_000) -> dict:
             "size_bytes": size,
             "truncated": True,
             "warning": (
-                f"base64 体积 {size} 超上限 {max_bytes}，请降低 render_pdf_pages 的 "
-                f"dpi 或缩小 pages 范围后再调用"
+                f"base64 共 {size} 字符，超上限 {max_bytes}。请降低 render_pdf_pages 的 "
+                f"dpi（建议 110~130）或缩小 pages 范围；不返回 data_uri 是故意的——"
+                f"整页塞进对话会把一轮任务的上下文吃光，后续轮次只能靠截断收尾"
             ),
         }
+    # 不走 _out()：见 docstring，base64 是给模型的载荷，摘要化等于废掉这个工具
     return {
         "path": os.path.abspath(image_path),
         "media_type": media,
         "data_uri": f"data:{media};base64,{b64}",
         "size_bytes": size,
         "truncated": False,
-        "note": "将此 data_uri 作为 image_url 的 url 字段，与文本 content 一起发给 sheng/intern-s2",
+        "note": "将此 data_uri 作为 image_url 的 url 字段，与文本 content 一起发给 sheng/intern-s2；一轮最多 1 张，喂完这页再进下一轮",
     }
+
+
+@mcp.tool()
+def expand_result(path: str, selector: str = "", fields: list[str] | None = None,
+                  max_chars: int | None = None) -> dict:
+    """取回被压缩工具结果的原文（页面清单、渲染图列表等，逐字未改）。
+
+    path:     压缩信封里的 __raw_path（只允许读 ~/.gewu/mcp-raw 内的文件）。
+    selector: 点号 + 下标，可叠加：`pages[12:30]`、`images[*].path`、`figure_pages`。
+    注意：`data_uri` 这类字节流超大时会返回 status=too_large，只给头部和取回办法——
+    模型无法从上下文里抄回十万字符 base64，需要图像请直接用 path 指向的 PNG。
+    """
+    return _expand(path, selector=selector, fields=fields, max_chars=max_chars, server=SERVER)
 
 
 if __name__ == "__main__":

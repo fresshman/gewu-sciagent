@@ -26,8 +26,16 @@ import claim_provenance as cp  # noqa: E402  # D2 数值声明溯源引擎
 import citation_lint as cl  # noqa: E402  # D3 引用完整性 lint
 import journal_rank as jr  # noqa: E402  # EasyScholar 期刊等级溯源（反幻觉·期刊信息）
 import source_ground as sg  # noqa: E402  # D4 原页理解 grounding（核对原页文本层读数）
+from context_compactor import compact as _compact, expand as _expand  # noqa: E402
 
-mcp = FastMCP("sci-verify")
+SERVER = "sci-verify"
+mcp = FastMCP(SERVER)
+
+
+def _json_out(payload: dict, tool: str) -> str:
+    """统一出口：超过内联上限时改成 digest + __raw_path 的信封，原文照旧落盘。"""
+    return json.dumps(_compact(payload, server=SERVER, tool=tool),
+                      ensure_ascii=False, indent=2)
 
 
 @mcp.tool()
@@ -52,6 +60,10 @@ def verify_papers(input_json: str, user_email: str = "", no_cache: bool = False)
       verified       — 至少一层确认存在
       unverified     — 所有可用层干净跑完且未命中（高度疑似幻觉/编造引用）
       verify_pending — 某层临时失败（限流/超时），请勿计入幻觉率
+
+    结果过大时只回摘要（verdict/hallucination_rate 等数值逐字保留，papers 内联前若干条
+    并附 status 全量 tally），完整清单落盘在 __raw_path。digest 里没有的那几条必须用
+    mcp__sci-verify__expand_result 取回再判读——不许凭印象认定某条文献已核验。
     """
     try:
         papers = [vp.PaperInput(**d) for d in json.loads(input_json)]
@@ -78,9 +90,9 @@ def verify_papers(input_json: str, user_email: str = "", no_cache: bool = False)
         vp.save_cache(vp.resolve_cache_path("project", None), cache)
 
     verdict, metrics = vp.compute_verdict(results, vp.DEFAULT_HALLUCINATION_WARN_THRESHOLD)
-    return json.dumps(
+    return _json_out(
         {"verdict": verdict, **metrics, "papers": [vp.asdict(r) for r in results]},
-        ensure_ascii=False, indent=2,
+        "verify_papers",
     )
 
 
@@ -118,13 +130,12 @@ def verify_papers_file(input_path: str, output_path: str | None = None, user_ema
         vp.save_cache(cp, cache)
 
     verdict, metrics = vp.compute_verdict(results, vp.DEFAULT_HALLUCINATION_WARN_THRESHOLD)
-    payload = json.dumps(
-        {"verdict": verdict, **metrics, "papers": [vp.asdict(r) for r in results]},
-        ensure_ascii=False, indent=2,
-    )
+    report = {"verdict": verdict, **metrics, "papers": [vp.asdict(r) for r in results]}
     if output_path:
-        Path(output_path).write_text(payload, encoding="utf-8")
-    return payload
+        # 落盘写的是完整结论，不受压缩影响；只有回给模型的那份走 digest。
+        Path(output_path).write_text(
+            json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    return _json_out(report, "verify_papers_file")
 
 
 @mcp.tool()
@@ -160,7 +171,7 @@ def verify_claims(input_json: str, verified_papers: str | None = None, strict: b
              "error": str(e)}, ensure_ascii=False
         )
     report = cp.verify_claims(claims, verified_papers=vps, strict=strict)
-    return json.dumps(report, ensure_ascii=False, indent=2)
+    return _json_out(report, "verify_claims")
 
 
 @mcp.tool()
@@ -214,7 +225,7 @@ def lint_citations(input_json: str, verified_papers: str | None = None,
     if tex:
         keys.extend(cl.extract_cite_keys(tex))
     report = cl.lint_citations(keys, verified_papers=vps, manually_confirmed=mcs)
-    return json.dumps(report, ensure_ascii=False, indent=2)
+    return _json_out(report, "lint_citations")
 
 
 @mcp.tool()
@@ -270,7 +281,24 @@ def verify_source_span(pdf_path: str, page: int, value: str | None = None,
     """
     res = sg.verify_source_span(pdf_path, page, value=value, claim_text=claim_text,
                                 evidence_type=evidence_type)
-    return json.dumps(res, ensure_ascii=False, indent=2)
+    return _json_out(res, "verify_source_span")
+
+
+@mcp.tool()
+def expand_result(path: str, selector: str = "", fields: list[str] | None = None,
+                  max_chars: int | None = None) -> dict:
+    """取回被压缩核验结果的**原文**（读落盘那份 JSON，一字不改，不做近似重建）。
+
+    path:     压缩信封里的 __raw_path（只允许读 ~/.gewu/mcp-raw 内的文件）。
+    selector: 点号 + 下标，可叠加："" 整份 / `papers[8:20]` / `papers[*].id` /
+              `papers[*].status`；fields 可对数组做字段投影（如 ["id","status","reason"]）。
+    max_chars: 单次内联上限，超出则再压一层并给出更细的 selector（原文始终不变）。
+               不传时用环境变量 GEWU_MCP_EXPAND_MAX（默认 8000）。
+
+    反幻觉纪律：digest 里没内联的文献**不许**按印象判定已核验或未核验，
+    先用本工具把那几条的 id/status 取回来再下结论。
+    """
+    return _expand(path, selector=selector, fields=fields, max_chars=max_chars, server=SERVER)
 
 
 if __name__ == "__main__":
