@@ -1,0 +1,17 @@
+# 参考实现（coal_libs 领域包）运行环境依赖 —— **可选**
+#
+# 什么时候需要装：只有当你要跑 MIL+LIBS 煤热值的**真实推理**时。
+# 格物不在这个 venv 里做推理：gewu/mcp/coal_infer.py 是由 `GEWU_COAL_PYTHON`
+# 指向的解释器作为子进程拉起的（见 .env.example），它属于外部未发表项目的模型环境。
+#
+# 不装会怎样：mil-model 的 6 个工具里，需要真实前向的那几个返回
+# status:"not-configured" + 明确提示（不会编造指标）；其余 MCP 服务与七阶段编排不受影响。
+#
+# 建议 CPU 版（体积小一个量级，参考实现只做前向推理）：
+#   pip install -r requirements-coal.txt
+# 或明确走 CPU 源：
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# coal_infer.py 加载外部项目的 .pt 权重与 .pkl 预处理器需要 torch
+# （CPU 版即可；本仓代码不导入 openvino，旧 requirements.txt 里那条是历史遗留，已移除）
+torch>=2.0

@@ -32,6 +32,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import platform
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -39,6 +41,18 @@ from pathlib import Path
 GEWU_ROOT = Path.home() / ".gewu"
 PROJECTS_DIR = GEWU_ROOT / "projects"
 CONFIG_FILE = GEWU_ROOT / "config.json"
+
+
+def shared_venv() -> str:
+    """项目记录的解释器路径：优先 $GEWU_SHARED_VENV，否则取当前 venv 根。
+
+    这里绝不写死某台机器的路径——本脚本是 README 让用户直接跑的，写死就等于
+    换机创建出来的项目一上来就指向一个不存在的 venv。
+    """
+    env = os.environ.get("GEWU_SHARED_VENV", "")
+    if env:
+        return Path(env).as_posix()
+    return Path(sys.prefix).as_posix()
 
 DOMAINS = {
     "spectroscopy": "光谱学（LIBS/Raman/IR 等）",
@@ -69,8 +83,8 @@ def load_config() -> dict:
             "global_dir": str(GEWU_ROOT / "global"),
             "projects": {},
             "defaults": {
-                "python_version": "3.13.12",
-                "shared_venv": "C:/Users/SHJ/.workbuddy/binaries/python/envs/gewu",
+                "python_version": platform.python_version(),
+                "shared_venv": shared_venv(),
             },
             "features": {
                 "multi_project_isolation": True,
@@ -182,8 +196,8 @@ def create_config_json(
         "hypothesis": "",
         
         "environment": {
-            "python_version": "3.13.14",
-            "venv_path": "C:/Users/SHJ/.workbuddy/binaries/python/envs/gewu",
+            "python_version": platform.python_version(),
+            "venv_path": shared_venv(),
             "key_dependencies": {},
             "cuda_required": gpu_required,
             "gpu_required": gpu_required,

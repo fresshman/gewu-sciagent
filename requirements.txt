@@ -1,32 +1,31 @@
+# 格物 Python 工具层依赖（MCP Server 与 scripts）
+#
+# 口径：本文件只列**本仓代码实际 import 的包**（已逐个 grep 全仓 .py 核对）。
+# 之前这里挂着 openvino / optuna / pandas / pdfplumber / arxiv / pyyaml / pillow /
+# requests / torch 九个包，本仓代码一处都没导入 —— 其中 torch+openvino 会让新机器
+# 多下 1–2 GB 而毫无用处，是开箱复现的主要时间成本。参考实现的 torch 环境见
+# requirements-coal.txt，两个外部 MCP 包见 README「2. 安装 Python 依赖」。
+#
+# 装法（建议独立 venv）：pip install -r requirements.txt
+
+# MCP 工具服务框架。注意：需 mcp 1.x；2.x 重命名/移除了 mcp.server.fastmcp.FastMCP，
+# 导入即失败。必须钉 <2。
+mcp>=1.0,<2
+
 # 书生大模型客户端（Intern 系列兼容 OpenAI 协议，用 openai 客户端 + base_url）
 openai>=1.30
-# MCP 工具服务（注意：需 mcp 1.x；2.x 重命名 FastMCP 会导致导入失败）
-# 必须钉 <2，否则 pip 可能拉到 2.x，mcp.server.fastmcp.FastMCP 在 2.x 已被移除，导入即失败。
-mcp>=1.0,<2
-# 科学计算
+
+# 科学计算（sci-compute 的 PCA/PLS/拟合/交叉验证 与 sci-plot 的数据处理）
 numpy>=1.26
-pandas>=2.0
 scikit-learn>=1.4
 scipy>=1.12
-# 实验 / 超参寻优
-optuna>=3.6
-# 可视化
+
+# 本地出图（sci-plot，数据不出本机）
 matplotlib>=3.8
-# 文献检索
-arxiv>=2.1
-# PDF / 论文解析
-pdfplumber>=0.11
-# PyMuPDF：sci-data 的 pdf_page_map/render_pdf_pages 与 source_ground(D4 原页理解)
+
+# PyMuPDF：sci-data 的 pdf_page_map / render_pdf_pages 与 source_ground（D4 原页理解）
 # 依赖 fitz/pymupdf；缺失时原页链路整条不可用（实测踩过，网关 venv 必须装）。
 pymupdf>=1.24
-# 图像（多模态解析用）
-pillow>=10.0
-# 本地推理（MIL 模型 MCP）
-openvino>=2024.0
-# PyTorch（MIL 真实推理需 torch 加载 .pt 权重；建议 CPU 版以减小体积）
-# CPU 安装：pip install torch --index-url https://download.pytorch.org/whl/cpu
-torch>=2.0
-# 配置
-pyyaml>=6.0
-# HTTP
-requests>=2.31
+
+# 测试运行器：README「5. 跑测试」的 python -m pytest tests -q 需要它。
+pytest>=8.0

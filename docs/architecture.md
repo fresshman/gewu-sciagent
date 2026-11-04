@@ -28,7 +28,7 @@ A2A（announce 跨会话）、Computer Use（Browser/Exec）。因此架构收�
 | 层 | 角色 | 本项目落地 |
 |---|---|---|
 | **书生大模型** (Intern-S1 / InternVL) | 大脑（推理 / 规划 / 视觉） | 经 OpenAI 兼容 `base_url` 接入 OpenClaw model profile |
-| **OpenClaw** | 执行框架（身体） | Gateway、原生多智能体编排、Skills 加载、Memory、渠道、Computer Use、A2A |
+| **OpenClaw** | 执行框架（身体） | Gateway、原生多智能体编排（`sessions_spawn`）、Skills 加载、Memory、渠道。框架另有 Computer Use 与 A2A 协议层，**本项目未使用**，不计入落地内容 |
 | **格物科研智能体层** | 科研领域能力 | 7 阶段 Agent（注册于 `openclaw.json` 的 `agents.entries`，各用独立工作区 `AGENTS.md` 承载角色）+ Python MCP 工具层 + 领域包 + Skills |
 
 > Python **只保留"科学工具层"**（MCP Server），通过 MCP 被 OpenClaw 调用；
@@ -77,7 +77,8 @@ flowchart LR
 1. **Workspace 文件**：各阶段把产出（假设、文献笔记、实验指标、草稿）写入工作区文件，
    下一阶段读取 —— 大对象（数据集、权重）始终留在 Python/MCP 侧，只跨边界传路径/ID。
 2. **Memory（长周期记忆）**：OpenClaw Memory Core（`MEMORY.md` + 向量/混合检索）承载跨会话知识。
-3. **A2A announce**：子智能体结束时向协调者 announce 结果摘要，驱动流转。
+3. **跨阶段交接的事实来源**：`handoff_<stage>.json` 落盘文件（七阶段单轮实测 7/7 全部落盘）。
+   框架侧的 A2A announce 属 OpenClaw 能力，本项目未对其做单独验证，不作为交接可靠性的依据。
 
 ### 3.3 确定性迭代循环（不达标回③）的解法（已核实）
 经 OpenClaw 官方文档核实：**lobster 原生不支持循环 / 回退边**——
@@ -224,7 +225,7 @@ lobster 实际支持的是 `when/condition`（条件**跳过**步骤）、`retry
   `auto-review-loop` 的"评分+最小修复+最多 N 轮"纪律移植，但**不依赖 Codex/Gemini 外部后端**——
   改用本机 `sheng/intern-s2` 当对抗评审（符合本地优先），`review-stage/AUTO_REVIEW.md`
   追加式记录、 `REVIEW_STATE.json` 防上下文压缩丢失。
-- **模型路由铁律**：原页/图/公式 → `sheng/intern-s2`（多模态）；机械任务 → `intern-s1-mini`；
+- **模型路由铁律**：原页/图/公式 → `sheng/intern-s2`（多模态）；机械任务 → `intern-s1`；
   判断/规划/写作 → `intern-s2`/`intern-s1-pro`。书生在格物里既是"长程科研智能体调度器"，
   也是"通专融合可插拔"的内核，更是"科学多模态原页理解"的唯一承载者——三者同时被功能化使用。
 
@@ -440,7 +441,7 @@ gewu-sciagent/
 | 维度 | 本项目的应对 |
 |---|---|
 | 实用价值 | 通用内核 = 广价值；全生命周期（含复现/发表/沉淀）= 真科研痛点；煤热值 = 可复现证据 |
-| 技术深度 | 书生模型 + OpenClaw 原生多智能体 + 通用 MCP 工具层 + 多模态 + 本地 OpenVINO + Agent Skills + 长周期记忆 + A2A |
+| 技术深度 | 书生模型 + OpenClaw 原生多智能体（`sessions_spawn`）+ 通用 MCP 工具层 + 多模态原页理解 + Agent Skills + 长周期记忆 + 上下文工程（结果瘦身层与在飞轨迹真值，均带实测数字） |
 | 完整度 | 7 阶段在参考实现上跑通，文档 + 视频齐全 |
 
 ## 10. 分阶段落地路线图（已验证进展 ✓）

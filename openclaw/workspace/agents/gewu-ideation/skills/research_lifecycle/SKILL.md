@@ -91,7 +91,7 @@ director 派发子阶段后，若到时未收到 `handoff_<stage>.json`：
 - 关键方法 / 数据路径写入 `repro_lock.json` 防方法漂移。
 
 ### ⑤ 模型分层调度 · director（借鉴 model_tiering）
-- 机械任务（检索 / 格式转换 / 提取）→ `intern-s1-mini`；
+- 机械任务（检索 / 格式转换 / 提取）→ `intern-s1`；
 - 判断 / 写作 / 评审 / 规划 → `intern-s2` 或 `intern-s1-pro`。
 
 ### ⑥ 真值隔离 · reproduction / mil_model / sci_compute（借鉴 ground_truth_isolation）
