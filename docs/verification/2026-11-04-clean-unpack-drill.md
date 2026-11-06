@@ -10,6 +10,11 @@
 依赖安装 → 前端构建 → 代理起服并出真实数据**全链路通过，无需修改任何一行代码。
 演练过程中暴露并当场修掉的缺陷 6 个（见 §8），另有 3 项已知缺口没动（见 §9）。
 
+**同日追加批次**：§9 第 1 项（`sci_data.parse_figure` 是占位工具）已实装为真调
+`sheng/internvl3.5-241b-a28b`，并在**新的干净解包目录**上复验过配置生成、MCP probe、
+两套件测试与「MCP 子进程 env 白名单」这条部署链路 → 见 §10 与
+[`2026-11-04-parse-figure-vision.md`](2026-11-04-parse-figure-vision.md)。
+
 ## 1. 解包方式
 
 ```bash
@@ -149,9 +154,10 @@ git ls-files -z | xargs -0 grep -IlE "sk-[A-Za-z0-9]{16,}|api[_-]?key\s*[:=]\s*[
 
 ## 9. 已知缺口（本次没动，如实记录）
 
-1. **`sci_data.parse_figure` 仍是占位实现**（返回 `modality:"unknown"`），却被
-   `spectrum_preprocess` 技能声明为工具。赛题把「多模态科学数据解析」列为方向 1 必备要素，
-   这一条要么接 internvl3.5 要么从技能声明里摘掉，**是当前最刺眼的自相矛盾点**。
+1. ~~**`sci_data.parse_figure` 仍是占位实现**（返回 `modality:"unknown"`），却被
+   `spectrum_preprocess` 技能声明为工具。~~ **已于同日修掉**：实装为真调
+   `sheng/internvl3.5-241b-a28b`，取证与复验见 §10 和
+   [`2026-11-04-parse-figure-vision.md`](2026-11-04-parse-figure-vision.md)。
 2. **含未发表数值/本机路径的文件仍在仓库里**：`e2e_*.md`（5 个文件里出现真实的交叉验证
    RMSE 数值，本文不复述）、`.workbuddy/memory/2026-10-28.md`（含 `C:/Users/<user>` 与同一 RMSE）、
    `openclaw/workspace/agents/gewu-director/make_figures.py`（硬编码输出路径 + 逐 bag 真实预测值）。
@@ -159,3 +165,31 @@ git ls-files -z | xargs -0 grep -IlE "sk-[A-Za-z0-9]{16,}|api[_-]?key\s*[:=]\s*[
    留待决策。
 3. **两处代码待办**：一键送复现不预检目标项目可达性（`web/proxy/server.mjs:1030`）；
    论文全文抽取仍是前缀硬截断（`web/proxy/server.mjs:1146`），长论文后文取不到。
+
+## 10. 追加复验（同日 · parse_figure 批次）
+
+改完 `sci_data.parse_figure` 后**重新解包一次**（`git ls-files` 191 个文件、2.0 MB，
+另补本次新增、尚未提交的 `tests/test_parse_figure.py` 与本记录），全部数字来自解包目录：
+
+| 项 | 实测结果 |
+|---|---|
+| Python 套件 · 仓库内 | **89 passed / 0 skipped**（14.90s） |
+| Python 套件 · 干净解包 | **86 passed / 3 skipped**（21.56s）：固定的 `test_mcp_timeout_hierarchy:99` 一条 + `test_verify_papers_fallback` 两条（CrossRef 限流，非代码失败） |
+| Web 套件 | **48 pass / 0 fail**（368.9ms，便携 Node 26.9.0） |
+| `bootstrap_openclaw_config.py --target <临时 home> --intern-api-key … --write` | 检查含 `✓ sci-data.env 已带 INTERN_API_KEY`、`✓ 花括号配平（57 对）`、`✓ MCP servers 共 10 个`、8 条 workspace 全部落在解包目录内 ✓；负例照旧拒绝（PATH 上 Node 24.13 → `✗ 不满足闸门`） |
+| `openclaw config validate`（`OPENCLAW_HOME` 指临时 home） | **Config valid** + 同样 2 条可选 warning |
+| `openclaw mcp probe`（同一临时 home） | 解包目录里 8 个本机服务全起：`sci-data: 5 tools`、sci-plot 17、sci-verify 8、mil-model 6、chart-cloud 12、report 4、sci-compute 4、sci-exp 4；2 个外部包因未给 `--paper-python/--office-python` 报 ENOENT（设计意图） |
+| 密钥扫描（`sk-[A-Za-z0-9]{16,}` 与 `api[_-]?key\s*[:=]` 两条正则） | 解包目录 **0 命中**；生成的配置在终端与 diff 里一律脱敏为 `sk-***REDACTED(len=…)***` |
+| 本机用户名路径扫描（`C:/Users/<user>`） | 解包目录 1 命中，且**正是 §9 第 2 项那条已知缺口**（`.workbuddy/memory/2026-10-28.md:26`）；本次新增/改动的文件 0 命中 |
+
+**部署链路单验**（这一步是本次真正的坑，值得单独记）：以 openclaw 的口径给 MCP 子进程
+**只传白名单环境**（此处手工构造 11 个键），从解包目录起 `sci_data.py` 走真实 stdio 传输调用：
+
+| 子进程环境 | `list_tools` | `parse_figure` 结果 |
+|---|---|---|
+| 白名单，**无** `INTERN_API_KEY` | 5 tools，schema `['image_path','max_b64','question']` | `status=missing_key`，返回体**不含** `figure`/`modality`，hint 直接指向 bootstrap 的 `--intern-api-key` |
+| 白名单 **+** `INTERN_API_KEY`（等价于 `mcp.servers.sci-data.env` 注入） | 同上 | `status=ok`、`modality=spectrum`、11.54s、1703 tokens、5 个峰位与真值对上 |
+
+结论：**Key 必须注入到 MCP 服务自己的 env 块**，只在 shell 里 export 到不了子进程；
+而 env 块里留一个未解析的 `${VAR}` 会让整个 server 静默不启动（probe 无输出、退出码 0）。
+两条都已写进 README §3 与 `.env.example`。

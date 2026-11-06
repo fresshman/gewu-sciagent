@@ -101,7 +101,7 @@ lobster 实际支持的是 `when/condition`（条件**跳过**步骤）、`retry
 |---|---|---|
 | `sci_compute` | PCA / PLS / 曲线拟合 / 交叉验证 / 超参寻优 | 通用 |
 | `paper-search` | arXiv/Crossref/OpenAlex/Semantic Scholar/PubMed 多源检索（paper-search-mcp，零 key 即可用） | 通用 |
-| `sci_data` | 科学文件与图表载入解析（InternVL 视觉） | 通用 |
+| `sci_data` | 科学文件与图表载入解析（5 工具：`pdf_page_map` / `render_pdf_pages` / `image_to_data_uri` / `parse_figure` 真调 InternVL3.5 读图 / `expand_result`） | 通用 |
 | `mil_model` | **真实** MIL 热值预测（4 工具：`predict_calorific_value` / `list_val_bags` / `reproduce_fold` / `cv_summary`）；经 `coal_infer.py` 按路径引用外部未发表项目的 `.pt`/`.pkl` 做真实前向推理，可逐 bag 复现 5 折交叉验证（见 §4.5） | 领域专属（真实推理） |
 | `report` | 报告 / 论文草稿生成；并含「本地写 LaTeX」工具族（`write_local_file` / `write_latex_project` / `copy_local_file`），把 .tex/.bib 源文件落盘本机，不依赖 Overleaf | 通用 |
 | `sci_plot` | 含实验数据的统计图（本地 matplotlib 渲染，PDF 矢量 + PNG 300dpi，17 工具） | 通用 |
@@ -196,6 +196,19 @@ lobster 实际支持的是 `when/condition`（条件**跳过**步骤）、`retry
   （图与正文方法矛盾、公式与表格数据对不上等）。**关键：不再先经 InternVL 转文本再喂 S2**——
   那样会切断原页理解能力，使 S2 退化成"文本规划器"。由 `gewu-lit-review` 技能承载（部署于 ideation）。
   渲染前先用 `pdf_page_map` 探明含图页（或 `pages="figtab"`），避免按正文图号猜页码造成空转。
+  **已知边界（实测）**：`pdf_page_map` 的判定只看内嵌栅格图（`page.get_images()`），对**矢量绘图**
+  的 PDF 会整本返回 `figure_pages=[]`（公开论文 1905.12226 共 9 页、每页 `get_images()` 均为 0），
+  此时须改用正文图号/人工定位，不能据此判定"这篇没有图"。
+- **②′ 谱图/图表数字化（`sci_data.parse_figure` → `sheng/internvl3.5-241b-a28b`）**：与上一条
+  **分工不同，不冲突**——原页理解负责"跨模态联合推理"（判断图与正文是否矛盾），parse_figure 负责
+  把一张图读成**可入流水线的结构化 JSON**（类型/两轴/系列/峰表/图内文字，峰位峰强度带 `估读` 自标），
+  供 `sci_compute` 直接接着算。实测（真值自造的合成 LIBS 谱图 3 次运行）5/5 峰检出、**0 个幻觉峰**、
+  峰位最大偏差 6.6 nm；真实论文图 16 个读数全部命中同页文本层。同时实测抓到花体 `L-Risk` 被读成
+  `Z-Risk`、双 y 轴被合并成一根而 `confidence` 仍是 `high`，所以纪律写进技能：**它的输出只是假设，
+  落结论前必须与文本层/原图二次对照**。失败一律返回显式 `status`（`missing_key`/`timeout`/
+  `unparsable` …）且不含 `figure` 字段。注意 Key 要注入 `mcp.servers.sci-data.env`——
+  openclaw 给 stdio 子进程的是环境白名单，shell 里 export 到不了。取证记录见
+  [`verification/2026-11-04-parse-figure-vision.md`](verification/2026-11-04-parse-figure-vision.md)。
 
 **实测验证（真实中文 LIBS 论文，13 页，含图/表/公式）**——原页理解已跑通，非纸面宣传：
 - **读图内标注**：识别出图6 六个散点子图（含 45° 参考线、Validation/Test 图例），

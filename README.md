@@ -49,6 +49,7 @@
 - **真实领域推理 + 未发表成果零外泄**：领域模型走「**路径引用**」而非复制入库——模型权重（`.pt`）与未发表实验数据始终留在用户本机原项目，格物只按 `COAL_PROJECT_ROOT` 运行时读取，可跑出**真实、可复现**的预测与 5 折交叉验证指标，而资产不进仓库、不上云。
 - **沉淀复利闭环**：第 ⑦ 阶段把方法与踩坑固化为 OpenClaw Skill + 长周期记忆。
 - **科研阅读闭环（最大化书生多模态）**：反幻觉校验（arXiv/CrossRef/S2/CrossRef 标题回退四层）→ **原页多模态理解**（`sheng/intern-s2` 直接读 PDF 原页的图/表/公式做跨模态联合推理，而非先经视觉模型转文本）→ 本机书生对抗评审循环。书生在格物里同时是「长程科研智能体调度器」「通专融合内核」与「科学多模态原页理解承载者」，三项能力均被功能化使用。**原页理解已用真实论文两轮实测**：中文 LIBS 论文一輪读出图内标注 `RMSEp=1.097`、PCA 方差解释率 `PC1 47.9%/43.2%` 等**纯文本抽取拿不到的数值**，并通过「结果页+方法页」联合推理发现跨页归因缺口；三篇英文正式期刊论文一輪（Talanta 2025 / Spectrochim. Acta B 2024 / JAAS，DOI 均已核验，见 [`docs/verification/2026-10-23-english-papers.md`](docs/verification/2026-10-23-english-papers.md)）在文本层仅剩图注的页面上完整读出流程图步骤与方法示意图符号，且能识别「图中未标注」而不把正文表格数字冒充为图内读数。实测同时暴露两类风险（数字末位/位序误读、长输出前后矛盾），已固化为技能纪律：关键数字二次复读并与正文表格对照、结构化表格一次性输出。
+- **多模态科学数据解析（`sci_data.parse_figure` → `sheng/internvl3.5-241b-a28b`）**：把一张谱图/曲线图读成结构化 JSON（类型、两轴标签与单位、系列、峰表、图内文字、`估读` 自标）。与上一条「原页理解」分工不同——那条负责跨模态联合推理，这条负责可入流水线的**数字化读数**。已用真值自造的合成 LIBS 谱图与公开论文原页图取证：**3 次运行 5/5 峰检出、0 个幻觉峰**（没有从元素表里补出图外的峰），峰位最大偏差 6.6 nm（RMS 4.36 nm，是系统性取整而非随机抖动，故只可作估读）；真实论文图读出的 16 个数字 **100% 落在同页文本层、0 编造**。同批实测也暴露两处真实缺陷并转化为纪律：花体 `L-Risk` 被读成 `Z-Risk`、双 y 轴被合并成一根，而 `confidence` 仍是 `high`——所以它的输出只能当假设，落结论前必须与文本层/原图二次对照。全部降级路径（`missing_key`/`too_large`/`timeout`/`unparsable` …）实测返回明确 `status`+`hint` 且**不含** `figure` 字段，不会出现"看起来成功了"的空结构。取证记录：[`docs/verification/2026-11-04-parse-figure-vision.md`](docs/verification/2026-11-04-parse-figure-vision.md)。
 
 ## 项目定位
 
@@ -108,7 +109,7 @@ Python 侧只保留「科学工具层」（MCP Server），通过 MCP 被 OpenCl
 | 服务 | 工具数 | 能力 |
 |---|---|---|
 | `sci-compute` | 4 | PCA / PLS / 曲线拟合 / 交叉验证 等科学计算 |
-| `sci-data` | 5 | 多模态科学数据：`pdf_page_map` 探含图页 → `render_pdf_pages` 渲染 → `image_to_data_uri` 供书生原页理解，外加 `expand_result` 回取原文 |
+| `sci-data` | 5 | 多模态科学数据：`pdf_page_map` 探含图页 → `render_pdf_pages` 渲染 → `image_to_data_uri` 供书生原页理解，`parse_figure` 真调 `internvl3.5-241b-a28b` 把图读成结构化 JSON，外加 `expand_result` 回取原文 |
 | `sci-verify` | 8 | **反幻觉核验服务**：`verify_papers`（CrossRef/arXiv/Semantic Scholar/OpenAlex 四层）/ `verify_claims` 数值声明溯源 / `save_claims` / `lint_citations` 引用完整性 / `verify_source_span` 原页文本层核验 / `get_journal_rank` 期刊等级分区 |
 | `sci-exp` | 4 | 领域无关实验注册表：登记 / 查询 / 审计 / 重跑（`rerun_experiment`） |
 | `mil-model` | 6 | **真实** MIL 热值预测：`predict_calorific_value` 单 bag / `list_val_bags` 验证集列举 / `reproduce_fold` 复现某折 / `cv_summary` 5 折汇总 / `get_cached_metrics` 秒级读缓存指标（零 torch）/ `expand_result`。经 `coal_infer.py` 按路径引用外部未发表项目的 `.pt`+`.pkl` 做真实前向推理，可逐 bag 复现 5 折交叉验证 |
@@ -231,7 +232,9 @@ python scripts/bootstrap_openclaw_config.py --write    # 写入 ~/.openclaw/open
 
 脚本按**当前仓库根**与**当前解释器**重写路径，并检查花括号配平、10 个 MCP server、
 7 个 Agent、workspace 是否真实存在、`command:` 指向的解释器是否可用、Node 版本是否满足
-openclaw 闸门。`--python` 默认取运行本脚本的解释器——**请用装了 `mcp<2/numpy/pymupdf` 的那个
+openclaw 闸门；`--intern-api-key`（或同名环境变量）会把密钥注入**生成文件**的
+`mcp.servers.sci-data.env`，打印与 diff 里一律脱敏成 `sk-***REDACTED(len=…)***`，
+连续两次生成逐字节一致。`--python` 默认取运行本脚本的解释器——**请用装了 `mcp<2/numpy/pymupdf` 的那个
 venv 跑它**，否则生成的配置会指向一个起不来的解释器。另外两个外部包各用自己独立 venv：
 
 ```bash
@@ -250,10 +253,24 @@ python scripts/bootstrap_openclaw_config.py \
 
 ```bash
 cp .env.example .env             # 填入你的 INTERN_API_KEY（其余变量都有默认值，按需再调）
-export INTERN_API_KEY=sk-...     # 或让网关进程能读到它
+export INTERN_API_KEY=sk-...     # 供网关进程解析模板里的 ${INTERN_API_KEY}
 ```
 
-生成的配置可以直接交给网关校验（本机实测结论）：
+**但只 export 到 shell 不够**（实测）：openclaw 给 stdio MCP 子进程的环境是 15 个键的
+白名单（PATH/TEMP/USERPROFILE/…），`INTERN_API_KEY` 不在里面，`sci_data.parse_figure`
+会直接返回 `status:"missing_key"`（其余 4 个 sci-data 工具不受影响）。密钥要落到
+MCP 服务自己的 env 块，交给脚本注入：
+
+```bash
+python scripts/bootstrap_openclaw_config.py --intern-api-key sk-... --write
+```
+
+两个反向的坑同样实测过：`mcp.servers.<name>.env` 里留一个**未解析的 `${VAR}`**
+会让那个 server **静默不启动**（`openclaw mcp probe` 无输出、退出码 0）；模板里的
+`apiKey: "${INTERN_API_KEY}"` 解析不了时，`openclaw config validate | mcp probe | doctor`
+会**全部静默**，很容易被误判成网关坏了。所以不给真值时脚本宁可在检查里报 warn/fail。
+
+生成的配置可以直接交给网关校验（本机实测结论，需 `INTERN_API_KEY` 已设）：
 
 ```bash
 openclaw config validate         # → Config valid（2 条 warning：heartbeat 与网关 token 未设，均属可选）
@@ -278,17 +295,17 @@ openclaw config validate         # 校验配置
 openclaw mcp probe               # 验证 10 个 MCP 服务（8 个本机 + 2 个外部包）
 ```
 
-### 5. 跑测试（两套件，共 116 用例）
+### 5. 跑测试（两套件，共 137 用例）
 
 ```bash
 # Python 侧：反幻觉链 / 结果瘦身层 / MCP 超时层级 / stdin 守护
-python -m pytest tests -q              # 共 68 用例
+python -m pytest tests -q              # 共 89 用例
 #   允许跳过 0–2 个，取决于两个外部条件，都不是代码失败：
 #   ① test_verify_papers_fallback —— CrossRef 限流或断网时返回 verify_pending 而跳过；
 #   ② test_mcp_timeout_hierarchy —— 解包目录里没有 gitignore 的 .coal_project_root 时跳过。
 #   所以同一份代码会跑出 68/0、67/1、66/2 三种数，用 `-rs` 可以看到每条跳过的原因。
-#   实测（2026-11-04）：仓库内 68 passed / 0 skipped（9.91s）；
-#   干净解包（只有 git 跟踪的文件、无 .coal_project_root）67 passed / 1 skipped（16.60s）。
+#   实测（2026-11-04，含 parse_figure 的 21 条离线单测后）：仓库内 89 passed / 0 skipped（14.90s）；
+#   干净解包（只有 git 跟踪的文件、无 .coal_project_root）86 passed / 3 skipped（21.56s）。
 #   完整开箱演练记录见 docs/verification/2026-11-04-clean-unpack-drill.md。
 
 # Web 代理侧：预算状态机 / 会话名归一 / tail 划界 / transcript 读取 / 笔记摘要
@@ -413,7 +430,8 @@ A：替换 `gewu/domain_packs/` 下的领域包即可，通用内核与七阶段
 | 文档 | 内容 |
 |---|---|
 | [`docs/architecture.md`](docs/architecture.md) | 架构设计、配置要点与分阶段落地路线图 |
-| [`docs/verification/2026-11-04-clean-unpack-drill.md`](docs/verification/2026-11-04-clean-unpack-drill.md) | **开箱可复现演练**：干净解包 → 生成配置 → `config validate` → `mcp probe` 10 服务 → 两套件 → `npm install/build` → 代理起服的真实数字，含演练里发现并修掉的 6 个缺陷与 3 项如实记录的已知缺口 |
+| [`docs/verification/2026-11-04-clean-unpack-drill.md`](docs/verification/2026-11-04-clean-unpack-drill.md) | **开箱可复现演练**：干净解包 → 生成配置 → `config validate` → `mcp probe` 10 服务 → 两套件 → `npm install/build` → 代理起服的真实数字，含演练里发现并修掉的 6 个缺陷、如实记录的已知缺口，以及 §10 的 parse_figure 批次追加复验（含「MCP 子进程 env 白名单」部署链路单验） |
+| [`docs/verification/2026-11-04-parse-figure-vision.md`](docs/verification/2026-11-04-parse-figure-vision.md) | **多模态读图取证**：`parse_figure` 真调 `internvl3.5-241b-a28b`，6 次真实请求——合成谱图 3 次 5/5 峰检出、0 幻觉峰、峰位最大偏差 6.6 nm；真实论文图 16 个读数 100% 命中文本层、0 编造，同时抓到 `L-Risk→Z-Risk` 误读与 `confidence:high` 并存 |
 | [`docs/verification/anti-hallucination.md`](docs/verification/anti-hallucination.md) | 反幻觉四道横向防线（文献存在性 / 数值溯源 / 引用完整性 / 原页文本层核验）与逐阶段映射 |
 | [`docs/verification/2026-10-23-english-papers.md`](docs/verification/2026-10-23-english-papers.md) | 书生 `intern-s2` 科学多模态**原页理解**的三篇英文期刊论文实测（含读出的图内数值与暴露的风险） |
 | [`docs/verification/2026-10-23-orchestration-web.md`](docs/verification/2026-10-23-orchestration-web.md) | Web 端多智能体编排实测：主编派发、工具卡片、SSE 轨迹 |
