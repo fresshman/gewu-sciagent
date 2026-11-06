@@ -19,11 +19,17 @@
 `--node`（chart-cloud）默认取 PATH 上的 node 并校验 openclaw 的版本闸门；两个外部包的
 `--paper-python` / `--office-python` 不给就保留占位，并由检查报 fail（不给 = 明确失败，
 比生成一份"看起来成功了"的配置好）。
+
+`--intern-api-key`（默认取当前 shell 的 `INTERN_API_KEY`）会写进产物里 sci-data 的 `env` 段。
+这一步不能省：实测 openclaw 起 stdio MCP 子进程只给 15 个键的环境白名单，网关 export 的变量
+不透传；而 env 里留未解析的 `${...}` 会让整个 sci-data 静默不启动。所以拿到真值才注入，
+拿不到就不加，并在检查里明确 warn（模板与仓库里任何时候都不出现 Key 明文）。
 """
 from __future__ import annotations
 
 import argparse
 import difflib
+import os
 import re
 import shutil
 import sys
@@ -56,6 +62,50 @@ PLACEHOLDER_BINS = [
 def as_posix(p: str | Path) -> str:
     r"""统一成正斜杠。JSONC 字符串里的反斜杠是非法转义，所以绝不往产物里留反斜杠。"""
     return Path(p).as_posix()
+
+
+VL_SERVER = "sci-data"
+
+
+def json_escape(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def inject_vl_key(text: str, api_key: str) -> tuple[str, str]:
+    """把 InternVL 用的 API Key 写进产物里 sci-data 的 env 段（产物在仓库外，模板不含 Key）。
+
+    为什么必须走这条路（2026-11-04 实测）：openclaw 起 stdio MCP 子进程时只给一个
+    **15 个键的环境白名单**（PATH/TEMP/USERPROFILE/SYSTEMROOT…），网关自己 export 的
+    变量不会透传进子进程；只有 mcp.servers.<name>.env 里的条目会合并进去。
+    所以「在起网关的 shell 里 export INTERN_API_KEY」对这个工具是不够的。
+
+    为什么只在拿到真值时才注入（同一轮实测）：env 值里留 `${INTERN_API_KEY}` 而该变量
+    未设置时，**整个 sci-data 会静默不启动**——`openclaw mcp probe` 无输出、退出码还是 0。
+    那比少一个工具严重得多，所以宁可不注入。
+    """
+    if not api_key:
+        return text, ""
+    m = re.search(rf'"{VL_SERVER}"\s*:\s*\{{\n(?P<body>.*?)\n[ ]*\}}', text, re.S)
+    if not m:
+        return text, f"⚠ 模板里找不到 {VL_SERVER} 段，未注入 Key"
+    body = m.group("body")
+    if re.search(r"^\s*env\s*:", body, re.M):
+        new_body = re.sub(r'(\n\s*env\s*:\s*\{)[^}]*\}',
+                          rf'\1 INTERN_API_KEY: "{json_escape(api_key)}" }}', body, count=1)
+        action = "更新"
+    else:
+        indent = re.match(r"[ ]*", body.split("\n", 1)[0]).group(0)
+        new_body = f'{indent}env: {{ INTERN_API_KEY: "{json_escape(api_key)}" }},\n' + body
+        action = "新增"
+    out = text[: m.start("body")] + new_body + text[m.end("body") :]
+    return out, f"{action} {VL_SERVER}.env.INTERN_API_KEY（len={len(api_key)}，值不打印）"
+
+
+def redact(text: str, secret: str) -> str:
+    """任何要打印到终端/diff 的文本都先过一遍：Key 明文绝不进 stdout（会落进日志与轨迹表）。"""
+    if not secret:
+        return text
+    return text.replace(secret, f"sk-***REDACTED(len={len(secret)})***")
 
 
 def substitute(text: str, bins: dict[str, str]) -> tuple[str, list[str], list[str]]:
@@ -136,6 +186,21 @@ def checks(text: str, unresolved: list[str], node_ver: str = "") -> list[tuple[s
     else:
         res.append(("fail", f"Agent 条目只解析到 {len(set(agents))} 个，应有 7 个"))
 
+    # sci-data 的 env：parse_figure 能不能拿到视觉模型 Key，取决于这里有没有注入
+    m = re.search(r'"sci-data"\s*:\s*\{(?P<body>.*?)\n[ ]*\}', text, re.S)
+    if not m:
+        res.append(("fail", "找不到 mcp.servers.sci-data 段"))
+    else:
+        body = m.group("body")
+        if "${" in body:
+            res.append(("fail", "sci-data.env 里仍有未解析的 ${...}：这个 server 会静默不启动"
+                               "（实测 `openclaw mcp probe` 无输出且退出码 0）"))
+        elif re.search(r'env\s*:\s*\{[^}]*INTERN_API_KEY\s*:\s*"[^"]+"', body):
+            res.append(("ok", "sci-data.env 已带 INTERN_API_KEY，parse_figure 可直接调书生视觉模型"))
+        else:
+            res.append(("warn", "sci-data.env 未带 INTERN_API_KEY：parse_figure 会返回 status=missing_key"
+                               "（其余 4 个工具不受影响）。给 --intern-api-key，或先 export 再重跑本脚本"))
+
     # workspace 路径是否真的存在
     for ws in sorted(set(re.findall(r'workspace:\s*"([^"]+)"', text))):
         p = Path(ws.replace("\\", "/"))
@@ -171,6 +236,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="chart-cloud 用的 Node，默认取 PATH 上的 node")
     ap.add_argument("--paper-python", default="", help="paper-search-mcp 所在 venv 的 python（可选）")
     ap.add_argument("--office-python", default="", help="office-word-mcp-server 所在 venv 的 python（可选）")
+    ap.add_argument("--intern-api-key", default=os.environ.get("INTERN_API_KEY", ""),
+                    help="写进 sci-data.env 的书生 API Key；缺省取当前 shell 的 INTERN_API_KEY，"
+                         "都没有就不注入（parse_figure 会返回 missing_key，其余工具不受影响）")
     ap.add_argument("--write", action="store_true", help="落盘；目标已存在则先备份")
     ap.add_argument("--check", action="store_true", help="只检查，有问题返回退出码 1")
     args = ap.parse_args(argv)
@@ -183,6 +251,10 @@ def main(argv: list[str] | None = None) -> int:
     bins = {"python": args.python, "node": args.node,
             "paper-python": args.paper_python, "office-python": args.office_python}
     text, notes, unresolved = substitute(raw, bins)
+    key = (args.intern_api_key or "").strip()
+    text, vl_note = inject_vl_key(text, key)
+    if vl_note:
+        notes.append(vl_note)
 
     print(f"模板：{TEMPLATE}")
     print(f"仓库根：{REPO_ROOT}")
@@ -194,7 +266,7 @@ def main(argv: list[str] | None = None) -> int:
     if notes:
         print("\n替换动作：")
         for n in notes:
-            print(f"  · {n}")
+            print(f"  · {redact(n, key)}")
     else:
         print("\n替换动作：（无需替换，模板已是本机路径）")
 
@@ -202,7 +274,7 @@ def main(argv: list[str] | None = None) -> int:
     failed = False
     for level, msg in checks(text, unresolved, nv):
         icon = {"ok": "✓", "warn": "⚠", "fail": "✗"}[level]
-        print(f"  {icon} {msg}")
+        print(f"  {icon} {redact(msg, key)}")
         failed = failed or level == "fail"
 
     target = Path(args.target)
@@ -215,7 +287,7 @@ def main(argv: list[str] | None = None) -> int:
                                              "现有配置", "生成结果", lineterm="", n=1))
             print(f"\n与现有配置的差异（{sum(1 for d in diff if d.startswith('+') and not d.startswith('+++'))} 增 / "
                   f"{sum(1 for d in diff if d.startswith('-') and not d.startswith('---'))} 删）：")
-            print("\n".join(diff[:80]))
+            print(redact("\n".join(diff[:80]), key))
             if len(diff) > 80:
                 print(f"  …（其余 {len(diff) - 80} 行省略，加 --write 会先备份）")
     else:

@@ -1,14 +1,24 @@
 """多模态科学数据解析 MCP Server（书生 InternVL / 原页渲染）。
 
 两层能力：
-1) 视觉解析：parse_figure 调用书生视觉模型（internvl3.5）解析科学图（谱图/曲线/分子式）。
+1) 视觉解析：parse_figure 调用书生视觉模型（internvl3.5-241b-a28b）把科学图
+   （谱图/曲线/柱状/显微图/分子式）读成结构化 JSON，走 OpenAI 兼容接口。
 2) 原页渲染：render_pdf_pages 把论文 PDF 渲染成 PNG，交给书生 intern-s2 做
    科学多模态原页理解（图+表+公式同帧联合推理）。image_to_data_uri 把 PNG
    转 base64 data URI，供 Agent 以 image_url 直接发给 sheng/intern-s2。
+
+两者的分工（别混）：原页理解走 intern-s2 直读，不经过本模型的文本化中转；
+parse_figure 只在「要把一张图定量抽成数」时用（峰位、曲线范围、柱高），
+因为那是谱图数字化任务，不是版面理解任务。
 """
 import base64
+import json
 import os
+import socket
 import sys
+import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -31,19 +41,305 @@ def _out(payload: dict, tool: str) -> dict:
 _FIG_DIR = os.environ.get("GEWU_FIG_DIR", "output/figures")
 _PAGES_DIR = os.path.join(_FIG_DIR, "pdf_pages")
 
+# ── InternVL 视觉解析后端（parse_figure 用）───────────────────────────────────
+# 与 ~/.openclaw/openclaw.json 的 sheng provider 同一入口：baseUrl 必须是 chat. 域
+# （误用 internlm.intern-ai.org.cn/api/v1 会 404，见模板 §1 注释）。
+VL_DEFAULT_BASE_URL = "https://chat.intern-ai.org.cn/api/v1"
+VL_DEFAULT_MODEL = "internvl3.5-241b-a28b"
+VL_DEFAULT_TIMEOUT_S = 180
+# 硬夹取上限。为什么必须有：sci-data 的客户端闸门 requestTimeoutMs=600000（见配置模板），
+# 内层 HTTP 若允许跑到 600s，模型拿到的是 `-32001 Request timed out` 而不是我们的降级建议，
+# 优雅降级被截胡（2026-10-28 就是这么烧掉一整轮阶段的）。
+VL_TIMEOUT_CEILING_S = 480
+# 单图 base64 字符上限，与 image_to_data_uri 的默认闸同值（dpi≤130 整页 ≈57 万字符）。
+VL_DEFAULT_MAX_B64 = 600_000
+
+# 输出契约：字段读不到就填 null / 空数组，禁止用先验补数值——这是反幻觉的落点，
+# 也是本工具与"看起来成功了"的占位实现的区别。
+_VL_OUTPUT_SCHEMA = """{
+  "modality": "spectrum|curve|bar|scatter|micrograph|molecule|table|diagram|photo|unknown",
+  "title": "图上读到的题名/图注，读不到填 null",
+  "x_axis": {"label": "", "unit": "", "min": null, "max": null},
+  "y_axis": {"label": "", "unit": "", "min": null, "max": null},
+  "series": [{"name": "图例原文", "style": "颜色/线型", "trend": "", "value_min": null, "value_max": null}],
+  "peaks": [{"position": null, "unit": "", "intensity": null, "label_in_figure": ""}],
+  "key_numbers": [{"value": "图上原样的位数", "meaning": "", "where_in_figure": "在图的哪个位置"}],
+  "text_in_figure": ["图内每一处可读文字，逐条原样抄"],
+  "unreadable": "哪些刻度/区域读不清；没有则空字符串",
+  "confidence": "high|medium|low"
+}"""
+
+_VL_SYSTEM = (
+    "你是科学仪器谱图与图表的读数员。规则（违反任何一条都算失败）：\n"
+    "1) 只写这张图里直接可见的内容。图上看不到的一律填 null 或空数组，"
+    "禁止用领域常识、元素表、典型谱线来补全数值。\n"
+    "2) 数值保持图上印出的位数与单位，不要四舍五入、不要换算、不要自己算差值。\n"
+    "3) 需要估读的点（没有刻度标注支撑）必须在 label_in_figure 或 meaning 里写明"
+    "「估读」，不得伪装成图上标值。\n"
+    "4) 只输出一个 JSON 对象，不要 markdown 代码块、不要任何解释文字。\n"
+    "5) 输出结构严格如下（键名不得增删改）：\n" + _VL_OUTPUT_SCHEMA
+)
+
+
+def _vl_key() -> tuple[str, str]:
+    """返回 (可用 Key, 不可用原因)。
+
+    为什么还要判 `${`：openclaw 会把配置里的 `${VAR}` 按它自己的环境解析，未设置时
+    可能原样留着——那串东西当 Bearer 发出去只会收到 401，不如在这里就说清是配置问题。
+    """
+    key = (os.environ.get("INTERN_API_KEY") or "").strip()
+    if not key:
+        return "", "missing"
+    if "${" in key:
+        return "", "unresolved"
+    return key, ""
+
+
+def _vl_env(name: str, default: str) -> str:
+    """环境变量在调用时读，不在 import 时读——MCP 进程可能被复用，配置改了要生效。"""
+    return (os.environ.get(name) or "").strip() or default
+
+
+def _env_int(name: str, default: int) -> int:
+    """整型环境变量，写坏时用默认值并把坏值说清楚（不静默吞掉）。"""
+    raw = (os.environ.get(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+def _vl_extract_json(text: str) -> tuple[dict | None, str]:
+    """从模型回复里取出 JSON 对象。返回 (对象, 错误串)。
+
+    容错只做两件：剥掉 ```json 围栏、退一步找最外层花括号。不做"尽量救一下"的
+    宽松解析——救回来的半截结构会被下游当成读数，那正是本项目要防的事。
+    """
+    raw = (text or "").strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        if raw.lower().startswith("json"):
+            raw = raw[4:]
+        raw = raw.strip()
+    try:
+        return json.loads(raw), ""
+    except json.JSONDecodeError:
+        pass
+    start, end = raw.find("{"), raw.rfind("}")
+    if start >= 0 and end > start:
+        try:
+            return json.loads(raw[start : end + 1]), ""
+        except json.JSONDecodeError as e:
+            return None, f"JSON 解析失败：{e}"
+    return None, "回复里找不到 JSON 对象"
+
+
+def _vl_complete(body: dict, timeout: int) -> tuple[dict | None, str, str]:
+    """一次 OpenAI 兼容 chat/completions 调用，返回 (响应 JSON, 错误类别, 错误详情)。
+
+    类别是机器可读的（""/timeout/http_error/network/bad_json），调用方靠它选降级话术——
+    不去嗅探错误字符串里有没有 "timeout"，那种判定在中文报错上会静默失效。
+    拆成独立函数是为了单测能注入假传输层。绝不把 Key 写进任何返回值。
+    """
+    key, _ = _vl_key()
+    url = _vl_env("GEWU_VL_BASE_URL", VL_DEFAULT_BASE_URL).rstrip("/") + "/chat/completions"
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.read().decode("utf-8", "replace")[:400]
+        except Exception:  # noqa: BLE001 - 读错误体失败不影响主结论
+            pass
+        return None, "http_error", f"HTTP {e.code} {detail}".strip()
+    except (TimeoutError, socket.timeout):
+        return None, "timeout", f"请求超时（{timeout}s 内未返回）"
+    except urllib.error.URLError as e:
+        reason = getattr(e, "reason", e)
+        if isinstance(reason, (TimeoutError, socket.timeout)) or "timed out" in str(reason).lower():
+            return None, "timeout", f"请求超时（{timeout}s 内未返回）：{reason}"
+        return None, "network", f"网络失败：{reason}"
+    except OSError as e:
+        return None, "network", f"网络失败：{e}"
+    try:
+        return json.loads(raw), "", ""
+    except json.JSONDecodeError:
+        return None, "bad_json", f"响应不是合法 JSON：{raw[:300]}"
+
+
+def _encode_for_vl(image_path: str, max_b64: int) -> tuple[str, str, int, str]:
+    """(data_uri, media_type, base64 字符数, 错误串)。"""
+    ext = Path(image_path).suffix.lower()
+    media = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+    }.get(ext, "image/png")
+    with open(image_path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("ascii")
+    if len(b64) > max_b64:
+        return "", media, len(b64), (
+            f"base64 共 {len(b64)} 字符，超上限 {max_b64}。先裁到目标子图或降 dpi"
+            f"（render_pdf_pages 用 dpi=110~130、pages 只给含图页），"
+            f"确需整页再显式放大 max_b64"
+        )
+    return f"data:{media};base64,{b64}", media, len(b64), ""
+
 
 @mcp.tool()
-def parse_figure(image_path: str) -> dict:
-    """用 InternVL 解析科学图（谱图/曲线/分子式）为结构化数据。
+def parse_figure(image_path: str, question: str = "", max_b64: int = 0) -> dict:
+    """用书生 InternVL3.5 把科学图（谱图/曲线/柱状/显微图/分子式）读成结构化 JSON。
 
-    说明：生产环境调用书生视觉模型（internvl3.5-241b-a28b）；
-    MVP 阶段返回占位结构，便于流水线先行打通。
+    定位：这是「把一张图定量抽成数」的谱图数字化工具，不是版面理解工具——
+    读论文原页请用 render_pdf_pages + image_to_data_uri 交给 intern-s2 直读。
+
+    前置：本进程环境里要有 INTERN_API_KEY。实测 openclaw 起 stdio MCP 子进程只给一个
+    15 键的环境白名单，网关 export 的变量不透传，所以 Key 必须写在配置的
+    mcp.servers.sci-data.env 里——用 scripts/bootstrap_openclaw_config.py --intern-api-key
+    一条命令注入（产物在仓库外）。拿不到 Key 时本工具返回 status=missing_key 并给出修法，
+    不猜、不编。
+
+    Args:
+        image_path: 图片路径（本地绝对/相对）。
+        question  : 可选，追加的具体问题（如「只读 400-500nm 区间的峰位」）。
+        max_b64   : 可选，单图 base64 字符上限，0=用 GEWU_VL_MAX_B64 或默认 600000。
+
+    Returns:
+        status=ok 时：{status, modality, figure(结构化读数), model, latency_s,
+                      usage, path, image_base64_chars, warning?}
+        其它：{status, error, hint, path}——任何降级都不返回 figure，
+              避免调用方把失败读成一次真实读数。
     """
-    return {
-        "modality": "unknown",
-        "path": image_path,
-        "note": "调用 InternVL 解析；MVP 阶段用占位结构，接 internvl3.5-241b-a28b",
+    image_path = os.path.expanduser(image_path)
+    if not os.path.isfile(image_path):
+        return {"status": "file_not_found", "error": f"图片不存在: {image_path}", "path": image_path}
+
+    ceiling = int(max_b64) if int(max_b64 or 0) > 0 else _env_int("GEWU_VL_MAX_B64", VL_DEFAULT_MAX_B64)
+    uri, media, n_chars, err = _encode_for_vl(image_path, ceiling)
+    if err:
+        return {
+            "status": "too_large",
+            "error": err,
+            "path": os.path.abspath(image_path),
+            "media_type": media,
+            "image_base64_chars": n_chars,
+        }
+
+    key, key_reason = _vl_key()
+    if not key:
+        return {
+            "status": "missing_key",
+            "error": (
+                "MCP 子进程环境里没有可用的 INTERN_API_KEY，无法调用书生视觉模型。"
+                if key_reason == "missing"
+                else "INTERN_API_KEY 还是未解析的 ${...} 引用，等于没有 Key。"
+            ),
+            "hint": (
+                "实测：openclaw 起 stdio MCP 子进程只给 15 个键的环境白名单（PATH/TEMP/USERPROFILE…），"
+                "网关自己 export 的变量不会透传进来，所以只在 shell 里 export 是不够的。"
+                "正确做法：python scripts/bootstrap_openclaw_config.py --intern-api-key sk-xxx --write"
+                "（它把 Key 写进产物里 mcp.servers.sci-data.env，产物在 ~/.openclaw/ 下、不进仓库），"
+                "然后树杀网关再起 bash start-gewu.sh --gateway 让子进程重读配置。"
+            ),
+            "path": os.path.abspath(image_path),
+        }
+
+    model = _vl_env("GEWU_VL_MODEL", VL_DEFAULT_MODEL)
+    timeout = min(_env_int("GEWU_VL_TIMEOUT_S", VL_DEFAULT_TIMEOUT_S), VL_TIMEOUT_CEILING_S)
+    user_text = "请按规则输出这张图的 JSON。"
+    if question.strip():
+        user_text += f"\n额外要求：{question.strip()}"
+    body = {
+        "model": model,
+        "temperature": 0,
+        "messages": [
+            {"role": "system", "content": _VL_SYSTEM},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": user_text},
+                    {"type": "image_url", "image_url": {"url": uri}},
+                ],
+            },
+        ],
     }
+
+    t0 = time.time()
+    resp, err_kind, err_msg = _vl_complete(body, timeout)
+    latency = round(time.time() - t0, 2)
+    if resp is None:
+        hints = {
+            "timeout": (
+                f"模型 {model} 未在 {timeout}s 内返回：缩小图片范围或调 GEWU_VL_TIMEOUT_S"
+                f"（上限 {VL_TIMEOUT_CEILING_S}s，必须留在 sci-data 的 600s 客户端闸门之下）"
+            ),
+            "http_error": "确认 baseUrl 是 chat.intern-ai.org.cn/api/v1、Key 有效、模型 ID 在 provider 列表里",
+            "network": "本机到书生 API 不通：检查网络/代理，或稍后重试",
+            "bad_json": "网关返回的不是 JSON，可能被代理或登录页拦截",
+        }
+        return {
+            "status": err_kind or "http_error",
+            "error": err_msg,
+            "hint": hints.get(err_kind, hints["http_error"]),
+            "path": os.path.abspath(image_path),
+            "latency_s": latency,
+        }
+
+    choices = resp.get("choices") or []
+    content = ((choices[0].get("message") or {}).get("content") if choices else "") or ""
+    if not content.strip():
+        return {
+            "status": "empty_response",
+            "error": "模型返回空内容",
+            "raw_response_head": json.dumps(resp, ensure_ascii=False)[:400],
+            "path": os.path.abspath(image_path),
+            "latency_s": latency,
+        }
+
+    figure, parse_err = _vl_extract_json(content)
+    if figure is None:
+        return {
+            "status": "unparsable",
+            "error": parse_err,
+            "hint": "模型没按契约输出 JSON。重试并在 question 里收窄要求，或换 GEWU_VL_MODEL",
+            "model": model,
+            # 只回头部：整段原文交给瘦身层落盘，但这里连头部都不该长——真长了就是模型跑偏
+            "reply_head": content[:1200],
+            "path": os.path.abspath(image_path),
+            "latency_s": latency,
+        }
+
+    usage = resp.get("usage") or {}
+    payload = {
+        "status": "ok",
+        "path": os.path.abspath(image_path),
+        "media_type": media,
+        "image_base64_chars": n_chars,
+        "model": model,
+        "latency_s": latency,
+        "usage": {k: usage.get(k) for k in ("prompt_tokens", "completion_tokens", "total_tokens") if k in usage},
+        "modality": figure.get("modality", "unknown"),
+        "figure": figure,
+        "warning": (
+            "视觉读数可能误认末位数字与刻度位数（本机实测过的风险）。"
+            "关键数值请与正文表格或原始数据文件二次对照，不要单独采信。"
+        ),
+    }
+    return _out(payload, "parse_figure")
 
 
 def _open_fitz():
