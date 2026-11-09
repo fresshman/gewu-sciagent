@@ -111,5 +111,74 @@ def copy_local_file(src: str, dst: str, overwrite: bool = False) -> str:
     return f"已复制 {src} -> {target}（{size} 字节）"
 
 
+def _load_latex_builder():
+    """加载 gewu.latex_build.build。
+
+    MCP server 可能以脚本方式启动（sys.path[0] 是 gewu/mcp 而非仓库根），
+    此时 `import gewu...` 会失败，故退化为按文件路径加载，不依赖 sys.path 状态。
+    """
+    try:
+        from gewu.latex_build import build as _build
+
+        return _build
+    except ImportError:
+        import importlib.util
+        from pathlib import Path
+
+        mod_path = Path(__file__).resolve().parents[1] / "latex_build.py"
+        spec = importlib.util.spec_from_file_location("_gewu_latex_build", mod_path)
+        if spec is None or spec.loader is None:  # pragma: no cover - 文件缺失才会走到
+            raise ImportError(f"无法加载编译模块：{mod_path}")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod.build
+
+
+@mcp.tool()
+def compile_latex(path: str, engine: str = "", timeout: int = 900) -> str:
+    """把本机已有的 .tex 编译成 PDF（本地优先，不依赖云端 Overleaf）。
+
+    引擎自动探测：GEWU_LATEX_ENGINE → PATH 里的 tectonic/xelatex/latexmk → 常见安装位置。
+    本机没有 TeX 引擎时**如实返回未编译及原因**，不会假装成功。
+
+    - path: .tex 路径（相对锚定 GEWU_DOC_DIR，也可绝对路径）。
+    - engine: 可选，指定引擎名或可执行文件绝对路径（如 "tectonic"）。
+    - timeout: 秒；tectonic 首次运行要从 CTAN 拉 bundle，冷启动约 6 分钟。
+
+    返回：PDF 路径与大小、耗时、TeX 日志里的 error / 缺字 / overfull 计数。
+    出现 ! error 或 Missing character（中文掉字）时判为失败并列出原因。
+    """
+    _build = _load_latex_builder()
+
+    tex = _resolve(path)
+    if not os.path.exists(tex):
+        raise FileNotFoundError(f"tex 文件不存在：{tex}")
+    if not tex.lower().endswith(".tex"):
+        raise ValueError(f"只接受 .tex 文件：{tex}")
+
+    r = _build(tex, engine=engine or None, timeout=timeout)
+    if not r.get("ok"):
+        lines = [f"编译未成功（status={r.get('status')}）：{r.get('reason')}"]
+        log = r.get("log") or {}
+        for e in (log.get("errors") or [])[:5]:
+            lines.append(f"  error: {e}")
+        for g in (log.get("missing_glyphs") or [])[:3]:
+            lines.append(f"  缺字: {g}")
+        if r.get("status") == "no_engine":
+            lines.append(
+                "  安装建议：下载单文件引擎 tectonic 解压到 "
+                r"%LOCALAPPDATA%\gewu\tools\tectonic.exe"
+            )
+        return "\n".join(lines)
+
+    return (
+        f"已编译：{r['pdf']}（{r['pdf_bytes']} 字节）\n"
+        f"引擎：{r['engine']}；耗时 {r['duration_s']}s\n"
+        f"日志：error {len(r['log']['errors'])} 条，"
+        f"缺字 {len(r['log']['missing_glyphs'])} 处，"
+        f"overfull {r['log']['overfull_hbox']} 处"
+    )
+
+
 if __name__ == "__main__":
     mcp.run()
