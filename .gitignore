@@ -51,6 +51,9 @@ output/scratch/
 output/min_case/
 # e2e 校验器的原始 JSON 转储（console 已打印同一内容；可读版证据在 docs/verification/）
 output/verification/
+# 例外：docs/paper 下的 TeX 编译日志是「0 error / 0 缺字 / 0 overfull」的原始证据，
+# 需入库供评审核对（不含本机绝对路径）。
+!docs/paper/**/*.log
 
 # ── 外部未发表项目的路径引用（本机私有，切勿提交） ──────────
 # 格物通过路径引用读取未发表的 MIL+LIBS 煤热值项目（模型权重/实验数据原样留在
