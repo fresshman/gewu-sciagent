@@ -1,0 +1,159 @@
+{
+  "schema_version": "1.0",
+  "domain": "demo_synth",
+  "domain_label": "合成演示 · LIBS MIL 热值回归（零外部依赖）",
+  "registered_by": "gewu min-case harness",
+  "note": "本域为端到端链路自证用合成课题；数值不代表真实煤样精度，禁止与 coal_mil 域混比",
+  "experiments": [
+    {
+      "id": "demo_synth_plsr_baseline",
+      "name": "[合成演示] 袋均谱 PLSR 基线",
+      "category": "baseline",
+      "config": {
+        "dataset": "gewu/demo/synth.py (synthetic, seed 20261109)",
+        "n_bags": 70,
+        "folds": 5,
+        "features": "64-bin 分箱；逐实例谱形定标（mil/hybrid 臂）",
+        "model": "PLSRegression(n_components<=6) on bag-mean"
+      },
+      "metrics": {
+        "rmse_mean": 150.4354,
+        "rmse_std": 13.1549,
+        "r2_mean": 0.6106,
+        "per_fold_rmse": [
+          169.6308,
+          134.7206,
+          158.1094,
+          136.8353,
+          152.8811
+        ]
+      },
+      "source": "output/min_case/model/summary.json",
+      "source_of_truth": "output/min_case/model/fold{0..4}/predictions.json（可独立重算）",
+      "reproducibility": "realizable_by_gewu",
+      "rerun": {
+        "type": "cli",
+        "python": "system",
+        "script": "scripts/run_min_case.py",
+        "args": [
+          "--json"
+        ],
+        "timeout": 600,
+        "metrics_path": "summary.plsr_baseline",
+        "key_map": {
+          "rmse_mean": "rmse_mean",
+          "rmse_std": "rmse_std",
+          "r2_mean": "r2_mean"
+        },
+        "tolerance": {
+          "rmse_mean": 0.01,
+          "rmse_std": 0.01,
+          "r2_mean": 0.0005
+        },
+        "note": "重跑最小课题并取对应臂的 5 折汇总，与登记值交叉校验"
+      },
+      "rerun_hint": "python scripts/run_min_case.py --json → 取 summary.plsr_baseline",
+      "domain": "demo_synth"
+    },
+    {
+      "id": "demo_synth_mil_direct",
+      "name": "[合成演示] MIL 逐实例定标 + 池化",
+      "category": "ablation",
+      "config": {
+        "dataset": "gewu/demo/synth.py (synthetic, seed 20261109)",
+        "n_bags": 70,
+        "folds": 5,
+        "features": "64-bin 分箱；逐实例谱形定标（mil/hybrid 臂）",
+        "model": "instance PLS + LSE pooling (beta by inner CV)"
+      },
+      "metrics": {
+        "rmse_mean": 122.7867,
+        "rmse_std": 12.2446,
+        "r2_mean": 0.7407,
+        "per_fold_rmse": [
+          141.3063,
+          109.2403,
+          118.5462,
+          112.2981,
+          132.5425
+        ]
+      },
+      "source": "output/min_case/model/summary.json",
+      "source_of_truth": "output/min_case/model/fold{0..4}/predictions.json（可独立重算）",
+      "reproducibility": "realizable_by_gewu",
+      "rerun": {
+        "type": "cli",
+        "python": "system",
+        "script": "scripts/run_min_case.py",
+        "args": [
+          "--json"
+        ],
+        "timeout": 600,
+        "metrics_path": "summary.mil_direct",
+        "key_map": {
+          "rmse_mean": "rmse_mean",
+          "rmse_std": "rmse_std",
+          "r2_mean": "r2_mean"
+        },
+        "tolerance": {
+          "rmse_mean": 0.01,
+          "rmse_std": 0.01,
+          "r2_mean": 0.0005
+        },
+        "note": "重跑最小课题并取对应臂的 5 折汇总，与登记值交叉校验"
+      },
+      "rerun_hint": "python scripts/run_min_case.py --json → 取 summary.mil_direct",
+      "domain": "demo_synth"
+    },
+    {
+      "id": "demo_synth_our_hybrid",
+      "name": "[合成演示] MIL + 强度上尾残差（本课题方法）",
+      "category": "ours",
+      "config": {
+        "dataset": "gewu/demo/synth.py (synthetic, seed 20261109)",
+        "n_bags": 70,
+        "folds": 5,
+        "features": "64-bin 分箱；逐实例谱形定标（mil/hybrid 臂）",
+        "model": "mil + RidgeCV on amplitude/pooling stats"
+      },
+      "metrics": {
+        "rmse_mean": 73.027,
+        "rmse_std": 10.1693,
+        "r2_mean": 0.9108,
+        "per_fold_rmse": [
+          91.8709,
+          69.1661,
+          72.3988,
+          61.1779,
+          70.5212
+        ]
+      },
+      "source": "output/min_case/model/summary.json",
+      "source_of_truth": "output/min_case/model/fold{0..4}/predictions.json（可独立重算）",
+      "reproducibility": "realizable_by_gewu",
+      "rerun": {
+        "type": "cli",
+        "python": "system",
+        "script": "scripts/run_min_case.py",
+        "args": [
+          "--json"
+        ],
+        "timeout": 600,
+        "metrics_path": "summary.our_hybrid",
+        "key_map": {
+          "rmse_mean": "rmse_mean",
+          "rmse_std": "rmse_std",
+          "r2_mean": "r2_mean"
+        },
+        "tolerance": {
+          "rmse_mean": 0.01,
+          "rmse_std": 0.01,
+          "r2_mean": 0.0005
+        },
+        "note": "重跑最小课题并取对应臂的 5 折汇总，与登记值交叉校验"
+      },
+      "rerun_hint": "python scripts/run_min_case.py --json → 取 summary.our_hybrid",
+      "domain": "demo_synth"
+    }
+  ]
+}

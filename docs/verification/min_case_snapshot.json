@@ -1,0 +1,179 @@
+{
+  "kind": "min_case_snapshot",
+  "generated_at": "2026-11-09 11:12:37",
+  "from_scratch": true,
+  "regenerate": "python scripts/run_min_case.py",
+  "data_kind": "synthetic",
+  "disclaimer": "合成光谱上的链路验证结果，不代表真实煤样精度；不得与 coal_mil 域数值并列比较",
+  "case_dir": "output/min_case",
+  "n_bags": 70,
+  "n_instances": 611,
+  "elapsed_s": 1.57,
+  "refs_status": "verified",
+  "metrics": {
+    "plsr_baseline": {
+      "label": "袋均谱 PLSR 基线",
+      "rmse_mean": 150.4354,
+      "rmse_std": 13.1549,
+      "rmse_std_sample": 14.7076,
+      "mae_mean": 124.7632,
+      "mae_std": 9.2041,
+      "r2_mean": 0.6106,
+      "r2_std": 0.0883,
+      "per_fold_rmse": [
+        169.6308,
+        134.7206,
+        158.1094,
+        136.8353,
+        152.8811
+      ]
+    },
+    "mil_direct": {
+      "label": "MIL 逐实例定标 + 池化",
+      "rmse_mean": 122.7867,
+      "rmse_std": 12.2446,
+      "rmse_std_sample": 13.6899,
+      "mae_mean": 105.649,
+      "mae_std": 7.9677,
+      "r2_mean": 0.7407,
+      "r2_std": 0.0634,
+      "per_fold_rmse": [
+        141.3063,
+        109.2403,
+        118.5462,
+        112.2981,
+        132.5425
+      ]
+    },
+    "our_hybrid": {
+      "label": "MIL + 强度上尾残差（本课题方法）",
+      "rmse_mean": 73.027,
+      "rmse_std": 10.1693,
+      "rmse_std_sample": 11.3696,
+      "mae_mean": 60.3008,
+      "mae_std": 12.0929,
+      "r2_mean": 0.9108,
+      "r2_std": 0.012,
+      "per_fold_rmse": [
+        91.8709,
+        69.1661,
+        72.3988,
+        61.1779,
+        70.5212
+      ]
+    }
+  },
+  "improvement_pct": 51.4562,
+  "paired_tests": {
+    "hybrid_vs_plsr": {
+      "n": 5,
+      "mean_delta": -77.4085,
+      "std_delta": 7.6998,
+      "deltas": [
+        -77.7599,
+        -65.5545,
+        -85.7106,
+        -75.6574,
+        -82.3599
+      ],
+      "all_same_direction": true,
+      "method": "paired t-test (two-sided)",
+      "t": -22.4798,
+      "df": 4,
+      "p": 2.3e-05,
+      "ci95": [
+        -86.969,
+        -67.8479
+      ],
+      "wilcoxon": {
+        "stat": 0.0,
+        "p": 0.0625,
+        "note": "n=5 时双侧最小可达 p=0.0625"
+      }
+    },
+    "hybrid_vs_mil": {
+      "n": 5,
+      "mean_delta": -49.7597,
+      "std_delta": 8.0492,
+      "deltas": [
+        -49.4354,
+        -40.0742,
+        -46.1474,
+        -51.1202,
+        -62.0213
+      ],
+      "all_same_direction": true,
+      "method": "paired t-test (two-sided)",
+      "t": -13.8232,
+      "df": 4,
+      "p": 0.000159,
+      "ci95": [
+        -59.7541,
+        -39.7653
+      ],
+      "wilcoxon": {
+        "stat": 0.0,
+        "p": 0.0625,
+        "note": "n=5 时双侧最小可达 p=0.0625"
+      }
+    },
+    "mil_vs_plsr": {
+      "n": 5,
+      "mean_delta": -27.6488,
+      "std_delta": 7.2497,
+      "deltas": [
+        -28.3245,
+        -25.4803,
+        -39.5632,
+        -24.5372,
+        -20.3386
+      ],
+      "all_same_direction": true,
+      "method": "paired t-test (two-sided)",
+      "t": -8.5279,
+      "df": 4,
+      "p": 0.001038,
+      "ci95": [
+        -36.6505,
+        -18.6471
+      ],
+      "wilcoxon": {
+        "stat": 0.0,
+        "p": 0.0625,
+        "note": "n=5 时双侧最小可达 p=0.0625"
+      }
+    }
+  },
+  "beta_selected": [
+    0.0,
+    0.25,
+    0.25,
+    0.25,
+    0.25
+  ],
+  "handoffs": [
+    "output/min_case/agents/gewu-director/handoff_1_direction.json",
+    "output/min_case/agents/gewu-ideation/handoff_2_litreview.json",
+    "output/min_case/agents/gewu-reproduction/handoff_3_repro.json",
+    "output/min_case/agents/gewu-improver/handoff_4_improver.json",
+    "output/min_case/agents/gewu-writer/handoff_5_writer.json",
+    "output/min_case/agents/gewu-publication/handoff_6_publication.json",
+    "output/min_case/agents/gewu-distillation/handoff_7_distillation.json"
+  ],
+  "validation": {
+    "ok": true,
+    "n_checks": 68,
+    "n_failed": 0,
+    "layers": [
+      "1-artifacts",
+      "2-chain",
+      "3-status",
+      "4-numbers",
+      "5-contradiction",
+      "6-tex",
+      "7-provenance",
+      "8-determinism",
+      "9-registry"
+    ]
+  }
+}
