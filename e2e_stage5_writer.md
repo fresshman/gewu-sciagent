@@ -18,3 +18,10 @@
 - 草稿**有界**：每节 3–6 句，不写冗长；总长度控制在可快速审阅。
 - 图中数值必须来自真实 handoff_3 指标，禁止编造；无原始散点则用各折 RMSE 柱状图。
 - 工具调用 ~8 次以内；超时前落盘 handoff_5。
+
+## 实现注记（2026-11-09）
+实际交付为 `handoff_5_writer.json` + `output/documents/coal_report/main.tex`
+（本卡写的 `handoff_5_draft.json` / `manuscript.md` 以实现为准）。
+刻意不生成 manuscript.md：项目已知缺陷 P1-5 即双格式漂移，故以 .tex 为唯一真源。
+图用 `coal_fold0_pred_true_*.pdf`（真实逐袋预测散点）替代构造点。
+参考文献 6 篇均经 D1 实测核验（6/6 verified），证据见 `refs_verified.json`。

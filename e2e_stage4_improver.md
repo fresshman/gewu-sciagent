@@ -17,3 +17,9 @@
 ## 纪律
 - 不重跑重推理（baseline 指标已来自 handoff_3 真实值）；工具调用 ~6 次以内。
 - 超时前必须落盘 handoff_4。
+
+## 实现注记（2026-11-09）
+实际交付文件名为 `handoff_4_improver.json`（本卡此处写 `handoff_4_improve.json`，以实现为准）。
+消融部分已用注册表中 12 条真实数据补齐，并标注「MSE 阶段配置、与最终 214.57 非同组」。
+统计检验由 `scripts/recompute_coal_metrics.py` 从逐 bag 预测值算出，见 handoff_4 的
+`statistical_significance`。

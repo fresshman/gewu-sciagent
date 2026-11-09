@@ -2,10 +2,10 @@
   "stage": 6,
   "stage_name": "发表追踪",
   "status": "completed",
-  "title": "MIL+LIBS 大颗粒原煤热值预测 · 期刊推荐（journal-match 完整报告）",
+  "title": "MIL+LIBS 大颗粒原煤热值预测 · 期刊推荐（journal-match 实测报告，按真实分区重排）",
   "created_by": "gewu-publication",
   "created_at": "2026-10-26T11:13:00+08:00",
-  "updated_at": "2026-10-29T10:00:00+08:00",
+  "updated_at": "2026-11-09T11:05:00+08:00",
   "inputs": [
     "handoff_5_writer.json",
     "output/documents/coal_report/main.tex"
@@ -16,10 +16,10 @@
     "reports/2026-10-26-journal-match-mil-libs-coal.json"
   ],
   "manuscript_profile": {
-    "title": "MIL + LIBS 大颗粒原煤热值预测 · 5 折交叉验证复现报告",
+    "title": "MIL + LIBS 大颗粒原煤热值预测 · 5 折交叉验证复现与消融分析",
     "discipline": "分析化学 / 光谱学 / 机器学习",
     "subfield": "LIBS (激光诱导击穿光谱) + 多示例学习 + 煤质分析",
-    "methodology": "empirical (实验复现 + 基线对比)",
+    "methodology": "empirical (实验复现 + 基线对比 + 消融 + 统计检验)",
     "keywords": [
       "laser-induced breakdown spectroscopy",
       "LIBS",
@@ -29,69 +29,144 @@
       "calorific value",
       "partial least squares regression",
       "PLSR",
-      "cross-validation"
+      "cross-validation",
+      "ablation study"
     ],
-    "language": "zh-CN (中文报告，LaTeX 源文件含英文术语)",
-    "length_estimate": "~2000 words (6 页 LaTeX)",
+    "language": "zh-CN (中文正文，LaTeX 源含英文术语与英文参考文献)",
+    "length_estimate": "~3200 words (9 页 LaTeX，含 3 表 2 图)",
     "target_audience": "光谱分析、煤质检测、化学计量学领域研究者与工程师"
   },
   "journal_match_report": {
     "status": "completed",
     "report_html": "reports/2026-10-26-journal-match-mil-libs-coal.html",
     "report_json": "reports/2026-10-26-journal-match-mil-libs-coal.json",
-    "top_tier1_journals": [
+    "total_journals_evaluated": 17,
+    "tier_distribution": {
+      "tier_1": 10,
+      "tier_2": 4,
+      "tier_3": 3
+    },
+    "data_provenance": {
+      "existence": "OpenAlex 元数据充实：每条候选均带 works_count、cited_by_count、issn（ISSN-L/电子 ISSN 双列）、homepage_url，说明刊名已被 OpenAlex 实体解析成功（未实体化的刊不会有这些字段）",
+      "rank": "EasyScholar 开放接口真实返回，含 sciif / sci(Q) / sciBase / sciUp / xr(中科院分区) / xrSmall(小类分区) / cscd / pku / eii 等字段",
+      "not_model_generated": "分区与影响因子字段均可在报告 JSON 的 easyscholar_rank 原文中逐字核对，非模型自断言"
+    },
+    "excluded_entries": [
+      {
+        "name": "X-Disciplinarity",
+        "reason": "easyscholar_rank 为『（无等级数据）』，无任何分区/IF 可溯源；刊名亦非 LIBS 领域实体。按纪律不得作为推荐呈现，已排除出推荐名单。"
+      }
+    ],
+    "recommended_tier1": [
+      {
+        "rank_no": 1,
+        "name": "Spectrochimica Acta Part B: Atomic Spectroscopy",
+        "publisher": "Elsevier",
+        "sci_q": "Q1",
+        "if": 3.5,
+        "cas_zone": "化学2区 / 光谱学1区（xrSmall）",
+        "scope_score": 3,
+        "fit_reason": "LIBS 领域最核心的发表阵地；本文参考文献 p1（谱线标准化 + 主导因子 PLSR）即发表于该刊，方法与审稿语境高度贴合",
+        "d1_status": "verified"
+      },
+      {
+        "rank_no": 2,
+        "name": "Journal of Analytical Atomic Spectrometry",
+        "publisher": "Royal Society of Chemistry",
+        "sci_q": "Q1",
+        "if": 3.3,
+        "cas_zone": "化学2区 / 光谱学2区（xrSmall: 分析化学3区; 光谱学2区）",
+        "scope_score": 4,
+        "fit_reason": "原子光谱分析权威刊，长期接收 LIBS 定量与化学计量学方法论文；IF 与分区接近上一本，可作为平行投稿选择",
+        "d1_status": "verified"
+      },
+      {
+        "rank_no": 3,
+        "name": "光谱学与光谱分析 (Spectroscopy and Spectral Analysis)",
+        "publisher": "中国光学学会",
+        "sci_q": null,
+        "if": null,
+        "cas_zone": "EI 收录 / CSCD 核心库 / 北大核心 / 中国科技核心",
+        "scope_score": 3,
+        "fit_reason": "中文光谱学首选刊，EI + 北大核心，审稿周期与语言门槛对国内作者友好；适合作为中文首发或英文刊被拒后的稳妥选项",
+        "d1_status": "verified"
+      }
+    ],
+    "other_credible_options": [
+      {
+        "name": "Atomic Spectroscopy",
+        "sci_q": "Q2",
+        "if": 2.9,
+        "cas_zone": "化学2区 / 光谱学2区",
+        "note": "光谱学小类 2 区，IF 2.9，对 LIBS 主题接受度高，投稿难度低于前两本"
+      },
       {
         "name": "Analytical Methods",
-        "publisher": "Royal Society of Chemistry",
-        "scope_score": 4,
-        "tier": 1,
-        "easyscholar_rank": "SCI Q2 / 化学3区 / IF=3.0",
-        "status": "verified"
+        "sci_q": "Q2",
+        "if": 3.0,
+        "cas_zone": "化学3区 / 光谱学3区",
+        "note": "方法学导向、接受应用型分析工作；分区低于前三本，作为备选而非首选"
       },
       {
         "name": "Applied Spectroscopy",
-        "publisher": "SAGE / Society for Applied Spectroscopy",
-        "scope_score": 4,
-        "tier": 1,
-        "easyscholar_rank": "SCI Q2 / 光谱学3区 / IF=2.2",
-        "status": "verified"
+        "sci_q": "Q2",
+        "if": 2.2,
+        "cas_zone": "化学3区 / 光谱学3区 / 仪器仪表4区",
+        "note": "光谱学老牌刊，IF 偏低但审稿专业；适合强调光谱学细节的版本"
       },
       {
         "name": "Molecules",
-        "publisher": "MDPI",
-        "scope_score": 4,
-        "tier": 1,
-        "easyscholar_rank": "SCI Q2 / 化学2区 / IF=5.1 / TOP",
-        "status": "verified",
-        "is_oa": true
+        "sci_q": "Q2",
+        "if": 5.1,
+        "cas_zone": "化学2区 / 化学TOP（xrTop）",
+        "is_oa": true,
+        "note": "IF 与分区最高（化学 TOP），但属 OA 期刊、APC 较高，且化学综合定位对纯 LIBS 方法论文的适配度弱于专业光谱刊；若追求分区指标可考虑"
       }
     ],
-    "total_journals_evaluated": 15,
-    "tier_distribution": {
-      "tier_1": 3,
-      "tier_2": 8,
-      "tier_3": 4
+    "corrections_vs_previous_handoff": {
+      "total_journals": {"previous": 15, "actual": 17},
+      "tier_distribution": {"previous": {"tier_1": 3, "tier_2": 8, "tier_3": 4}, "actual": {"tier_1": 10, "tier_2": 4, "tier_3": 3}},
+      "top3": {
+        "previous": ["Analytical Methods", "Applied Spectroscopy", "Molecules"],
+        "actual": ["Spectrochimica Acta Part B", "Journal of Analytical Atomic Spectrometry", "光谱学与光谱分析"],
+        "why_changed": "原 top3 是按 scope_score 单指标排序，未纳入真实分区与领域贴合度。Analytical Methods 实为光谱学 3 区（低于 Spectrochimica Acta Part B 的 1 区与 JAAS 的 2 区）；Molecules 为化学综合 OA 刊，对纯 LIBS 方法学适配度弱。现按『专业贴合度优先 + 真实分区』重排。"
+      }
     }
   },
   "anti_hallucination_compliance": {
     "d1_journal_verification": {
       "status": "pass",
-      "method": "OpenAlex API 存在性核验（journal-match 脚本 STEP 3 自动执行）",
-      "result": "所有候选期刊均经 OpenAlex 核验存在，无 UNVERIFIED"
+      "method": "OpenAlex 实体解析（报告 JSON 中每刊均带 works_count / issn / homepage_url 等实体字段）",
+      "result": "17 刊中 16 刊成功实体化并带完整元数据；1 刊（X-Disciplinarity）无等级数据，已排除出推荐名单",
+      "note": "原 handoff_6 表述为『所有候选期刊均经 OpenAlex 核验存在，无 UNVERIFIED』，实为 16/17 有完整元数据、1 刊应排除。已按实际收窄表述。"
     },
     "d2_rank_verification": {
       "status": "pass",
-      "method": "EasyScholar 开放接口核验（journal-match 脚本 STEP 3B 自动执行）",
-      "result": "所有期刊的 SCI/Q区/IF 等级均经 EasyScholar 溯源，非模型编造"
+      "method": "EasyScholar 开放接口返回原文逐字核对（sci=Qx / sciif= / sciBase= / sciUpSmall= / xr= / xrSmall= 字段）",
+      "result": "推荐名单中每本刊的分区与 IF 均可在 easyscholar_rank 字符串中定位到对应字段",
+      "spot_check": [
+        {"journal": "Spectrochimica Acta Part B", "sci": "Q1", "sciif": "3.5", "xrSmall": "光谱学1区"},
+        {"journal": "Journal of Analytical Atomic Spectrometry", "sci": "Q1", "sciif": "3.3", "xrSmall": "分析化学3区; 光谱学2区"},
+        {"journal": "Analytical Methods", "sci": "Q2", "sciif": "3.0", "xrSmall": "分析化学3区; 食品科技3区; 光谱学3区"}
+      ]
     }
   },
   "submission_plan": {
-    "status": "ready",
-    "recommended_action": "优先投 Tier 1 期刊（Analytical Methods / Applied Spectroscopy / Molecules），根据 OA 偏好与 IF 要求选择",
-    "timeline": "稿件已就绪（main.tex + claims.json + 2 张 PDF 图），可直接投稿"
+    "status": "ready_with_caveat",
+    "recommended_action": "首选投 Spectrochimica Acta Part B（光谱学1区、Q1、IF3.5，且参考文献 p1 即出自该刊）；若被拒转 JAAS；中文路线投《光谱学与光谱分析》",
+    "readiness": {
+      "manuscript": "main.tex 结构完整（3 表 2 图 6 引用），环境/引用 lint 全绿",
+      "pdf": "未编译——本机无 TeX Live；投稿前需在具备 TeX 环境的机器执行两遍 pdflatex",
+      "blocking_before_submission": [
+        "编译出 PDF（当前仅源码就绪）",
+        "补充作者信息、单位、基金致谢（当前为占位）",
+        "按目标刊格式调整（Spectrochimica Acta Part B 与中文刊的模板不同）"
+      ]
+    },
+    "honest_gap": "本稿目前是『可复现的技术报告 + 消融分析』形态，具备方法学完整性，但未做与更多 SOTA 方法的横向对比（如 1D-CNN、Transformer 端到端），投 Q1 刊可能需要补该对比实验。"
   },
   "failures": [],
   "next": "distillation",
   "next_input": "handoff_6_publication.json",
-  "notes": "journal-match 技能完整跑通，产出 Tier 1/2/3 分级期刊推荐报告（15 刊），所有期刊经 OpenAlex 存在性核验 + EasyScholar 等级溯源，反幻觉 D1/D2 合规。"
+  "notes": "journal-match 已真实完整跑通（17 刊、EasyScholar 真实分区、OpenAlex 实体字段齐全），故 handoff_7 中『handoff_6 为占位』的说法不成立，已在本轮一并更正。本轮修正三处统计失真（刊数 15→17、tier 分布、top3 排序）并排除 1 个无等级数据刊。"
 }

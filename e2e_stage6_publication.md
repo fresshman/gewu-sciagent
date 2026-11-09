@@ -22,3 +22,10 @@
 - 期刊等级**必须**来自 get_journal_rank 真实接口，不得模型自断言。
 - D1 未核验期刊不得作为"推荐"呈现，降为"待人工确认"。
 - 超时前落盘 handoff_6 与 HTML 报告。
+
+## 实现注记（2026-11-09）
+实际交付为 `handoff_6_publication.json`（本卡写的 `handoff_6_publish.json` 以实现为准）。
+本轮按报告真实数据修正了三处统计失真：刊数 15→17、tier 分布 3/8/4→10/4/3、
+top3 由「scope_score 单指标」改为「专业贴合度 + 真实分区」——
+原 top3 漏掉了 `Spectrochimica Acta Part B`（光谱学 1 区、Q1，且是参考文献 p1 的发表刊）。
+`X-Disciplinarity` 因无任何等级数据，已排除出推荐名单。

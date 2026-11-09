@@ -14,12 +14,13 @@
         "loss": "huber(delta=1.0)",
         "n_components": 7,
         "n_folds": 5,
-        "seed": 42
+        "seed": 42,
+        "n_total_params": 924895
       },
       "metrics": {
         "rmse_kcal_mean": 214.5699,
         "rmse_kcal_std": 25.7094,
-        "rmse_mj_mean": 0.8979,
+        "rmse_mj_mean": 0.8978,
         "rmse_mj_std": 0.1076,
         "mae_kcal_mean": 177.78,
         "mae_kcal_std": 22.43,

@@ -1,81 +1,167 @@
 {
   "stage": 4,
   "stage_name": "改进/梳理",
-  "status": "partial",
-  "title": "MIL+LIBS 大颗粒原煤热值预测 · 改进分析（hybrid vs PLSR 基线对比）",
+  "status": "completed",
+  "title": "MIL+LIBS 大颗粒原煤热值预测 · 改进分析（基线对比 + 消融 + 统计检验）",
   "created_by": "gewu-improver",
   "created_at": "2026-10-28T16:00:00+08:00",
+  "updated_at": "2026-11-09T10:40:00+08:00",
   "inputs": [
     "handoff_3_repro.json",
     "handoff_plot.json",
-    "output/documents/coal_report/claims.json"
+    "output/documents/coal_report/claims.json",
+    "gewu/mcp/registry/coal_mil.json"
   ],
   "outputs": [
-    "handoff_4_improver.json"
+    "handoff_4_improver.json",
+    "output/documents/coal_report/metrics_recomputed.json",
+    "scripts/recompute_coal_metrics.py"
   ],
+  "provenance": {
+    "primary_source": "COAL_PROJECT_ROOT/coal-mil/outputs/best_solution/fold{0..4}/predictions.json（真实推理落盘预测值，n=70）",
+    "recompute_script": "scripts/recompute_coal_metrics.py（从预测值独立重算，非抄录）",
+    "recomputed_artifact": "output/documents/coal_report/metrics_recomputed.json",
+    "registry": "gewu/mcp/registry/coal_mil.json",
+    "cross_check": "13/13 PASS：mean_rmse |Δ|=1.1e-05、std |Δ|=2.7e-05、per_fold 最大 |Δ|=4.6e-05、MAE |Δ|=0.0035"
+  },
   "improvement_analysis": {
     "baseline": {
       "method": "PLSR (n_components=7)",
       "mean_rmse_kcal_kg": 233.9521,
-      "std_rmse_kcal_kg": 22.5,
-      "source": "registry:coal-mil-hybrid (plsr_rmse_mean from cv_summary)"
+      "std_rmse_kcal_kg": 17.9494,
+      "mean_mae_kcal_kg": 198.39,
+      "mean_r2": 0.8803,
+      "source": "registry:plsr_baseline ← summary.json mean_plsr_rmse，已由 recompute 脚本从预测值重算复核"
     },
     "proposed": {
-      "method": "MIL hybrid (ResNet1D+SupCon+TransMIL+FiLM)",
+      "method": "MIL hybrid (ResNet1D+SupCon+TransMIL+FiLM, PLSR 残差修正)",
       "mean_rmse_kcal_kg": 214.5699,
       "std_rmse_kcal_kg": 25.7094,
-      "source": "registry:coal-mil-hybrid (cv_summary real inference)"
+      "mean_mae_kcal_kg": 177.7835,
+      "mean_r2": 0.8963,
+      "source": "registry:our_hybrid ← summary.json，已由 recompute 脚本重算复核"
     },
     "delta": {
       "rmse_reduction_kcal_kg": 19.3822,
       "relative_improvement_pct": 8.28,
-      "interpretation": "MIL 残差修正相对纯 PLSR 基线降低约 8.3% RMSE，证明多示例建模对大颗粒异质性的捕捉有效"
+      "mae_reduction_kcal_kg": 20.61,
+      "r2_gain": 0.0160,
+      "interpretation": "MIL 残差修正相对纯 PLSR 基线降低 8.28% RMSE，且 5 折方向完全一致（无一折劣化），说明增益不是单折偶然"
     },
     "per_fold_comparison": [
-      {"fold": 0, "hybrid_rmse": 218.6108, "plsr_rmse": 231.2064, "delta": -12.5956},
-      {"fold": 1, "hybrid_rmse": 244.9214, "plsr_rmse": 248.8767, "delta": -3.9553},
-      {"fold": 2, "hybrid_rmse": 222.3821, "plsr_rmse": 255.2973, "delta": -32.9152},
-      {"fold": 3, "hybrid_rmse": 220.0729, "plsr_rmse": 230.6638, "delta": -10.5909},
-      {"fold": 4, "hybrid_rmse": 166.8624, "plsr_rmse": 203.7164, "delta": -36.8540}
+      {"fold": 0, "n": 14, "hybrid_rmse": 218.6108, "plsr_rmse": 231.2064, "delta": -12.5955, "hybrid_r2": 0.8786, "plsr_r2": 0.8642},
+      {"fold": 1, "n": 14, "hybrid_rmse": 244.9214, "plsr_rmse": 248.8767, "delta": -3.9553, "hybrid_r2": 0.9016, "plsr_r2": 0.8984},
+      {"fold": 2, "n": 14, "hybrid_rmse": 222.3821, "plsr_rmse": 255.2973, "delta": -32.9152, "hybrid_r2": 0.9181, "plsr_r2": 0.8921},
+      {"fold": 3, "n": 14, "hybrid_rmse": 220.0729, "plsr_rmse": 230.6638, "delta": -10.5909, "hybrid_r2": 0.8204, "plsr_r2": 0.8027},
+      {"fold": 4, "n": 14, "hybrid_rmse": 166.8624, "plsr_rmse": 203.7164, "delta": -36.8541, "hybrid_r2": 0.9625, "plsr_r2": 0.9441}
     ],
-    "observation": "fold 2 与 fold 4 改进最显著（>30 kcal/kg），提示 MIL 对特定分布的 bag 有更强修正能力；fold 1 改进最小（~4 kcal/kg），可能因该折验证集异质性较低或 MIL 过拟合风险"
+    "statistical_significance": {
+      "test": "paired t-test on per-fold RMSE (n=5 folds)",
+      "t_statistic": -2.9735,
+      "df": 4,
+      "p_value_two_sided": 0.0410,
+      "mean_delta": -19.3822,
+      "sd_delta": 14.5752,
+      "ci95_mean_delta": [-37.4796, -1.2848],
+      "wilcoxon_signed_rank_p": 0.0625,
+      "verdict": "配对 t 检验在 α=0.05 下显著（p=0.041），95% CI 不含 0；但 Wilcoxon 符号秩检验 p=0.0625（n=5 为其最小可达 p 值，无法低于 0.0625）不显著",
+      "caveat": "n=5 折的样本量很小，t 检验的正态性假设难以检验；结论应以「方向一致 + 效应量 8.28% + t 检验边缘显著」合并表述，不宜宣称强统计显著性"
+    },
+    "pooled_oof": {
+      "note": "把 5 折验证集预测合并（每样本恰好被预测一次）后的整体指标，此前未计算",
+      "n_total": 70,
+      "hybrid_rmse_kcal_kg": 216.1046,
+      "hybrid_r2": 0.9204,
+      "plsr_rmse_kcal_kg": 234.6397,
+      "plsr_r2": 0.9061
+    },
+    "observation": "fold2 与 fold4 改进最显著（>30 kcal/kg），fold1 仅 3.96 kcal/kg。逐折方向一致（全部为负 delta），提示增益稳健；但 fold1 的小幅改进说明 MIL 并非在所有分布上都有效，与「大颗粒异质性高时残差修正更有效」的假设一致。"
   },
-  "ablation_pending": [
-    {
-      "experiment": "去掉 FiLM 调制（plsr_dim=0）",
-      "hypothesis": "FiLM 特征调制对 hybrid 融合贡献显著",
-      "status": "未跑（需改 coal_infer.py 并重新训练）"
+  "ablation_study": {
+    "status": "completed",
+    "data_source": "COAL_PROJECT_ROOT/coal-mil/scripts/plot_figures.py（fig7_pool_comparison 第 395 行、fig9_optimization_path 第 486 行，数值逐字核实）",
+    "registry_entries": ["abl_pool_maxpool", "abl_pool_abmil_scratch", "abl_pool_abmil_frozen", "abl_pool_meanpool", "abl_pool_lse_fixed", "abl_pool_lse_learnable"],
+    "reproducibility_caveat": "这批数值由原始项目脚本硬编码于绘图代码，非自动记录；复现需在外部项目运行 compare_hybrid_pools.py / compare_fusion_modes.py。注册表已显式登记该来源与复现路径。",
+    "config_caveat": "【重要】以下消融均在「MeanPool 基线阶段」的配置下（MSE loss，无 SupCon 预训练 + 无 FiLM 调制），与最终 214.57 的配置（huber loss + SupCon + TransMIL + FiLM）不同，两组数字不可直接相减比较。",
+    "pooling_comparison": {
+      "setting": "hybrid(残差) 模式 + MSE loss，5 折平均 RMSE (kcal/kg)",
+      "results": [
+        {"strategy": "MaxPool", "params": 0, "rmse": 883.87},
+        {"strategy": "ABMIL (从零训练)", "params": 8320, "rmse": 957.47},
+        {"strategy": "ABMIL (冻结编码器)", "params": 8320, "rmse": 559.09},
+        {"strategy": "MeanPool", "params": 0, "rmse": 512.96},
+        {"strategy": "LSE (固定 β=0.5)", "params": 0, "rmse": 361.00},
+        {"strategy": "LSE (可学习 β→0.516)", "params": 1, "rmse": 347.55}
+      ],
+      "findings": [
+        "注意力类池化（ABMIL 从零）在小样本下最差（957.47），参数量 8320 带来的过拟合风险显著高于收益",
+        "冻结编码器的 ABMIL（559.09）仍逊于无参数的 MeanPool（512.96），说明瓶颈不在池化表达力而在小样本可训练性",
+        "LSE 池化（固定 β 361.00 → 可学习 β 347.55）优于所有注意力方案，且几乎零参数（可学习 β 仅 1 个参数），是本任务的关键发现",
+        "这一发现直接解释了最终模型为何选 transmil/LSE 系而非 ABMIL"
+      ]
     },
-    {
-      "experiment": "去掉 SupCon 预训练（随机初始化 ResNet1D）",
-      "hypothesis": "对比学习预训练提升小样本泛化",
-      "status": "未跑"
+    "optimization_path": {
+      "description": "从 MeanPool 基线到 LSE 可学习的逐级改进（5 折平均 RMSE, kcal/kg）",
+      "stages": [
+        {"stage": "基线 (MeanPool + SE + MSE)", "rmse": 512.96, "delta": 0},
+        {"stage": "− SE 模块", "rmse": 441.12, "delta": -71.84, "relative_pct": -14.0},
+        {"stage": "+ LSE 池化 + 训练策略", "rmse": 361.00, "delta": -80.12, "relative_pct": -18.2},
+        {"stage": "+ 可学习 β", "rmse": 347.55, "delta": -13.45, "relative_pct": -3.7}
+      ],
+      "cumulative_reduction_pct": 32.2,
+      "findings": "SE 模块在此任务上是负收益（去掉即降 71.84），已在该阶段被移除；池化策略替换贡献最大（−80.12）。"
     },
-    {
-      "experiment": "TransMIL → Mean/Max pooling",
-      "hypothesis": "注意力聚合优于简单池化",
-      "status": "未跑"
-    }
-  ],
+    "beta_sensitivity": {
+      "source": "plot_figures.py 第 438 行（脚本内标注为「近似值」）",
+      "fixed_beta_grid": [0.1, 0.3, 0.5, 0.7, 1.0],
+      "rmse": [375.21, 364.50, 361.00, 363.80, 368.45],
+      "learnable_beta": {"converged_to": 0.516, "rmse": 347.55},
+      "finding": "固定 β 在 0.5 附近最优（U 形），可学习 β 收敛到 0.516 并进一步降到 347.55，说明学习到的温度参数优于任何网格点",
+      "caveat": "网格数值脚本内注明为近似值，可信度低于其余硬事实；仅作趋势证据"
+    },
+    "not_covered": [
+      "去掉 FiLM 调制（plsr_dim=0）对最终 214.57 配置的影响：需重训，未跑",
+      "去掉 SupCon 预训练：需重训，未跑",
+      "TransMIL → Mean/Max 池化在最终配置下的对比：需重训，未跑",
+      "损失函数 huber vs mse 的对比：需重训，未跑"
+    ],
+    "not_covered_reason": "最终配置（214.57）的权重已固定，改架构必须重训；本次改进阶段遵循「不重跑重推理」纪律，故仅登记清单。已跑的消融属原始项目早期阶段，已如实标注配置差异。"
+  },
   "quality_score": {
-    "score": 0.7,
+    "score": 0.86,
     "criteria": {
       "reproducibility": 1.0,
-      "baseline_comparison": 0.8,
-      "ablation_study": 0.2,
-      "statistical_significance": 0.5
+      "baseline_comparison": 1.0,
+      "ablation_study": 0.8,
+      "statistical_significance": 0.85
     },
-    "interpretation": "复现性满分、基线对比完整，但消融实验缺失拉低整体分；统计显著性未做 t-test / bootstrap"
+    "rationale": {
+      "reproducibility": "全部指标可由 predictions.json 独立重算，13/13 与注册表一致，且脚本入库",
+      "baseline_comparison": "基线/方法/逐折/合并 OOF 四层对比齐全，含 Δ 与相对提升",
+      "ablation_study": "6 种池化 + 4 级优化路径 + β 敏感性均有真实来源；扣分因消融与最终配置不同组、且数值为脚本硬编码而非自动记录",
+      "statistical_significance": "配对 t 检验 + 95% CI + Wilcoxon 三重给出，扣分因 n=5 样本量小、Wilcoxon 不显著"
+    },
+    "previous_score": 0.7,
+    "upgrade_reason": "原先消融记 0.2（判为未跑）与统计显著性记 0.5（判为未做），实测发现注册表与原始项目脚本中均已有真实数据，且可算配对检验，故据实上调。"
   },
-  "failures": [
-    {
-      "tool": "完整消融实验",
-      "error": "需重新训练模型（外部 coal-calorific-value 项目权重固定，无法改架构后复用）",
-      "impact": "无法在本 handoff 内提供消融数据",
-      "mitigation": "列出待补实验清单，后续可在外部项目跑完后回填"
-    }
-  ],
+  "failure_audit": {
+    "skill": "failure_mode_selfcheck",
+    "verdict": "PASS_WITH_NOTES",
+    "modes": [
+      {"mode": "超时", "verdict": "NOT APPLICABLE", "note": "本阶段为离线分析，无长任务"},
+      {"mode": "工具报错", "verdict": "CLEAR", "note": "recompute 脚本一次跑通，13/13 校验通过"},
+      {"mode": "数据缺失", "verdict": "CLEAR", "note": "5 折 predictions.json 均存在且各含 14 条"},
+      {"mode": "幻觉", "verdict": "CLEAR", "note": "所有数值出自注册表/预测值重算/原始脚本，无模型自断言"},
+      {"mode": "越界", "verdict": "CLEAR", "note": "未复制原始光谱与权重，仅输出聚合指标"},
+      {"mode": "编译失败", "verdict": "NOT APPLICABLE", "note": "不涉及 LaTeX 编译"},
+      {"mode": "环境缺失", "verdict": "SUSPECTED", "note": "外部煤项目为硬依赖；缺失时本阶段无法重算，已由 scripts/recompute_coal_metrics.py 明确报错退出"}
+    ],
+    "notes": [
+      "原 handoff_4 有两处数值错误，已修正：① PLSR std 由 22.5 改为真实 17.9494（总体标准差）；② 消融由「未跑」改为已完成的真实数据。",
+      "原 handoff_4 的 per_fold delta 与真实预测重算值一致（误差 <1e-4），保留。"
+    ]
+  },
   "next": "writer",
   "next_input": "handoff_4_improver.json",
-  "notes": "本 handoff 基于已有真实推理结果（cv_summary + claims.json）做 hybrid vs PLSR 对比分析，未新增实验。消融实验需外部项目支持，列为 pending。"
+  "notes": "本阶段全部数值可由 scripts/recompute_coal_metrics.py 从真实预测值独立重算（注册表交叉校验 13/13 PASS）。消融数据来自外部项目脚本硬编码值（已逐字核实并标注配置差异），最终配置的组件级消融需重训，列为 not_covered。"
 }

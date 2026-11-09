@@ -16,3 +16,10 @@
 ## 纪律
 - 写盘前跑一次 failure_mode_selfcheck（若可用），确保不把 bug 当经验固化。
 - 工具调用 ~4 次以内；超时前落盘 handoff_7。
+
+## 实现注记（2026-11-09）
+实际交付为 `handoff_7_distillation.json`（本卡写的 `handoff_7_distill.json` 以实现为准）。
+已按本卡要求新增 `skills/mil-libs-coal/SKILL.md`。本轮同时修正三处失真：
+①「MEMORY.md 未创建」（实存）；②「handoff_6 为占位」（实为 17 刊完整报告）；
+③ `scientific_plotting` 技能路径指向不存在目录。并把「需建合并 venv」这条
+已被实测证伪的经验在 MEMORY.md 中标为**废止**。
