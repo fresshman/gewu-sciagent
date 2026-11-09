@@ -134,9 +134,16 @@ gewu-sciagent/
 │   ├── architecture.md        # 架构设计与落地路线图
 │   ├── verification/          # 端到端实测记录（含反幻觉链与缺口清单）
 │   └── images/ui-overview.svg # 界面示意图
-├── tests/                     # Python 侧 9 个测试文件 / 68 用例（反幻觉、瘦身层、超时层级等）
+├── tests/                     # Python 侧 15 个测试文件 / 162 用例（反幻觉、瘦身层、最小课题链路、PDF 编译等）
 ├── scripts/                   # bootstrap_openclaw_config（生成网关配置）/ create_project /
-│                              #   export_case_bundle / e2e_smoke_test / pdf_tool
+│                              #   export_case_bundle / e2e_smoke_test / run_min_case / pdf_tool
+├── gewu/latex_build.py        # TeX 编译引擎（探测/编译/日志解析/缺字与 overfull 检测/内容指纹）
+├── gewu/demo/                 # 最小课题（合成数据七阶段，零外部依赖）+ 十层校验器
+│   ├── synth.py               #   合成 LIBS 数据集（已知机制，可验证 MIL 假设）
+│   ├── mil_lite.py            #   三臂 MIL（numpy/sklearn，无需 torch）
+│   ├── pipeline.py            #   七阶段编排 + 注册表条目 + 快照
+│   ├── report.py              #   LaTeX 与 claims 生成（数值只从结果字典取）
+│   └── verify.py              #   十层校验器（含确定性重跑比对、PDF 成品与快照比对）
 ├── start-gewu.sh              # 一键拉起网关 + 代理 + 前端；--check 只自检环境，不启动进程
 ├── data/                      # 数据集（大文件建议放网盘，仅留索引）
 ├── web/                       # 自研轻量 Web 前端 + 本地代理
@@ -295,17 +302,17 @@ openclaw config validate         # 校验配置
 openclaw mcp probe               # 验证 10 个 MCP 服务（8 个本机 + 2 个外部包）
 ```
 
-### 5. 跑测试（两套件，共 137 用例）
+### 5. 跑测试（两套件，共 210 用例）
 
 ```bash
 # Python 侧：反幻觉链 / 结果瘦身层 / MCP 超时层级 / stdin 守护
-python -m pytest tests -q              # 共 89 用例
+python -m pytest tests -q              # 共 162 用例
 #   允许跳过 0–2 个，取决于两个外部条件，都不是代码失败：
 #   ① test_verify_papers_fallback —— CrossRef 限流或断网时返回 verify_pending 而跳过；
 #   ② test_mcp_timeout_hierarchy —— 解包目录里没有 gitignore 的 .coal_project_root 时跳过。
-#   所以同一份代码会跑出 68/0、67/1、66/2 三种数，用 `-rs` 可以看到每条跳过的原因。
-#   实测（2026-11-04，含 parse_figure 的 21 条离线单测后）：仓库内 89 passed / 0 skipped（14.90s）；
-#   干净解包（只有 git 跟踪的文件、无 .coal_project_root）86 passed / 3 skipped（21.56s）。
+#   所以同一份代码可能跑出 162/0、161/1、160/2 三种数，用 `-rs` 可以看到每条跳过的原因。
+#   实测（2026-11-09，补齐 PDF 编译链后）：仓库内 162 passed / 0 skipped（22.25s）。
+#   干净解包（只有 git 跟踪的文件、无 .coal_project_root）会比满额少 1–2 条，属预期。
 #   完整开箱演练记录见 docs/verification/2026-11-04-clean-unpack-drill.md。
 
 # Web 代理侧：预算状态机 / 会话名归一 / tail 划界 / transcript 读取 / 笔记摘要
@@ -366,6 +373,39 @@ cat ~/.gewu/config.json | jq .projects
 ```bash
 openclaw agent --agent gewu-director \
   -m "调研并复现大颗粒原煤 LIBS 光谱热值预测的 MIL 方法，给出 5 折交叉验证指标"
+```
+
+### 8. 零依赖端到端自证（最小课题）
+
+真实课题依赖未发表的私有数据与权重，评审无法独立执行。这条链路用**合成光谱**从零
+把七阶段跑一遍，回答「系统到底能不能自己跑完」——不需要外部数据、不需要 torch：
+
+```bash
+python scripts/run_min_case.py            # 约 2 秒；自带十层校验（含 PDF 编译与快照比对）
+python scripts/run_min_case.py --offline  # 断网时跑（D1 核验会诚实降级为 not_run）
+python scripts/run_min_case.py --json     # 只输出汇总 JSON（供 sci-exp 交叉校验）
+```
+
+产物在 `output/min_case/`：合成数据集（真实 CSV）、`model/fold{0..4}/predictions.json`、
+`report/main.tex` + `claims.json`（每条断言带 JSON Pointer）、`agents/handoff_1..7.json`。
+聚合结果另存 `docs/verification/min_case_snapshot.json` 入库，便于不运行也能核对。
+
+实测（2026-11-09，70 bag / 611 条实例光谱 / 5 折）：
+
+| 臂 | RMSE (kcal/kg) | R² |
+|---|---|---|
+| 袋均谱 PLSR 基线 | 150.44 ± 13.15 | 0.611 |
+| MIL 逐实例定标 + 池化 | 122.79 ± 12.24 | 0.741 |
+| MIL + 强度上尾残差 | **73.03 ± 10.17** | **0.911** |
+
+降低 **51.46%**，逐折配对 `t(4)=-22.48`、`p<0.0001`，五折方向一致；文献 3/3 由
+arXiv/CrossRef 核验通过（幻觉率 0）。**合成数据只证明机制与链路，绝对精度不可外推到真实煤样。**
+
+注册表里登记为 `demo_synth_*` 三条实验，可被通用引擎真实重算：
+
+```bash
+python -c "import sys;sys.path.insert(0,'gewu/mcp');import sci_exp,json;print(json.dumps(sci_exp.rerun_experiment('demo_synth_our_hybrid'),ensure_ascii=False,indent=1))"
+# status=reproduced，rmse_mean/rmse_std/r2_mean 的 abs_diff 均为 0.0
 ```
 
 ## Web 界面（可选）
@@ -430,6 +470,9 @@ A：替换 `gewu/domain_packs/` 下的领域包即可，通用内核与七阶段
 | 文档 | 内容 |
 |---|---|
 | [`docs/architecture.md`](docs/architecture.md) | 架构设计、配置要点与分阶段落地路线图 |
+| [`docs/paper/README.md`](docs/paper/README.md) | **论文成品**：两篇 `.tex` 源 + 编译好的 PDF（7 页 / 3 页）、内容指纹与页数，说明为何用文本指纹而非文件哈希、以及 `214.57` 与 `73.03` 禁止并列比较 |
+| [`docs/verification/2026-11-09-pdf-pipeline.md`](docs/verification/2026-11-09-pdf-pipeline.md) | **PDF 编译链路取证**：tectonic 接入、两篇论文真实编译（0 error / 0 缺字 / 0 overfull）、抓到「中文全丢但退出码为 0」「三处 overfull 截断」「快照天天漂移」三类真缺陷与修法，含确定性实测（二进制不同、文本指纹相同）与未覆盖边界 |
+| [`docs/verification/2026-11-09-min-case.md`](docs/verification/2026-11-09-min-case.md) | **冷启动端到端取证**：合成数据七阶段一条命令跑通，PLSR `150.44` → MIL `122.79` → hybrid `73.03` kcal/kg；十层 72 项校验、12 条负向测试、`sci_exp` 零改代码重算 `abs_diff=0.0` |
 | [`docs/verification/2026-11-04-clean-unpack-drill.md`](docs/verification/2026-11-04-clean-unpack-drill.md) | **开箱可复现演练**：干净解包 → 生成配置 → `config validate` → `mcp probe` 10 服务 → 两套件 → `npm install/build` → 代理起服的真实数字，含演练里发现并修掉的 6 个缺陷、如实记录的已知缺口，以及 §10 的 parse_figure 批次追加复验（含「MCP 子进程 env 白名单」部署链路单验） |
 | [`docs/verification/2026-11-04-parse-figure-vision.md`](docs/verification/2026-11-04-parse-figure-vision.md) | **多模态读图取证**：`parse_figure` 真调 `internvl3.5-241b-a28b`，6 次真实请求——合成谱图 3 次 5/5 峰检出、0 幻觉峰、峰位最大偏差 6.6 nm；真实论文图 16 个读数 100% 命中文本层、0 编造，同时抓到 `L-Risk→Z-Risk` 误读与 `confidence:high` 并存 |
 | [`docs/verification/anti-hallucination.md`](docs/verification/anti-hallucination.md) | 反幻觉四道横向防线（文献存在性 / 数值溯源 / 引用完整性 / 原页文本层核验）与逐阶段映射 |
