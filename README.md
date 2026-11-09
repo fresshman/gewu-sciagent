@@ -307,14 +307,16 @@ openclaw mcp probe               # 验证 10 个 MCP 服务（8 个本机 + 2 �
 ```bash
 # Python 侧：反幻觉链 / 结果瘦身层 / MCP 超时层级 / stdin 守护
 python -m pytest tests -q              # 共 200 用例（199 跑通 + 1 条联网用例默认跳过）
-#   允许跳过 0–5 个，取决于三个外部条件，都不是代码失败：
+#   允许跳过 1–5 个，取决于四个外部条件，都不是代码失败：
 #   ① test_verify_papers_fallback —— CrossRef 限流或断网时返回 verify_pending 而跳过；
 #   ② test_mcp_timeout_hierarchy —— 解包目录里没有 gitignore 的 .coal_project_root 时跳过；
-#   ③ test_e2e_chain 的 3 条 —— 真实课题存档（output/documents）按设计不入库，无存档时跳过。
-#   用 `-rs` 可以看到每条跳过的原因。实测两种环境：
+#   ③ test_e2e_chain 的 3 条 —— 真实课题存档（output/documents）按设计不入库，无存档时跳过；
+#   ④ test_fetch_tectonic 的联网安装 —— 要下载 20 MB，仅 GEWU_TEST_FETCH=1 时运行。
+#   用 `-rs` 可以看到每条跳过的原因。实测两种环境（2026-11-09 第三轮）：
 #     仓库内（本机有存档）：199 passed / 1 skipped（33.71s）
-#     干净 clone：        见下一版实测（本轮新增用例后需复测）
-#                         4 条左右跳过全部是上述 ②③，不是失败；若看到 failed 才是真问题。
+#     干净 clone：        195 passed / 5 skipped / 0 failed（84.09s）
+#                         5 条跳过 = 3 条 e2e 无存档 + 1 条 mcp_timeout 无项目 + 1 条联网安装
+#                         全是「本机没有某个外部条件」，不是失败；若看到 failed 才是真问题。
 # 完整开箱演练记录见 docs/verification/2026-11-04-clean-unpack-drill.md。
 
 # 真实课题端到端校验（九层：串联/数值一致/无矛盾/论文自洽/溯源/PDF 成品）
