@@ -43,6 +43,14 @@ output/figures/
 output/documents/
 # 实测用的临时探针脚本与其中间产出（依赖本机路径与本机数据，不具可移植性）
 output/scratch/
+# 最小课题运行产物（639 个文件 / 5.4 MB：611 条合成光谱 CSV + 七份 handoff + 模型目录）。
+# 它是一条命令 2 秒确定性重生成的中间态，且已被两处入库快照覆盖：
+#   docs/verification/min_case_snapshot.json（聚合指标）
+#   docs/paper/min_case/（tex + 编译好的 PDF）
+# 故不入库，避免仓库被可再生产物灌满。
+output/min_case/
+# e2e 校验器的原始 JSON 转储（console 已打印同一内容；可读版证据在 docs/verification/）
+output/verification/
 
 # ── 外部未发表项目的路径引用（本机私有，切勿提交） ──────────
 # 格物通过路径引用读取未发表的 MIL+LIBS 煤热值项目（模型权重/实验数据原样留在
