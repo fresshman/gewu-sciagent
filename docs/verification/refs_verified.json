@@ -1,0 +1,81 @@
+{
+  "verdict": "PASS",
+  "hallucination_rate": 0.0,
+  "pending_rate": 0.0,
+  "warnings": [],
+  "papers": [
+    {
+      "id": "p1",
+      "status": "verified",
+      "method": "arxiv",
+      "confidence": "high",
+      "reason": null,
+      "identifiers": {
+        "arxiv_id": "1402.2062"
+      }
+    },
+    {
+      "id": "p2",
+      "status": "verified",
+      "method": "arxiv",
+      "confidence": "high",
+      "reason": null,
+      "identifiers": {
+        "arxiv_id": "1402.2060"
+      }
+    },
+    {
+      "id": "p3",
+      "status": "verified",
+      "method": "arxiv",
+      "confidence": "high",
+      "reason": null,
+      "identifiers": {
+        "arxiv_id": "2512.01287"
+      }
+    },
+    {
+      "id": "p4",
+      "status": "verified",
+      "method": "crossref",
+      "confidence": "high",
+      "reason": null,
+      "identifiers": {
+        "doi": "10.3390/app13148158"
+      }
+    },
+    {
+      "id": "p5",
+      "status": "verified",
+      "method": "crossref",
+      "confidence": "high",
+      "reason": null,
+      "identifiers": {
+        "doi": "10.1002/9781119758396.ch27"
+      }
+    },
+    {
+      "id": "p6",
+      "status": "verified",
+      "method": "arxiv",
+      "confidence": "high",
+      "reason": null,
+      "identifiers": {
+        "arxiv_id": "1802.04712"
+      }
+    }
+  ],
+  "_meta": {
+    "checked_at": "2026-11-09",
+    "tool": "gewu/mcp/verify_papers.py (arXiv -> CrossRef -> S2 -> OpenAlex 四级)",
+    "source_ids": {
+      "p1": "arXiv:1402.2062 / DOI 10.1016/j.sab.2014.06.017",
+      "p2": "arXiv:1402.2060",
+      "p3": "arXiv:2512.01287",
+      "p4": "DOI 10.3390/app13148158",
+      "p5": "DOI 10.1002/9781119758396.ch27",
+      "p6": "arXiv:1802.04712 (本文新增核验)"
+    },
+    "note": "p1-p5 继承自 handoff_2 的 D1 核验结论并于本阶段重新实测；p6 为本阶段为引言新增，单独核验。"
+  }
+}

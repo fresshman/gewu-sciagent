@@ -36,9 +36,21 @@ DEFAULT_OUT = REPO_ROOT / "web" / ".local" / "case.json"
 
 REPORT_DIR = REPO_ROOT / "output" / "documents" / "coal_report"
 TRUTH_FILE = REPORT_DIR / "metrics_recomputed.json"
+# 本机存档按设计不入库（未发表数据）。若无存档但有入库副本，仍应能解析文献区，
+# 否则评委 clone 后右栏文献是空的——这不是「降级」，是缺陷。
+TEX_FALLBACK = REPO_ROOT / "docs" / "paper" / "coal_report" / "main.tex"
+REFS_FALLBACK = REPO_ROOT / "docs" / "verification" / "refs_verified.json"
 TEX_FILE = REPORT_DIR / "main.tex"
 REFS_FILE = REPORT_DIR / "refs_verified.json"
 REGISTRY_FILE = REPO_ROOT / "gewu" / "mcp" / "registry" / "coal_mil.json"
+
+
+def _existing(*paths: Path) -> Path:
+    """取第一个存在的路径；都不存在时返回第一个，由调用方按 ``is_file()`` 判定缺失。"""
+    for p in paths:
+        if p.is_file():
+            return p
+    return paths[0]
 
 # 仓库内脱敏快照：只含**聚合指标**（与论文正文同口径的公开数字），
 # 不含原始光谱、模型权重、逐样本预测。用于评委机没有外部课题时，
@@ -491,9 +503,10 @@ def build_papers() -> list[dict]:
 
 
 def _parse_bibitems() -> list[tuple[str, str]]:
-    if not TEX_FILE.is_file():
+    tex_path = _existing(TEX_FILE, TEX_FALLBACK)
+    if not tex_path.is_file():
         return []
-    tex = TEX_FILE.read_text(encoding="utf-8")
+    tex = tex_path.read_text(encoding="utf-8")
     m = re.search(
         r"\\begin\{thebibliography\}\{[^}]*\}(.*?)\\end\{thebibliography\}", tex, re.S
     )
@@ -545,20 +558,22 @@ def _split_bibitem(body: str) -> dict:
 
 
 def _load_refs_status() -> dict[str, dict]:
-    if not REFS_FILE.is_file():
+    refs_path = _existing(REFS_FILE, REFS_FALLBACK)
+    if not refs_path.is_file():
         return {}
     try:
-        refs = json.loads(REFS_FILE.read_text(encoding="utf-8"))
+        refs = json.loads(refs_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return {}
     return {p["id"]: p for p in refs.get("papers", []) if p.get("id")}
 
 
 def refs_summary() -> dict | None:
-    if not REFS_FILE.is_file():
+    refs_path = _existing(REFS_FILE, REFS_FALLBACK)
+    if not refs_path.is_file():
         return None
     try:
-        refs = json.loads(REFS_FILE.read_text(encoding="utf-8"))
+        refs = json.loads(refs_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return None
     return {
@@ -815,6 +830,9 @@ def build_bundle(root: Path | None, *, require_truth: bool = False) -> dict:
         if data_root.is_dir() and first_bag:
             spectrum = build_spectrum(data_root, first_bag)
 
+    tex_used = _existing(TEX_FILE, TEX_FALLBACK)
+    refs_used = _existing(REFS_FILE, REFS_FALLBACK)
+
     return {
         "available": True,
         "mode": mode,
@@ -828,9 +846,10 @@ def build_bundle(root: Path | None, *, require_truth: bool = False) -> dict:
             "metrics": truth_src or None,
             "registry": REGISTRY_FILE.relative_to(REPO_ROOT).as_posix()
             if REGISTRY_FILE.is_file() else None,
-            "references": REFS_FILE.relative_to(REPO_ROOT).as_posix()
-            if REFS_FILE.is_file() else None,
-            "paper": TEX_FILE.relative_to(REPO_ROOT).as_posix() if TEX_FILE.is_file() else None,
+            # 指向实际读取的那一份（存档不在时是 docs/ 下的入库副本），不谎报来源
+            "references": refs_used.relative_to(REPO_ROOT).as_posix()
+            if refs_used.is_file() else None,
+            "paper": tex_used.relative_to(REPO_ROOT).as_posix() if tex_used.is_file() else None,
             "predictions_root": str(mil_root / "outputs" / "best_solution") if mil_root else None,
             "note": "所有数值均来自上述文件，右栏不自行计算新指标；仓库内不复制实验数据。",
         },
