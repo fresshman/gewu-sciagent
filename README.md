@@ -307,13 +307,22 @@ openclaw mcp probe               # 验证 10 个 MCP 服务（8 个本机 + 2 �
 ```bash
 # Python 侧：反幻觉链 / 结果瘦身层 / MCP 超时层级 / stdin 守护
 python -m pytest tests -q              # 共 162 用例
-#   允许跳过 0–2 个，取决于两个外部条件，都不是代码失败：
+#   允许跳过 0–5 个，取决于三个外部条件，都不是代码失败：
 #   ① test_verify_papers_fallback —— CrossRef 限流或断网时返回 verify_pending 而跳过；
-#   ② test_mcp_timeout_hierarchy —— 解包目录里没有 gitignore 的 .coal_project_root 时跳过。
-#   所以同一份代码可能跑出 162/0、161/1、160/2 三种数，用 `-rs` 可以看到每条跳过的原因。
-#   实测（2026-11-09，补齐 PDF 编译链后）：仓库内 162 passed / 0 skipped（22.25s）。
-#   干净解包（只有 git 跟踪的文件、无 .coal_project_root）会比满额少 1–2 条，属预期。
-#   完整开箱演练记录见 docs/verification/2026-11-04-clean-unpack-drill.md。
+#   ② test_mcp_timeout_hierarchy —— 解包目录里没有 gitignore 的 .coal_project_root 时跳过；
+#   ③ test_e2e_chain 的 3 条 —— 真实课题存档（output/documents）按设计不入库，无存档时跳过。
+#   用 `-rs` 可以看到每条跳过的原因。实测两种环境：
+#     仓库内（本机有存档）：162 passed / 0 skipped（25.98s）
+#     干净 clone：        158 passed / 4 skipped（24.31s）—— 4 条全部是上述 ②③，
+#                         不是失败；若看到 failed 才是真问题。
+# 完整开箱演练记录见 docs/verification/2026-11-04-clean-unpack-drill.md。
+
+# 真实课题端到端校验（九层：串联/数值一致/无矛盾/论文自洽/溯源/PDF 成品）
+python scripts/e2e_smoke_test.py
+#   需本机存在未入库的存档 output/documents/coal_report。
+#   退出码：0=通过 / 1=失败 / 2=不适用（无存档）。
+#   在 clone 出的仓库里它必然返回 2 并说明原因——这是「不适用」，不是「不通过」，
+#   零外部依赖的等价验证请跑下面最小课题那条。
 
 # Web 代理侧：预算状态机 / 会话名归一 / tail 划界 / transcript 读取 / 笔记摘要
 cd web && node --test "tests/**/*.test.mjs"   # 48 pass
