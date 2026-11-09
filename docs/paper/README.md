@@ -33,8 +33,9 @@ PDF 的「内容指纹」不是文件二进制哈希，而是提取正文、压�
 （`YYYY-MM-DD`）归一为 `<DATE>` 后的 sha256 前 16 位（`gewu.latex_build.pdf_text_fingerprint`）。
 这样做的两个理由都是实测出来的：
 
-1. PDF 内嵌 `/CreationDate`，**同一个 `.tex` 连编两次，二进制哈希必然不同，而正文完全一致**。
-   用二进制哈希做快照比对会天天报"漂移"，反而失去意义；
+1. PDF 默认内嵌 `/CreationDate`，同一个 `.tex` 连编两次**二进制哈希就不同**（除非钉住
+   `SOURCE_DATE_EPOCH`，见下节），而正文完全一致。用二进制哈希做快照比对会天天报
+   "漂移"，反而失去意义；
 2. 论文封面带生成日期，跨天重跑会改这一个字符串。日期变了不等于结论变了，故归一化后再比对。
 
 `.tex` 是纯文本，直接用文件 sha256。
@@ -49,8 +50,25 @@ PDF 的「内容指纹」不是文件二进制哈希，而是提取正文、压�
 | `min_case` | `d9f2efe9a5c1` / `b5585732bbd5`（不同） | 均 `5b909ef5faf94698` |
 | `coal_report` | `3bc4d6a8cb1d` / `de99ab7a46f2`（不同） | 均 `da35a1b09ca88960` |
 
-即：**排版结果可复现，字节不可复现**。校验层因此只比对文本与关键数值，不比对文件哈希。
+即**默认**下：排版结果可复现、字节能不同。但「字节不可复现」不是引擎的固有性质，
+只是默认没钉时间戳——加 `source_date_epoch`（CLI `--source-date-epoch`）之后
+`min_case` 两次编译字节完全相同（均 `924e52260285`）。所以：
+
+* 要**按文件哈希复核** → 钉住 `SOURCE_DATE_EPOCH`；
+* 只要**排版可复现** → 用上面的内容指纹（不要求复核者钉同一时刻）。
+
+校验层用的是内容指纹，因为不能要求每个复核者钉同一个 epoch。
 上表两份 PDF 的指纹与本目录快照一致，说明快照未过期。
+
+## 本机没有 TeX 时
+
+```bash
+python scripts/fetch_tectonic.py --version 0.17.0   # 下载 + sha256 校验 + 功能自检
+```
+
+安装位置 `%LOCALAPPDATA%\gewu\tools\`（Linux/macOS 为 `~/.gewu/tools`），
+`gewu/latex_build.py` 会自动探测到。校验来源与残留边界见
+`docs/verification/2026-11-09-pdf-pipeline.md` §2.1。
 
 ## 怎么重新生成
 

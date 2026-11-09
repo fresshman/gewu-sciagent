@@ -40,6 +40,49 @@
 `%LOCALAPPDATA%\gewu\tools\`，由 `gewu/latex_build.py:find_engine()` 按
 「显式指定 → `PATH` → 常见安装位置」三级探测，可用 `GEWU_LATEX_ENGINE` 覆盖。
 
+### 2.1 获取：一条命令，且校验有据
+
+```bash
+python scripts/fetch_tectonic.py --version 0.17.0
+```
+
+实测（2026-11-09，本机，冷缓存）：
+
+| 阶段 | 实测 |
+|---|---|
+| 取元数据（GitHub Releases API） | 版本 `tectonic@0.17.0`，资产 `tectonic-0.17.0-x86_64-pc-windows-msvc.zip`，21,060,223 B |
+| 下载 | 20.1 MB，全程约 26 s |
+| sha256 校验 | `f61ce51f0b0ade10…` 与 API `asset.digest` 一致 |
+| 解压安装 | `tectonic.exe` 51,538,432 B 写入 `%LOCALAPPDATA%\gewu\tools\` |
+| 功能自检 | 实际执行 `tectonic --version` → `Tectonic 0.17.0` |
+| 项目探测 | `find_engine()` → `tectonic`，路径即上述位置 |
+
+**「装上了」不等于「能用」，所以第 5 步是执行而不是看文件**。再用这份新下载的二进制
+编译一遍最小课题：`197,903 B`、`error=0 缺字=0 overfull=0`，内容指纹
+`5b909ef5faf94698` 与入库快照**完全一致**（二进制哈希不同：`5e62958e19d2` vs
+`d4356e6f42a0`）——即「一台没有 TeX 的机器，一条命令后能产出与仓库里那份可核对一致的 PDF」。
+
+校验能力与边界（不夸大）：
+
+| 情形 | 行为 |
+|---|---|
+| API 提供 `asset.digest` | 以之为期望值；**同源**校验，能发现传输损坏、版本/资产错配、资产在发布后被替换 |
+| API 不可达 / 限流（403） | 回退脚本内钉住表；覆盖率仅 0.17.0 的 6 个平台包 |
+| 两者都没有 | **拒绝安装**（退出码 1），提示 `--expect-sha256` 或 `--version` 或显式 `--allow-unverified` |
+| 显式放弃校验 | 允许，但结果标记 `integrity.verified=false`、`signature=none`，不冒充「已校验」 |
+| API 给了值但解析不了（如改成 md5） | **报错**，不静默降级到钉住表——否则「换了算法」会被当成「校验通过」 |
+
+负向实测三条：给错 `--expect-sha256` → 退出码 1、目标目录为空（未落任何二进制）；
+本地包不给版本也不给校验值 → 拒绝并列出三条出路；`--allow-unverified` → 安装成功但
+`verified=false`。
+
+> 诚实标注：GitHub 的 `asset.digest` 与下载包**同源**（同一个 HTTPS 来源），
+> 它不是签名，**不构成对「GitHub 账号或发布流程本身被攻破」的防护**。本项目
+> 没有做 GPG/签名验证（tectonic 也未发布 `.sha256` 或签名的校验文件——发布页
+> 资产清单里没有这类文件，这是查证过的事实，不是未做）。
+> 钉住表中只有 Windows 包经本机实下载复算一致；其余平台条目是「读取时的
+> 发布方声明值缓存」，用于断网时拒绝被替换的资产，**不是第三方独立验证**。
+
 ## 三、两篇论文的真实编译结果
 
 | 论文 | 页 | 字节 | error | 缺字 | overfull |
@@ -96,12 +139,32 @@ PDF 内嵌 `/CreationDate`，论文封面还印着生成日期。若用文件二
 
 ## 五、确定性实测
 
+### 5.1 默认（不钉时间戳）
+
 | 对象 | 两次编译的二进制哈希 | 两次编译的内容指纹 |
 |---|---|---|
 | `min_case` | `d9f2efe9a5c1` / `b5585732bbd5`（**不同**） | 均 `5b909ef5faf94698`（相同） |
 | `coal_report` | `3bc4d6a8cb1d` / `de99ab7a46f2`（**不同**） | 均 `da35a1b09ca88960`（相同） |
 
-即：**排版结果可复现，字节能不同**。所以校验层只比对文本与关键数值，绝不比对文件哈希。
+PDF 内嵌 `/CreationDate`，所以默认下**排版结果可复现、字节能不同**。校验层因此只比对
+内容指纹与关键数值，绝不比对文件哈希。
+
+### 5.2 钉住 `SOURCE_DATE_EPOCH` 后字节级也可复现（修正前一版结论）
+
+前一版把「字节不可复现」写成了引擎的固有性质，这是**过宽的结论**。实测发现它只是
+「默认没钉时间戳」的后果：给 `build(..., source_date_epoch=1600000000)`
+（CLI 对应 `--source-date-epoch`），tectonic 会按该时刻写 PDF 元数据。
+
+| 对象 | 两次编译的二进制哈希 | 内容指纹 | 字节 |
+|---|---|---|---|
+| `min_case` | 均 `924e52260285`（**相同**） | 均 `5b909ef5faf94698` | 均 197,903 |
+
+另用小样例连编三次（同一 epoch）也得到完全相同的字节。故：
+
+* 需要**第三方按文件哈希复核** → 钉 `SOURCE_DATE_EPOCH`；
+* 只需要「排版可复现」 → 用内容指纹即可（不要求复核者钉同一时刻）。
+
+校验层仍用内容指纹，因为不能要求每个复核者钉同一个 epoch；两者不是替代关系。
 
 ## 六、接入点：从「手工能编」到「链路自己会编」
 
@@ -142,23 +205,41 @@ PDF 内嵌 `/CreationDate`，论文封面还印着生成日期。若用文件二
 ## 八、边界与未覆盖（不粉饰）
 
 * **引擎不入库**：克隆后本机无 TeX 时，链路会诚实降级为 `pdf_compiled: false` + 原因，
-  不伪造成功；此时想翻阅论文请看已入库的 `docs/paper/*.pdf` 快照。自动化只在有引擎时发生。
-* **未做下载完整性校验**：tectonic 走官方 GitHub release 的 https 域名，但没做签名或哈希比对。
+  不伪造成功；此时想翻阅论文请看已入库的 `docs/paper/*.pdf` 快照，想自己重编则
+  `python scripts/fetch_tectonic.py --version 0.17.0` 一条命令装引擎。
+* **下载校验已补（第二轮）**：`scripts/fetch_tectonic.py` 以 GitHub API 的
+  `asset.digest` 做 sha256 比对，装完再实际执行 `tectonic --version` 自检。
+  残留边界有三条，都不粉饰：
+  1. digest 与资产**同源**，不是签名，挡不住「GitHub 账号/发布流程被攻破」；
+  2. tectonic 发布页本身**不提供** `.sha256` 或签名文件（已查证资产清单），
+     所以「做签名验证」这条路在当前上游是走不通的，不是本项目偷懒；
+  3. 钉住表里只有 Windows 包经本机实下载复算，其余平台是声明值缓存。
+* **获取脚本只在 Windows 实测**：Linux/macOS 的资产选择逻辑有单测覆盖（纯字符串），
+  但没有在那些平台真正下载安装过。
 * **首次必须联网**：CTAN bundle 约 300 MB，离线环境无法首次编译（之后可离线）。
+  已有可用的本地发行包时可用 `--archive` 走离线安装（配套 `--version` 或
+  `--expect-sha256` 取期望值）。
 * **只在 Windows 实测**：`find_engine()` 写了 Linux/macOS 的常见路径，但没有在那些平台跑过，
   不宣称跨平台可用。
 * **未做 PDF↔tex 逐字符比对**：只核关键数值与页数，不做全文 diff——排版引擎会重排断行与连字，
   逐字符比对必然假阳性。
-* **19 条单测里 6 条挂 `needs_engine`**：无引擎环境会跳过而非失败；剩下 13 条纯逻辑用例
-  （日志解析、缺字判定、无引擎降级、指纹归一化、CLI 退出码）始终可跑，保证判定逻辑本身被验证。
+* **19 条编译单测里 6 条挂 `needs_engine`**：无引擎环境会跳过而非失败；其余纯逻辑用例
+  （日志解析、缺字判定、无引擎降级、指纹归一化、可复现编译、CLI 退出码）始终可跑，
+  保证判定逻辑本身被验证。获取脚本另有 **36 条逻辑用例**（含 1 条联网用例默认跳过）。
 * **组件级消融仍未做**：与本文件无关，但同属未闭环项，参见 `2026-11-09-min-case.md` §8。
 
 ## 九、复现
 
 ```bash
+# 0) 本机没有 TeX 时：一条命令装引擎（下载 + sha256 校验 + 功能自检）
+python scripts/fetch_tectonic.py --version 0.17.0
+python scripts/fetch_tectonic.py --check-only      # 只体检，不联网
+
 # 1) 编译（自动探测引擎；也可 GEWU_LATEX_ENGINE=/path/to/tectonic）
 python -m gewu.latex_build docs/paper/coal_report/main.tex
 python -m gewu.latex_build docs/paper/min_case/main.tex
+#    需要按文件哈希复核时钉住时间戳：
+python -m gewu.latex_build docs/paper/min_case/main.tex --source-date-epoch 1600000000
 
 # 2) 指纹与页数
 python -c "from gewu.latex_build import pdf_text_fingerprint as f, pdf_page_count as p; \

@@ -134,9 +134,9 @@ gewu-sciagent/
 │   ├── architecture.md        # 架构设计与落地路线图
 │   ├── verification/          # 端到端实测记录（含反幻觉链与缺口清单）
 │   └── images/ui-overview.svg # 界面示意图
-├── tests/                     # Python 侧 15 个测试文件 / 162 用例（反幻觉、瘦身层、最小课题链路、PDF 编译等）
+├── tests/                     # Python 侧 16 个测试文件 / 200 用例（反幻觉、瘦身层、最小课题链路、PDF 编译、引擎获取等）
 ├── scripts/                   # bootstrap_openclaw_config（生成网关配置）/ create_project /
-│                              #   export_case_bundle / e2e_smoke_test / run_min_case / pdf_tool
+│                              #   export_case_bundle / e2e_smoke_test / run_min_case / fetch_tectonic
 ├── gewu/latex_build.py        # TeX 编译引擎（探测/编译/日志解析/缺字与 overfull 检测/内容指纹）
 ├── gewu/demo/                 # 最小课题（合成数据七阶段，零外部依赖）+ 十层校验器
 │   ├── synth.py               #   合成 LIBS 数据集（已知机制，可验证 MIL 假设）
@@ -302,19 +302,19 @@ openclaw config validate         # 校验配置
 openclaw mcp probe               # 验证 10 个 MCP 服务（8 个本机 + 2 个外部包）
 ```
 
-### 5. 跑测试（两套件，共 210 用例）
+### 5. 跑测试（两套件，共 248 用例）
 
 ```bash
 # Python 侧：反幻觉链 / 结果瘦身层 / MCP 超时层级 / stdin 守护
-python -m pytest tests -q              # 共 162 用例
+python -m pytest tests -q              # 共 200 用例（199 跑通 + 1 条联网用例默认跳过）
 #   允许跳过 0–5 个，取决于三个外部条件，都不是代码失败：
 #   ① test_verify_papers_fallback —— CrossRef 限流或断网时返回 verify_pending 而跳过；
 #   ② test_mcp_timeout_hierarchy —— 解包目录里没有 gitignore 的 .coal_project_root 时跳过；
 #   ③ test_e2e_chain 的 3 条 —— 真实课题存档（output/documents）按设计不入库，无存档时跳过。
 #   用 `-rs` 可以看到每条跳过的原因。实测两种环境：
-#     仓库内（本机有存档）：162 passed / 0 skipped（25.98s）
-#     干净 clone：        158 passed / 4 skipped（24.31s）—— 4 条全部是上述 ②③，
-#                         不是失败；若看到 failed 才是真问题。
+#     仓库内（本机有存档）：199 passed / 1 skipped（33.71s）
+#     干净 clone：        见下一版实测（本轮新增用例后需复测）
+#                         4 条左右跳过全部是上述 ②③，不是失败；若看到 failed 才是真问题。
 # 完整开箱演练记录见 docs/verification/2026-11-04-clean-unpack-drill.md。
 
 # 真实课题端到端校验（九层：串联/数值一致/无矛盾/论文自洽/溯源/PDF 成品）
@@ -416,6 +416,25 @@ arXiv/CrossRef 核验通过（幻觉率 0）。**合成数据只证明机制与�
 python -c "import sys;sys.path.insert(0,'gewu/mcp');import sci_exp,json;print(json.dumps(sci_exp.rerun_experiment('demo_synth_our_hybrid'),ensure_ascii=False,indent=1))"
 # status=reproduced，rmse_mean/rmse_std/r2_mean 的 abs_diff 均为 0.0
 ```
+
+### 9. 论文编译成 PDF（可选）
+
+仓库里已有编译好的成品 `docs/paper/*/main.pdf`（7 页 / 3 页），不跑这一步也能直接翻阅。
+想自己从 `.tex` 重编：
+
+```bash
+python scripts/fetch_tectonic.py --version 0.17.0   # 仅本机无 TeX 时需要：下载 + sha256 校验 + 功能自检
+python -m gewu.latex_build docs/paper/min_case/main.tex
+```
+
+* 引擎探测顺序 `GEWU_LATEX_ENGINE` → `PATH` → 常见安装位置；都找不到就诚实返回
+  `status=no_engine`，不会伪造 `pdf_compiled=True`。
+* 判定不只看退出码：TeX error 与 `Missing character`（缺字）都算失败。实测
+  `article` + `T1 fontenc` 编中文，退出码 0、页数正常，PDF 只剩 30 个 ASCII 字符。
+* 首次编译要从 CTAN 拉约 300 MB bundle（实测约 6 分钟），之后每次 1–2 秒。
+* 需要按文件哈希复核时加 `--source-date-epoch 1600000000`（钉住后字节级可复现）。
+* 下载校验来源与残留边界（digest 同源、不是签名）见
+  `docs/verification/2026-11-09-pdf-pipeline.md` §2.1。
 
 ## Web 界面（可选）
 
