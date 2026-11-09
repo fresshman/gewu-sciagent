@@ -1,0 +1,227 @@
+{
+ "schema_version": 1,
+ "note": "脱敏快照：仅含聚合指标与逐折指标，不含原始光谱、模型权重、逐样本预测。由 scripts/export_case_bundle.py --emit-snapshot 生成。",
+ "source_root": "<external-coal-project>",
+ "hybrid": {
+  "mean_rmse": 214.5699114652832,
+  "std_rmse_pop": 25.709373219912326,
+  "std_rmse_sample": 28.743953089318307,
+  "mean_mae": 177.7835038275356,
+  "mean_r2": 0.8962665091153781
+ },
+ "plsr": {
+  "mean_rmse": 233.95212436560473,
+  "std_rmse_pop": 17.949411814332283,
+  "std_rmse_sample": 20.068052486492412,
+  "mean_mae": 198.3922961570079,
+  "mean_r2": 0.8803248995032569
+ },
+ "paired_test": {
+  "t": -2.973545391911565,
+  "df": 4,
+  "p": 0.04100001982586628,
+  "mean_diff": -19.382212900321527,
+  "sd_diff": 14.575175384032358,
+  "se": 6.518216588535591
+ },
+ "pooled_oof": {
+  "hybrid_rmse": 216.10464774636435,
+  "hybrid_r2": 0.9203912269084997,
+  "plsr_rmse": 234.63967669526798,
+  "plsr_r2": 0.9061497099364356,
+  "n_total": 70
+ },
+ "per_fold": [
+  {
+   "fold": 0,
+   "n": 14,
+   "hybrid": {
+    "rmse": 218.6108283063738,
+    "mae": 173.9011832533615,
+    "r2": 0.8786353882963768
+   },
+   "plsr": {
+    "rmse": 231.2063693816704,
+    "mae": 183.55509577313956,
+    "r2": 0.8642473489977816
+   },
+   "delta_rmse": -12.595541075296609,
+   "predictions_file": "coal-mil/outputs/best_solution/fold0/predictions.json"
+  },
+  {
+   "fold": 1,
+   "n": 14,
+   "hybrid": {
+    "rmse": 244.92136140294636,
+    "mae": 195.19296192654497,
+    "r2": 0.9016140181195491
+   },
+   "plsr": {
+    "rmse": 248.8766788712817,
+    "mae": 201.0378465265031,
+    "r2": 0.8984106223043332
+   },
+   "delta_rmse": -3.955317468335352,
+   "predictions_file": "coal-mil/outputs/best_solution/fold1/predictions.json"
+  },
+  {
+   "fold": 2,
+   "n": 14,
+   "hybrid": {
+    "rmse": 222.38205380746257,
+    "mae": 179.9920090301347,
+    "r2": 0.9181427180579529
+   },
+   "plsr": {
+    "rmse": 255.29729492027639,
+    "mae": 220.2606767280412,
+    "r2": 0.8921176812143902
+   },
+   "delta_rmse": -32.91524111281382,
+   "predictions_file": "coal-mil/outputs/best_solution/fold2/predictions.json"
+  },
+  {
+   "fold": 3,
+   "n": 14,
+   "hybrid": {
+    "rmse": 220.07291927455012,
+    "mae": 202.0843647703737,
+    "r2": 0.8204381203360727
+   },
+   "plsr": {
+    "rmse": 230.66383284342265,
+    "mae": 221.3188005330516,
+    "r2": 0.8027395849328108
+   },
+   "delta_rmse": -10.590913568872537,
+   "predictions_file": "coal-mil/outputs/best_solution/fold3/predictions.json"
+  },
+  {
+   "fold": 4,
+   "n": 14,
+   "hybrid": {
+    "rmse": 166.8623945350832,
+    "mae": 137.74700015726316,
+    "r2": 0.9625023007669394
+   },
+   "plsr": {
+    "rmse": 203.71644581137252,
+    "mae": 165.78906122430408,
+    "r2": 0.9441092600669688
+   },
+   "delta_rmse": -36.85405127628931,
+   "predictions_file": "coal-mil/outputs/best_solution/fold4/predictions.json"
+  }
+ ],
+ "registry_cross_check": {
+  "checks": [
+   {
+    "item": "our_hybrid.rmse_kcal_mean",
+    "status": "PASS",
+    "got": 214.569911,
+    "want": 214.5699,
+    "abs_diff": 1.147e-05,
+    "tol": 0.01
+   },
+   {
+    "item": "our_hybrid.rmse_kcal_std",
+    "status": "PASS",
+    "got": 25.709373,
+    "want": 25.7094,
+    "abs_diff": 2.678e-05,
+    "tol": 0.01
+   },
+   {
+    "item": "our_hybrid.mae_kcal_mean",
+    "status": "PASS",
+    "got": 177.783504,
+    "want": 177.78,
+    "abs_diff": 0.00350383,
+    "tol": 0.05
+   },
+   {
+    "item": "our_hybrid.r2_mean",
+    "status": "PASS",
+    "got": 0.896267,
+    "want": 0.8963,
+    "abs_diff": 3.349e-05,
+    "tol": 0.001
+   },
+   {
+    "item": "plsr_baseline.rmse_kcal_mean",
+    "status": "PASS",
+    "got": 233.952124,
+    "want": 233.9521,
+    "abs_diff": 2.437e-05,
+    "tol": 0.01
+   },
+   {
+    "item": "plsr_baseline.rmse_kcal_std",
+    "status": "PASS",
+    "got": 17.949412,
+    "want": 17.95,
+    "abs_diff": 0.00058819,
+    "tol": 0.01
+   },
+   {
+    "item": "plsr_baseline.r2_mean",
+    "status": "PASS",
+    "got": 0.880325,
+    "want": 0.8803,
+    "abs_diff": 2.49e-05,
+    "tol": 0.001
+   },
+   {
+    "item": "our_hybrid.per_fold[0]",
+    "status": "PASS",
+    "got": 218.610828,
+    "want": 218.6108,
+    "abs_diff": 2.831e-05,
+    "tol": 0.01
+   },
+   {
+    "item": "our_hybrid.per_fold[1]",
+    "status": "PASS",
+    "got": 244.921361,
+    "want": 244.9214,
+    "abs_diff": 3.86e-05,
+    "tol": 0.01
+   },
+   {
+    "item": "our_hybrid.per_fold[2]",
+    "status": "PASS",
+    "got": 222.382054,
+    "want": 222.3821,
+    "abs_diff": 4.619e-05,
+    "tol": 0.01
+   },
+   {
+    "item": "our_hybrid.per_fold[3]",
+    "status": "PASS",
+    "got": 220.072919,
+    "want": 220.0729,
+    "abs_diff": 1.927e-05,
+    "tol": 0.01
+   },
+   {
+    "item": "our_hybrid.per_fold[4]",
+    "status": "PASS",
+    "got": 166.862395,
+    "want": 166.8624,
+    "abs_diff": 5.46e-06,
+    "tol": 0.01
+   },
+   {
+    "item": "our_hybrid.rmse_mj_mean(derived)",
+    "status": "PASS",
+    "got": 0.897761,
+    "want": 0.8979,
+    "abs_diff": 0.00013949,
+    "tol": 0.001
+   }
+  ],
+  "n_pass": 13,
+  "n_fail": 0,
+  "n_skip": 0
+ }
+}

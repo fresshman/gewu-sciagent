@@ -2,9 +2,11 @@
 // 项目仪表盘来自 /api/projects/active —— 显示七阶段进度、指标、产出物
 // 案例数据来自 /api/case —— 由 scripts/export_case_bundle.py 从本机真实课题导出，
 // 仓库内不含任何实验数据副本；取不到时降级为占位提示，绝不用假数据顶替。
+// 指标以 metrics_recomputed.json 为单一真源，且**同时标注两种口径**（逐折均值 / 合并 OOF），
+// 避免 UI 与论文出现同一指标的两个不同数字。
 import { useEffect, useState } from "react";
 import { getCase, getActiveProject } from "../api/client";
-import type { CaseBundle } from "../types";
+import type { CaseBundle, CaseAblation, PairedTest } from "../types";
 import { SpectrumChart } from "./SpectrumChart";
 import { FoldBars } from "./FoldBars";
 import { PredScatter } from "./PredScatter";
@@ -33,13 +35,102 @@ function MetricCard({
   );
 }
 
+// 逐折配对检验：t 检验与 Wilcoxon 结论不一致时必须都摆出来，只报显著的那个是选择性报告
+function PairedTestBlock({ t }: { t?: PairedTest }) {
+  if (!t || !t.available) return null;
+  const sig = t.p !== null && t.p < 0.05;
+  return (
+    <div className="case-stat">
+      <div className="case-subhead">
+        逐折配对检验 <span className="case-meta">n = {(t.df ?? 0) + 1} 折</span>
+      </div>
+      <div className="case-stat__row">
+        <span>配对 t 检验</span>
+        <code>
+          t({t.df}) = {fmt(t.t, 4)}, p = {fmt(t.p, 4)}
+        </code>
+      </div>
+      <div className="case-stat__row">
+        <span>均值差 95% CI</span>
+        <code>
+          {t.ci95 ? `[${fmt(t.ci95[0])}, ${fmt(t.ci95[1])}]` : "—"} kcal/kg
+        </code>
+      </div>
+      <div className="case-stat__row">
+        <span>Wilcoxon 符号秩</span>
+        <code>p = {fmt(t.wilcoxon_p, 4)}</code>
+      </div>
+      <div className={`case-note ${sig ? "case-note--warn" : ""}`}>
+        {t.note ||
+          "t 检验显著、Wilcoxon 受 n 限制不显著时，两者应同时报告。"}
+      </div>
+    </div>
+  );
+}
+
+// 消融：组内比较才有意义，跨组（与最终配置）不可相减，caveat 常驻显示
+function AblationBlock({ abl }: { abl?: CaseAblation | null }) {
+  if (!abl || abl.status !== "available") return null;
+  const seqs: Array<{ title: string; items: CaseAblation["pooling"] }> = [
+    { title: "池化策略对比", items: abl.pooling },
+    { title: "优化路径", items: abl.path },
+  ].filter((s) => s.items.length > 0);
+  if (!seqs.length) return null;
+  const vMax = Math.max(...seqs.flatMap((s) => s.items.map((i) => i.rmse)));
+
+  return (
+    <div className="case-ablation">
+      <div className="case-subhead">
+        消融实验{" "}
+        <span className="case-meta">
+          组内比较 · {abl.pooling.length + abl.path.length} 条
+        </span>
+      </div>
+      {seqs.map((seq) => (
+        <div key={seq.title} className="case-ablation__group">
+          <div className="case-meta">{seq.title}</div>
+          {seq.items.map((it) => (
+            <div className="case-ablation__row" key={it.id}>
+              <span className="case-ablation__label" title={it.label}>
+                {it.label}
+              </span>
+              <code className="case-ablation__val">{fmt(it.rmse)}</code>
+              <span className="case-ablation__bar">
+                <i style={{ width: `${Math.max(2, (it.rmse / vMax) * 100)}%` }} />
+              </span>
+            </div>
+          ))}
+        </div>
+      ))}
+      <div className="case-note case-note--warn">{abl.caveat}</div>
+    </div>
+  );
+}
+
+// 来源标注：快照模式必须显眼，避免把「仓库内快照」误读成「本机实测」
+function ModeNote({ data }: { data: CaseBundle }) {
+  if (!data.mode_label) return null;
+  const snap = data.mode === "repo_snapshot";
+  return (
+    <div className={`case-note ${snap ? "case-note--warn" : ""}`}>
+      <span className={`case-badge case-badge--${snap ? "pending" : "verified"}`}>
+        {snap ? "快照" : "本机"}
+      </span>{" "}
+      {data.mode_label}
+    </div>
+  );
+}
+
 function CaseBody({ data }: { data: CaseBundle }) {
   const m = data.metrics;
   const hyb = m?.hybrid.summary;
   const pls = m?.plsr_baseline.summary;
+  const pooledPct = m?.improvement_pct_pooled;
+  const refs = data.references_summary;
 
   return (
     <>
+      <ModeNote data={data} />
       <div className="right__block">
         <h4>光谱查看器</h4>
         {data.spectrum ? (
@@ -71,14 +162,31 @@ function CaseBody({ data }: { data: CaseBundle }) {
               />
               <MetricCard
                 label="相对基线"
-                value={`−${fmt(m.improvement_pct, 1)}%`}
-                sub="合并 RMSE 降幅"
+                value={`−${fmt(m.improvement_pct, 2)}%`}
+                sub={
+                  pooledPct == null
+                    ? "逐折均值口径"
+                    : `逐折均值口径 · 合并 OOF ${fmt(pooledPct, 2)}%`
+                }
                 tone="muted"
               />
             </div>
             <FoldBars hybrid={m.hybrid.per_fold} baseline={m.plsr_baseline.per_fold} />
-            <PredScatter yTrue={m.scatter.y_true} yPred={m.scatter.hybrid} unit={m.scatter.unit} />
+            {m.scatter?.y_true?.length ? (
+              <PredScatter
+                yTrue={m.scatter.y_true}
+                yPred={m.scatter.hybrid}
+                unit={m.scatter.unit}
+              />
+            ) : null}
+            <PairedTestBlock t={m.paired_test} />
+            <AblationBlock abl={data.ablation} />
             <div className="case-meta">{m.convention}</div>
+            {data.provenance?.metrics ? (
+              <div className="case-meta">
+                真源：<code>{data.provenance.metrics}</code>
+              </div>
+            ) : null}
           </>
         ) : (
           <div className="right__placeholder">暂无指标数据。</div>
@@ -87,13 +195,34 @@ function CaseBody({ data }: { data: CaseBundle }) {
 
       <div className="right__block">
         <h4>文献与产出物</h4>
+        {refs ? (
+          <div className="case-meta">
+            论文引用 {refs.n_papers} 篇 · D1 核验{" "}
+            <span className={`case-badge case-badge--${refs.verdict === "PASS" ? "verified" : "pending"}`}>
+              {refs.verdict}
+            </span>{" "}
+            幻觉率 {fmt(refs.hallucination_rate, 1)}
+            {refs.checked_at ? ` · ${refs.checked_at}` : ""}
+          </div>
+        ) : null}
         {data.papers?.length ? (
           <ul className="case-list">
             {data.papers.map((p) => (
-              <li key={p.doi}>
+              <li key={p.key || p.doi || p.title}>
                 <div className="case-list__title">{p.title}</div>
                 <div className="case-meta">
-                  {p.venue} {p.year} · <code>{p.doi}</code>
+                  {[p.venue, p.year].filter(Boolean).join(" ")}
+                  {p.doi ? (
+                    <>
+                      {" "}
+                      · <code>{p.doi}</code>
+                    </>
+                  ) : p.arxiv ? (
+                    <>
+                      {" "}
+                      · <code>arXiv:{p.arxiv}</code>
+                    </>
+                  ) : null}
                   <span className={`case-badge case-badge--${p.status}`}>{p.status}</span>
                 </div>
               </li>
@@ -104,7 +233,14 @@ function CaseBody({ data }: { data: CaseBundle }) {
         )}
         {data.artifacts?.length ? (
           <div className="case-artifacts">
-            <div className="case-meta">阶段产出物 {data.artifacts.length} 项</div>
+            <div className="case-meta">
+              阶段产出物 {data.artifacts.length} 项
+              {(() => {
+                const repo = data.artifacts.filter((a) => a.scope === "repo").length;
+                const ext = data.artifacts.length - repo;
+                return repo || ext ? `（仓库内 ${repo} · 外部课题 ${ext}）` : "";
+              })()}
+            </div>
             <ul className="case-list case-list--tight">
               {data.artifacts.slice(0, 12).map((a) => (
                 <li key={a.rel}>

@@ -89,17 +89,66 @@ export interface MetricAgg {
   std_sample: number;
 }
 
+// 合并 OOF 口径：把 5 折预测并起来统一算，无逐折结构
+export interface PooledMetric {
+  n: number | null;
+  rmse: number | null;
+  r2: number | null;
+}
+
 export interface MetricArm {
   per_fold: FoldMetric[];
   summary: { rmse: MetricAgg; mae: MetricAgg; r2: MetricAgg };
-  pooled: FoldMetric;
+  pooled: PooledMetric;
+}
+
+// 逐折配对检验：t 检验与 Wilcoxon 结论可能不一致，必须同时展示
+export interface PairedTest {
+  available: boolean;
+  test?: string;
+  t: number | null;
+  df: number | null;
+  p: number | null;
+  mean_diff: number | null;
+  ci95?: [number, number] | null;
+  wilcoxon_p?: number | null;
+  note?: string;
+}
+
+export interface AblationItem {
+  id: string;
+  label: string;
+  rmse: number;
+}
+
+// 消融结果：与最终配置不同组，caveat 必填，防止跨配置直接相减
+export interface CaseAblation {
+  status: string;
+  caveat: string;
+  pooling: AblationItem[];
+  path: AblationItem[];
+  source?: string;
+}
+
+export interface RefsSummary {
+  verdict: string | null;
+  hallucination_rate: number | null;
+  n_papers: number;
+  checked_at?: string;
+  tool?: string;
 }
 
 export interface CaseMetrics {
   convention: string;
+  primary_convention?: string;
   hybrid: MetricArm;
   plsr_baseline: MetricArm;
+  /** 逐折均值口径（论文正文口径） */
   improvement_pct: number;
+  /** 合并 OOF 口径，与上一项不同，必须分开标注 */
+  improvement_pct_pooled?: number | null;
+  improvement_basis?: string;
+  paired_test?: PairedTest;
   scatter: { y_true: number[]; hybrid: number[]; plsr: number[]; unit: string };
 }
 
@@ -116,13 +165,15 @@ export interface SpectrumPreview {
 }
 
 export interface CasePaper {
+  key?: string;
   title: string;
   venue: string;
-  year: number;
+  year: number | null;
   doi: string;
+  arxiv?: string;
   status: string;
   method: string;
-  note: string;
+  note?: string;
 }
 
 export interface CaseArtifact {
@@ -130,15 +181,21 @@ export interface CaseArtifact {
   rel: string;
   kind: string;
   size_kb: number;
+  scope?: "repo" | "external";
 }
 
 export interface CaseBundle {
   available: boolean;
+  mode?: "local_recompute" | "repo_snapshot";
+  mode_label?: string;
   reason?: string;
   hint?: string;
   generated_at?: string;
   topic?: string;
+  provenance?: Record<string, string | null>;
   metrics?: CaseMetrics;
+  ablation?: CaseAblation | null;
+  references_summary?: RefsSummary | null;
   spectrum?: SpectrumPreview | null;
   papers?: CasePaper[];
   artifacts?: CaseArtifact[];

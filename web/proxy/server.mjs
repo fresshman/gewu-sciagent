@@ -693,21 +693,90 @@ const server = http.createServer(async (req, res) => {
   // 真实案例数据：来自 scripts/export_case_bundle.py 生成的本机私有文件。
   // 该文件在 .gitignore 中（含未发表实验数值），缺失时返回 available:false，
   // 前端降级为占位提示，绝不用假数据顶替。
-  if (p === "/api/case") {
-    const caseFile = process.env.GEWU_CASE_FILE
-      ? path.resolve(process.env.GEWU_CASE_FILE)
-      : join(ROOT, ".local", "case.json");
+  //
+  // /api/case 是完整包；/api/metrics、/api/figures、/api/artifacts 是同一份数据的
+  // 细分视图，供外部（评委脚本、图表导出）单独取用——三者不另造副本，只做投影。
+  const CASE_FILE = process.env.GEWU_CASE_FILE
+    ? path.resolve(process.env.GEWU_CASE_FILE)
+    : join(ROOT, ".local", "case.json");
+
+  async function loadCaseBundle() {
     try {
-      const txt = await readFile(caseFile, "utf8");
-      const data = JSON.parse(txt);
-      return sendJSON(res, 200, data);
+      const txt = await readFile(CASE_FILE, "utf8");
+      return JSON.parse(txt);
     } catch {
-      return sendJSON(res, 200, {
+      return {
         available: false,
         reason: "本机尚未生成案例数据（运行 scripts/export_case_bundle.py）",
         hint: "python scripts/export_case_bundle.py",
-      });
+      };
     }
+  }
+
+  if (p === "/api/case") {
+    return sendJSON(res, 200, await loadCaseBundle());
+  }
+
+  // 指标：只给数值与口径，不含原始光谱/散点（便于外部脚本直接比对）
+  if (p === "/api/metrics") {
+    const d = await loadCaseBundle();
+    if (!d.available) return sendJSON(res, 200, d);
+    const m = d.metrics || {};
+    return sendJSON(res, 200, {
+      available: true,
+      generated_at: d.generated_at,
+      provenance: d.provenance,
+      convention: m.convention,
+      primary_convention: m.primary_convention,
+      improvement_basis: m.improvement_basis,
+      hybrid: m.hybrid,
+      plsr_baseline: m.plsr_baseline,
+      improvement_pct: m.improvement_pct,
+      improvement_pct_pooled: m.improvement_pct_pooled,
+      paired_test: m.paired_test,
+      ablation: d.ablation || null,
+      references_summary: d.references_summary || null,
+    });
+  }
+
+  // 图清单：产出图文件 + 当前可渲染的图表能力（前端据此决定画哪些图）
+  if (p === "/api/figures") {
+    const d = await loadCaseBundle();
+    if (!d.available) return sendJSON(res, 200, d);
+    const artifacts = d.artifacts || [];
+    const figures = artifacts.filter((a) =>
+      ["figure", "png", "pdf", "svg"].includes(String(a.kind || "").toLowerCase()) ||
+      /\.(png|pdf|svg)$/i.test(a.name || "")
+    );
+    const charts = [
+      { id: "spectrum", label: "LIBS 原始光谱", available: Boolean(d.spectrum), points: d.spectrum?.n_points ?? 0 },
+      { id: "folds", label: "逐折 RMSE 对比", available: Boolean(d.metrics?.hybrid?.per_fold?.length), groups: d.metrics?.hybrid?.per_fold?.length ?? 0 },
+      { id: "scatter", label: "预测-真值散点", available: Boolean(d.metrics?.scatter?.y_true?.length), points: d.metrics?.scatter?.y_true?.length ?? 0 },
+      { id: "ablation", label: "消融序列", available: Boolean(d.ablation?.pooling?.length || d.ablation?.path?.length), groups: (d.ablation?.pooling?.length ?? 0) + (d.ablation?.path?.length ?? 0) },
+    ];
+    return sendJSON(res, 200, {
+      available: true,
+      generated_at: d.generated_at,
+      figures,
+      charts,
+      note: "figures 为阶段产出图文件（路径来自外部课题，仅登记不托管）；charts 为右栏实时渲染能力。",
+    });
+  }
+
+  // 产出物清单：按 scope 分组，供"阶段产出物"面板与评审脚本核对
+  if (p === "/api/artifacts") {
+    const d = await loadCaseBundle();
+    if (!d.available) return sendJSON(res, 200, d);
+    const artifacts = d.artifacts || [];
+    const byScope = (scope) => artifacts.filter((a) => (a.scope || "external") === scope);
+    return sendJSON(res, 200, {
+      available: true,
+      generated_at: d.generated_at,
+      total: artifacts.length,
+      repo: byScope("repo"),
+      external: byScope("external"),
+      artifacts,
+    });
   }
 
   // ── 多项目隔离：项目列表与切换 ──────────────────────────────────────
