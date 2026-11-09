@@ -17,7 +17,7 @@
 
 </div>
 
-> 最近更新：**2026-11-04** · 权威仓库（已验证公开可访问）：<https://gitee.com/FreeBlank/gewu-sciagent>
+> 最近更新：**2026-11-09** · 权威仓库（已验证公开可访问）：<https://gitee.com/FreeBlank/gewu-sciagent>
 
 ## 目录
 
@@ -65,9 +65,22 @@
 
 自研轻量 Web 前端（移动优先概览面 + PC 三区驾驶舱），经本地 Node 代理接入 OpenClaw Gateway：
 
-![格物 Web 界面示意](docs/images/ui-overview.svg)
+![格物科研工作台（真实运行截图）](docs/images/ui-workbench.png)
 
-> 上方为界面示意图（UI schematic），展示 PC 端三区布局：左侧科研七阶段、中间 SSE 实时对话流与工具调用卡片、右侧 MCP 服务状态与质量护栏。
+> **真实运行截图，不是手绘示意**：本机 `npm run dev` 起前端后，用无头 Edge
+> （`--headless=new --window-size=1680,1050 --virtual-time-budget=9000`）实拍于 2026-11-09。
+> 左侧为科研七阶段（当前停在"复现·进行中"），中间是 SSE 实时执行流与阶段切换条，
+> 右侧是项目概览：核心指标 `RMSE 214.57 ± 25.71 kcal/kg`、`vs PLSR 基线 8.28%`。
+> 数据来自参考实现的真实产物（`web/.local/case.json`），不是 mock 占位。
+
+<details>
+<summary>展开：右栏完整长图（案例数据 / 光谱查看器 / 5 折指标 / 统计检验 / 消融实验）</summary>
+
+![右栏完整内容](docs/images/ui-workbench-full.png)
+
+</details>
+
+> 架构示意图另见 `docs/images/ui-overview.svg`；截图脚本与生成方式见下文「Web 界面（可选）」。
 
 ## 架构
 
@@ -75,7 +88,7 @@
 |---|---|---|
 | 书生大模型（Intern-S2 / Intern-S1 / InternVL） | 大脑 | OpenAI 兼容接口接入 OpenClaw model provider |
 | OpenClaw | 执行框架 | 原生多智能体编排（`sessions_spawn` / `sessions_send` / `agents_wait`）、Skills 加载、长周期记忆、渠道 |
-| 格物层 | 科研能力 | 7 个阶段 Agent + 10 个 MCP 服务（本机 8 个：7 Python + 1 Node 包装；另 2 个为外部包）+ 领域包 + Skills |
+| 格物层 | 科研能力 | 7 个阶段 Agent + 10 个 MCP server（7 个自研 Python + 1 个 Node 包装 `chart-cloud` + 2 个外部包 `paper-search`/`office-word`）+ 领域包 + Skills |
 
 **不自己写控制流编排器**：7 阶段流程交由 OpenClaw 原生多智能体编排，
 Python 侧只保留「科学工具层」（MCP Server），通过 MCP 被 OpenClaw 调用。
@@ -102,9 +115,10 @@ Python 侧只保留「科学工具层」（MCP Server），通过 MCP 被 OpenCl
 
 下表「工具数」= 网关 live 工具面上该 server 的**业务工具**数（已扣掉 FastMCP 给每个 server
 自带的 4 个模板工具 `prompts_get/prompts_list/resources_list/resources_read`）。
-本仓自研的是 **7 个 Python server、共 48 个工具**（与 `gewu/mcp/*.py` 里 `@mcp.tool()`
-的装饰器总数逐一对齐）；`chart-cloud` 的 12 个是对外部 AntV 包做**白名单放行**后的子集，
-不是自研工具；再加两个外部包，live 面共 10 个 server、171 个业务工具。
+本仓自研的是 **7 个 Python server、共 49 个工具**（与 `gewu/mcp/*.py` 里 `@mcp.tool()`
+的装饰器总数逐一对齐，可用 `grep -c "@mcp.tool()" gewu/mcp/*.py` 现场复核）；
+`chart-cloud` 的 12 个是对外部 AntV 包做**白名单放行**后的子集，不是自研工具；
+再加两个外部包，按上表求和共 10 个 server、172 个业务工具。
 
 | 服务 | 工具数 | 能力 |
 |---|---|---|
@@ -114,7 +128,7 @@ Python 侧只保留「科学工具层」（MCP Server），通过 MCP 被 OpenCl
 | `sci-exp` | 4 | 领域无关实验注册表：登记 / 查询 / 审计 / 重跑（`rerun_experiment`） |
 | `mil-model` | 6 | **真实** MIL 热值预测：`predict_calorific_value` 单 bag / `list_val_bags` 验证集列举 / `reproduce_fold` 复现某折 / `cv_summary` 5 折汇总 / `get_cached_metrics` 秒级读缓存指标（零 torch）/ `expand_result`。经 `coal_infer.py` 按路径引用外部未发表项目的 `.pt`+`.pkl` 做真实前向推理，可逐 bag 复现 5 折交叉验证 |
 | `sci-plot` | 17 | 含实验数据的统计图（本地 matplotlib 渲染，PDF 矢量 + PNG 300dpi，数据不出本机） |
-| `report` | 4 | 报告与论文草稿生成；含「本地写 LaTeX」工具族（write_local_file / write_latex_project / copy_local_file），把 .tex/.bib 源文件落盘本机，不依赖 Overleaf |
+| `report` | 5 | 报告与论文草稿生成；含「本地写 LaTeX」工具族（write_local_file / write_latex_project / copy_local_file / compile_latex），把 .tex/.bib 源文件落盘本机并直接编成 PDF，不依赖 Overleaf |
 | `chart-cloud` | 12 | 纯结构/概念图（包装 `@antv/mcp-server-chart`，云端出图：思维导图/桑基/鱼骨/组织架构/地图等；已禁用全部含数据图类型 15 个） |
 | `paper-search` | 57 | **外部包** `paper-search-mcp`（非本仓代码），多源论文检索（arXiv / Semantic Scholar / Crossref / OpenAlex / PubMed） |
 | `office-word` | 54 | **外部包** `word-document-server`（非本仓代码，`-m word_document_server.main` 起），本地生成/排版 Word（python-docx：标题/段落/表格/底纹合并/字体颜色/搜索替换/convert_to_pdf），用于中文期刊与学位论文成稿 |
@@ -133,10 +147,11 @@ gewu-sciagent/
 ├── docs/
 │   ├── architecture.md        # 架构设计与落地路线图
 │   ├── verification/          # 端到端实测记录（含反幻觉链与缺口清单）
-│   └── images/ui-overview.svg # 界面示意图
-├── tests/                     # Python 侧 16 个测试文件 / 200 用例（反幻觉、瘦身层、最小课题链路、PDF 编译、引擎获取等）
-├── scripts/                   # bootstrap_openclaw_config（生成网关配置）/ create_project /
-│                              #   export_case_bundle / e2e_smoke_test / run_min_case / fetch_tectonic
+│   └── images/                # ui-workbench.png（真实运行截图）/ ui-workbench-full.png / ui-overview.svg（架构示意）
+├── tests/                     # Python 侧 18 个测试文件 / 224 条用例（反幻觉、瘦身层、最小课题链路、PDF 编译、引擎获取、全量门禁等）
+├── scripts/                   # verify_all（一键全量门禁）/ bootstrap_openclaw_config（生成网关配置）/
+│                              #   create_project / export_case_bundle / e2e_smoke_test / run_min_case /
+│                              #   fetch_tectonic（下载并校验 tectonic）/ ablation_ingest（消融落库）
 ├── gewu/latex_build.py        # TeX 编译引擎（探测/编译/日志解析/缺字与 overfull 检测/内容指纹）
 ├── gewu/demo/                 # 最小课题（合成数据七阶段，零外部依赖）+ 十层校验器
 │   ├── synth.py               #   合成 LIBS 数据集（已知机制，可验证 MIL 假设）
@@ -302,21 +317,38 @@ openclaw config validate         # 校验配置
 openclaw mcp probe               # 验证 10 个 MCP 服务（8 个本机 + 2 个外部包）
 ```
 
-### 5. 跑测试（两套件，共 248 用例）
+### 5. 跑测试与全量门禁（两套件 272 用例 + 端到端）
+
+**只想知道「这仓库能不能用」，跑这一条就够**（评审/验收用）：
+
+```bash
+python scripts/verify_all.py          # 四项：pytest + node --test + 最小课题十层 + 真实课题 e2e
+python scripts/verify_all.py --fast   # 只跑两套单测，秒级
+python scripts/verify_all.py --json   # 机器可读，便于接任何 CI
+```
+
+- 退出码 **0 = 没有硬失败**；缺 node、缺真实课题存档、本机无 TeX 引擎时，对应项标 `SKIP`
+  并写明缺哪个外部条件，**不计为通过**。
+- 2026-11-09 实测：**4 项全 PASS，37–44 s**（差异来自磁盘缓存与是否需要重编 PDF）。
+- **本仓库没有接入托管 CI**：仅在 Gitee 托管，未开启 Gitee Go，所以不存在「每次 push 自动跑」的证据。
+  上面这条命令是等价的本地门禁，干净 clone 里可直接复现同一结论；作者不把「提供一个配置文件」
+  说成「已接 CI」。
+
+分项说明如下。
 
 ```bash
 # Python 侧：反幻觉链 / 结果瘦身层 / MCP 超时层级 / stdin 守护
-python -m pytest tests -q              # 共 200 用例（199 跑通 + 1 条联网用例默认跳过）
-#   允许跳过 1–5 个，取决于四个外部条件，都不是代码失败：
+python -m pytest tests -q              # 共 224 用例（223 跑通 + 1 条联网用例默认跳过）
+#   硬指标是 0 failed。passed/skipped 的具体条数会随四个外部条件浮动（跳过 1–5 条），
+#   所以这里只给带日期的一次实测快照，不承诺固定数字：
 #   ① test_verify_papers_fallback —— CrossRef 限流或断网时返回 verify_pending 而跳过；
 #   ② test_mcp_timeout_hierarchy —— 解包目录里没有 gitignore 的 .coal_project_root 时跳过；
 #   ③ test_e2e_chain 的 3 条 —— 真实课题存档（output/documents）按设计不入库，无存档时跳过；
 #   ④ test_fetch_tectonic 的联网安装 —— 要下载 20 MB，仅 GEWU_TEST_FETCH=1 时运行。
-#   用 `-rs` 可以看到每条跳过的原因。实测两种环境（2026-11-09 第三轮）：
-#     仓库内（本机有存档）：199 passed / 1 skipped（33.71s）
-#     干净 clone：        195 passed / 5 skipped / 0 failed（84.09s）
-#                         5 条跳过 = 3 条 e2e 无存档 + 1 条 mcp_timeout 无项目 + 1 条联网安装
-#                         全是「本机没有某个外部条件」，不是失败；若看到 failed 才是真问题。
+#   用 `-rs` 可以看到每条跳过的原因。实测（2026-11-09）：
+#     仓库内（本机有存档）：223 passed / 1 skipped / 0 failed（34.02s）
+#     干净 clone：CLONE_MEASURED_PLACEHOLDER
+#   跳过全是「本机没有某个外部条件」，不是失败；若看到 failed 才是真问题。
 # 完整开箱演练记录见 docs/verification/2026-11-04-clean-unpack-drill.md。
 
 # 真实课题端到端校验（九层：串联/数值一致/无矛盾/论文自洽/溯源/PDF 成品）
@@ -455,6 +487,21 @@ npm run build && npm start   # 生产：单端口 :3000 同时提供前端与 AP
 > bash start-gewu.sh     # 同时拉起网关(:18789) 与前端(:5173/:3000)，Ctrl+C 一并停止
 > ```
 > 日志写入 `.aris/logs/`（已在 .gitignore，不入库）。
+
+**截图怎么来的**（`docs/images/ui-workbench*.png` 可自行复现，不需要装 Playwright/Puppeteer）：
+
+```bash
+cd web && npm run dev &                     # 先起前端与代理
+sleep 8
+msedge --headless=new --disable-gpu --hide-scrollbars \
+  --window-size=1680,1050 --virtual-time-budget=9000 \
+  --screenshot=../docs/images/ui-workbench.png http://localhost:5173/
+# 长图把 --window-size 改成 1680,2600 即可（截图会包含右栏案例数据与消融实验）
+```
+
+> Vite 默认只监听 `localhost`（IPv6 `::1`），所以命令里用 `localhost` 而不是 `127.0.0.1`，
+> 否则会连不上——这是实测踩到的。
+> 截图必须来自真实运行：仓库不提供手绘的"效果图"冒充界面。
 
 ## 配置与隐私
 

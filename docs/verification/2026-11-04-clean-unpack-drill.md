@@ -4,6 +4,11 @@
 > 全部数字为本机实测，不来自文档复述。执行环境：Windows 10 19045 / Git Bash /
 > 便携 Node 26.9.0 / WorkBuddy 托管 Python（default、paper-search、office-word 三个 venv）。
 
+> ⚠️ **本文件是 2026-11-04 的实测快照，数字按当时写就，没有回填新值**（回填历史记录等同于篡改证据）。
+> 此后发生的变化：自研 MCP 工具 **48 → 49**（`report` 新增 `compile_latex`）、
+> Python 用例数 **68 → 224**（新增 PDF 编译、引擎获取、消融落库、全量门禁等）。
+> **最新口径以 `README.md` 与 `python scripts/verify_all.py` 的当次输出为准。**
+
 ## 0. 结论先说
 
 干净解包目录里，**配置生成 → schema 校验 → 10 个 MCP 服务真实起进程 → 两套件测试 →

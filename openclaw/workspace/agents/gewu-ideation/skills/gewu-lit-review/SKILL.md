@@ -148,7 +148,7 @@ JSON
   待人工复核，不得隐去。
 + 叙事性 gap 分析（3–5 段），重点写出**原页理解发现的图文矛盾/未言明假设**——
 这是纯文本路线拿不到的增量。输出到 `literature_review.md`，把 top idea 候选
-回传 director（A2A announce）。
+回传 director：写 `handoff_2_litreview.json` 落盘 + `sessions_spawn` 返回值带指针（未使用 A2A 协议层）。
 
 ### Step 6 — 阅读笔记的落盘写法（决定「送复现」能不能读懂）
 笔记存 `<project>/stages/2-literature/notes/<paperId>.md`（`PUT /api/papers/:id/notes`）。

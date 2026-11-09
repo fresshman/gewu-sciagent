@@ -21,7 +21,8 @@ description: 科研全生命周期 7 阶段工作流（定方向→读论文找i
 - 超过上限则取最佳结果进入 writer。
 
 ## 状态传递
-各阶段产出写入 `workspace/` 文件；子智能体以 A2A announce 向 director 回传摘要。
+各阶段产出写入 `workspace/` 文件；子智能体经 `sessions_spawn` 返回摘要指针，正文一律落盘为 `handoff_<stage>.json`，director 读文件续跑（不依赖会话消息体）。
+本项目**未使用 A2A 协议层**（框架提供但未接入），状态传递只靠 handoff 落盘 + 返回值。
 大对象（数据 / 权重）留在 MCP / Python 侧，只跨边界传路径 / ID。
 
 ## 阶段间 handoff schema（强化状态传递）

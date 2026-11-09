@@ -4,12 +4,22 @@
 > 以「大颗粒原煤 LIBS 光谱热值预测」作为**参考实现**证明深度与可复现性。
 > OpenClaw 为 **MIT 开源、本地优先** 的执行框架（当前稳定版 v2026.10.x），无需克隆其源码。
 
-### 当前落地状态（2026-10-22 已验证）
+### 当前落地状态（2026-11-09 复核）
 - ✅ OpenClaw v2026.10.5 安装并常驻运行（Gateway `gateway probe` 连通，`config validate` 通过）。
-- ✅ 书生模型 provider `sheng`（Intern-S1 / InternVL）已配置。
-- ✅ 8 个 MCP 服务（7 个 Python + 1 个 Node 包装）经 `openclaw mcp add` 注册到 `mcp.servers`，`mcp probe` 实测全部拉起并暴露工具。
+- ✅ 书生模型 provider `sheng` 已配置 4 个模型：`intern-s2`（397B/256K，`model.primary` 默认选它）、
+  `intern-s1-pro`、`intern-s1`、`internvl`。**已跑通真实推理**：多模态原页理解实测见
+  [`docs/verification/2026-10-23-english-papers.md`](verification/2026-10-23-english-papers.md)（3 篇英文期刊论文，
+  含一次误读暴露与纪律化），七阶段 handoff 均由真实 agent 会话产出。
+- ✅ 10 个 MCP server 经 `openclaw mcp add` 注册到 `mcp.servers`，`mcp probe` 实测全部拉起并暴露工具：
+  7 个自研 Python server（49 个业务工具）+ 1 个 Node 包装 `chart-cloud` + 2 个外部包
+  （`paper-search`、`office-word`）。
 - ✅ 7 个科研 Agent（`agents.ownership="explicit"`）已注册，各用独立工作区 `AGENTS.md` 承载角色，技能自动发现。
-- ⏳ 待办：填 `INTERN_API_KEY` 跑真实规划；导出 OpenVINO MIL 模型 + 接真实 LIBS 数据跑实参考实现；完善技术文档与演示材料。
+- ✅ 参考实现跑真数据：`mil_model` 直接推理外部未发表煤项目，逐 bag 复现 5 折指标
+  （214.57 ± 25.71 kcal/kg）；权重与 LIBS 数据始终留在原目录，不入库不上云。
+- ✅ 7 阶段全链路 handoff 落盘（`handoff_1_direction` … `handoff_7_distillation`），
+  `handoff_7` 状态为 `completed`、`next=done`，沉淀已写盘技能与角色级长周期记忆。
+- ⏳ **仍未闭环（如实列出，不计入已完成）**：无演示视频；未接入托管 CI（只有本地等价门禁）；
+  领域泛化仅有 1 个领域包；A2A 协议层与 Computer Use 未使用。
 
 ## 0. 产品定位（与"论文翻译/管理"工具的根本区别）
 格物**不是**又一个论文翻译、文献管理或笔记整理工具。它覆盖科研的**全生命周期**，
@@ -393,12 +403,13 @@ Skills / Agents 配置 / MCP 服务 / 领域知识——这些才是本项目自
 gewu-sciagent/
 ├── openclaw/                  # OpenClaw 项目（提交层的"应用"）
 │   ├── openclaw.json          # 网关配置：书生模型 / agents.entries / mcp.servers（真实 schema）
-│   ├── skills/                # 3 个 Skill 源（已复制进各 Agent 工作区 skills/）
-│   └── workspace/             # 共享 MEMORY.md / 数据 / 产出
+│   ├── skills/                # research_lifecycle 技能源（已复制进各 Agent 工作区 skills/）
+│   └── workspace/             # 共享 MEMORY.md / 数据 / 产出；workspace/skills/ 为共享副本池
 │       └── agents/<role>/     # 7 个 Agent 各自工作区，各含 AGENTS.md + skills/ + MEMORY.md
 ├── gewu/                      # Python 工具/技能/领域源码（被 OpenClaw 经 MCP 调用）
-│   ├── mcp/                   # 8 个 stdio MCP Server（sci_compute/sci_data/mil_model/report/sci_plot/office-word 为 Python；chart_cloud.mjs 为 Node 包装）
-│   ├── skills/  domain_packs/
+│   ├── skills/                # 另外两个技能源：mil_calibration / spectrum_preprocess
+│   ├── mcp/                   # 自研 7 个 Python stdio server（共 49 个业务工具）+ chart_cloud.mjs（Node 包装）
+│   └── domain_packs/          # 领域包（当前仅 coal_libs：knowledge.md + tools.py）
 ├── docs/  data/  README.md
 ```
 > Agent 角色**不写在 config 的某字段**，而是每个 Agent 工作区内的 **`AGENTS.md`**（OpenClaw 原生约定）；
@@ -455,16 +466,25 @@ gewu-sciagent/
 |---|---|
 | 实用价值 | 通用内核 = 广价值；全生命周期（含复现/发表/沉淀）= 真科研痛点；煤热值 = 可复现证据 |
 | 技术深度 | 书生模型 + OpenClaw 原生多智能体（`sessions_spawn`）+ 通用 MCP 工具层 + 多模态原页理解 + Agent Skills + 长周期记忆 + 上下文工程（结果瘦身层与在飞轨迹真值，均带实测数字） |
-| 完整度 | 7 阶段在参考实现上跑通，文档 + 视频齐全 |
+| 完整度 | 7 阶段在参考实现上跑通并有 handoff 落盘；文档齐全、取证文档 9 份、论文 PDF 已入库且可重编译；**无演示视频**（如实列出，不以"演示材料"泛指） |
 
 ## 10. 分阶段落地路线图（已验证进展 ✓）
 1. **安装 OpenClaw + 建项目骨架** ✓：OpenClaw v2026.10.5 经独立 **Node 26.9.0**（因要求 Node ≥24.16/<25 或 ≥26.1，本机 22/24 不满足）全局安装；`openclaw/openclaw.json` 已合并进 `~/.openclaw/openclaw.json` 并通过 `config validate`，Gateway 常驻运行、`gateway probe` 连通。
-2. **接书生大模型**：配置 `models.providers.sheng`（OpenAI 兼容 baseUrl）✓；待填 `INTERN_API_KEY` 后跑通真实规划（缺 key 时 config 仅 warning，不阻断启动）。
-3. **迁入 MCP 工具层** ✓：6 个 `gewu/mcp/*.py`（sci_compute/sci_data/mil_model/report/sci_plot）+ 1 个 Node 包装 `chart_cloud.mjs` 本就是合法 FastMCP/stdio server；Python 侧 venv 内 `mcp` 固定为 1.x 后导入正常，经 `openclaw mcp add` 注册到 `mcp.servers`，`openclaw mcp probe` 实测 8 个服务全部拉起并列出工具（`sci_compute` 含 PCA/PLS/拟合/交叉验证 4 工具；`sci-plot` 17 工具；`chart-cloud` 12 工具）。
+2. **接书生大模型** ✓：配置 `models.providers.sheng`（OpenAI 兼容 baseUrl），默认 `model.primary = sheng/intern-s2`；
+   **已用真实 API Key 跑通规划与实际科研会话**（缺 key 时 config 仅 warning，不阻断启动）。
+3. **迁入 MCP 工具层** ✓：自研 7 个 `gewu/mcp/*.py`（sci_compute 4 / sci_data 5 / mil_model 6 / sci_exp 4 / verify_server 8 / report 5 / sci_plot 17，共 **49** 个业务工具）+ 1 个 Node 包装 `chart_cloud.mjs`；Python 侧 venv 内 `mcp` 固定为 1.x 后导入正常，经 `openclaw mcp add` 注册到 `mcp.servers`。
+   **2026-10-22 实测** `openclaw mcp probe` 拉起 8 个服务并列出工具；此后新增 `sci-verify`、`office-word` 两个 server 已写入配置，
+   但本文件本次更新时**未复跑 `mcp probe`**（CLI 不在当前 PATH），故不宣称 10 个全部已 probe 通过。
 4. **写 7 个 Agent 角色** ✓：`agents.ownership="explicit"`，7 个 `agents.entries` 各指向独立工作区，角色写在工作区 `AGENTS.md`，技能从 `skills/` 自动发现；`config validate` 通过、Gateway 识别 7 个 Agent。
-5. **Skills 化** ✓：`spectrum_preprocess` / `mil_calibration` / `research_lifecycle` 三个 Skill 已就位并复制到各工作区。
+5. **Skills 化** ✓：3 个通用技能源 `research_lifecycle` / `mil_calibration` / `spectrum_preprocess` 已就位并复制到各工作区；
+   各角色另按需增补 `failure_mode_selfcheck` / `gewu-lit-review` / `gewu-review-loop` / `scientific_plotting` / `journal-match`，
+   沉淀阶段新增 `mil-libs-coal`。**全仓 9 个唯一技能**（`find . -name SKILL.md` 会数出 45 个文件，多出的是各 Agent 工作区的副本，属 OpenClaw 技能发现机制的必需冗余，不是重复内容）。
 6. **参考实现跑实** ✓：领域模型不再依赖 OpenVINO 导出，改为**按路径引用外部未发表项目**做真实推理
    （`coal_infer.py` 复用原项目 `src/` 的解析/预处理/模型结构，逐项对齐训练脚本）。
    `mil_model` 已能产出**真实热值预测**并逐 bag 复现 5 折交叉验证指标；
    模型权重与 LIBS 数据始终留在用户本机原目录，不入库、不上云（见 §4.5）。
-7. **沉淀闭环 + 文档**（待做）：`distillation` 真正写盘 Skill + 更新长周期记忆；完善技术文档与演示材料，提供可访问体验。
+7. **沉淀闭环 + 文档** ✓（部分）：`distillation` 已写盘 `handoff_7_distillation.json`（`status=completed`）、
+   新增技能 `mil-libs-coal`、更新角色级长周期记忆 `agents/gewu-distillation/MEMORY.md`，
+   并按其自身纪律更正了两条被证伪的旧结论；技术文档与论文 PDF 已入库。
+   **未完成**：演示视频、第二个领域包、`pending_distillation` 里两项
+   （`latex_to_word_conversion`、`ablation_study_protocol`）仍标 `待沉淀`。
