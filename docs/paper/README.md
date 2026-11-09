@@ -10,7 +10,7 @@
 
 | 目录 | 数据来源 | 用途 | 能否被第三方独立重跑 |
 |---|---|---|---|
-| `coal_report/` | 外部未发表煤项目的**真实** LIBS 数据与权重（留在本人本机） | 证明方法在真实数据上有效：5 折 RMSE `214.57 ± 25.71` kcal/kg | 否（依赖私有资产），但全部指标可由落盘预测值重算 |
+| `coal_report/` | 外部未发表煤项目的**真实** LIBS 数据与权重（留在本人本机） | 证明方法在真实数据上有效：5 折 RMSE `214.57 ± 25.71` kcal/kg；含组件级消融（逐个关闭 FiLM/SupCon/huber 各重训 5 折，结果为**未检出**） | 否（依赖私有资产），但全部指标可由落盘预测值重算 |
 | `min_case/` | `gewu/demo/synth.py` 的**合成**光谱 | 证明七阶段链路能从零跑通、数值能复算：`73.03 ± 10.17` kcal/kg | 是（`python scripts/run_min_case.py`） |
 
 `214.57` 与 `73.03` 是不同数据、不同任务难度下的数字，**禁止并列比较或相互"提升"换算**。
@@ -19,8 +19,8 @@
 
 | 文件 | 字节 | 页 | 内容指纹 |
 |---|---:|---:|---|
-| `coal_report/main.tex` | 13570 | — | 源 sha256 `08890a7efe72d709` |
-| `coal_report/main.pdf` | 270365 | 7 | `da35a1b09ca88960` |
+| `coal_report/main.tex` | 18814 | — | 源 sha256 `d10e45404d07bb55` |
+| `coal_report/main.pdf` | 324068 | 9 | `d912711f93fbffe6` |
 | `coal_report/coal_fold0_pred_true_20261028-121746.pdf` | 21992 | 1 | `df0ef2ae405bc5cb` |
 | `coal_report/coal_5fold_rmse_20261028-121844.pdf` | 19248 | 1 | `592ed3c7ce0ff4aa` |
 | `min_case/main.tex` | 5776 | — | 源 sha256 `fdab12d68004d71c` |
@@ -48,7 +48,7 @@ PDF 的「内容指纹」不是文件二进制哈希，而是提取正文、压�
 | 对象 | 二进制哈希（两次编译） | 内容指纹 |
 |---|---|---|
 | `min_case` | `d9f2efe9a5c1` / `b5585732bbd5`（不同） | 均 `5b909ef5faf94698` |
-| `coal_report` | `3bc4d6a8cb1d` / `de99ab7a46f2`（不同） | 均 `da35a1b09ca88960` |
+| `coal_report` | `ceb63a1a3315` / `f5886837bef8`（不同） | 均 `d912711f93fbffe6` |
 
 即**默认**下：排版结果可复现、字节能不同。但「字节不可复现」不是引擎的固有性质，
 只是默认没钉时间戳——加 `source_date_epoch`（CLI `--source-date-epoch`）之后

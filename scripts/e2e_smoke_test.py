@@ -472,8 +472,8 @@ def check_pdf() -> list[str]:
     if len(text.strip()) < 500:
         errors.append(f"PDF 可提取正文仅 {len(text.strip())} 字符（中文掉字或空壳）")
 
-    # 关键数值来自 5 折结果、PLSR 基线与消融表，三者缺一即说明 PDF 不是本版论文
-    for probe in ("214.57", "233.95", "347.55"):
+    # 关键数值来自 5 折结果、PLSR 基线、池化消融与组件级消融，四者缺一即说明 PDF 不是本版论文
+    for probe in ("214.57", "233.95", "347.55", "215.75"):
         if probe not in text:
             errors.append(f"PDF 正文缺少关键数值 {probe}（可能为旧版本）")
 

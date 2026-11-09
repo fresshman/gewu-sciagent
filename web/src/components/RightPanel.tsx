@@ -68,41 +68,44 @@ function PairedTestBlock({ t }: { t?: PairedTest }) {
   );
 }
 
-// 消融：组内比较才有意义，跨组（与最终配置）不可相减，caveat 常驻显示
+// 消融：组内比较才有意义，跨组（与最终配置）不可相减，caveat 常驻显示。
+// 三组基准不同（347.55 / 347.55 / 215.75），故条形图必须**按组各自归一**，
+// 否则跨组共用一条 vMax 会把「不同基准」画成「同一把尺子」。
 function AblationBlock({ abl }: { abl?: CaseAblation | null }) {
   if (!abl || abl.status !== "available") return null;
-  const seqs: Array<{ title: string; items: CaseAblation["pooling"] }> = [
-    { title: "池化策略对比", items: abl.pooling },
-    { title: "优化路径", items: abl.path },
+  const groups: Array<{ title: string; items: CaseAblation["pooling"]; caveat: string }> = [
+    { title: "池化策略对比", items: abl.pooling, caveat: abl.caveat },
+    { title: "优化路径", items: abl.path, caveat: abl.caveat },
+    { title: "组件级消融", items: abl.component ?? [], caveat: abl.component_caveat || abl.caveat },
   ].filter((s) => s.items.length > 0);
-  if (!seqs.length) return null;
-  const vMax = Math.max(...seqs.flatMap((s) => s.items.map((i) => i.rmse)));
+  if (!groups.length) return null;
+  const total = groups.reduce((n, g) => n + g.items.length, 0);
 
   return (
     <div className="case-ablation">
       <div className="case-subhead">
-        消融实验{" "}
-        <span className="case-meta">
-          组内比较 · {abl.pooling.length + abl.path.length} 条
-        </span>
+        消融实验 <span className="case-meta">组内比较 · {total} 条</span>
       </div>
-      {seqs.map((seq) => (
-        <div key={seq.title} className="case-ablation__group">
-          <div className="case-meta">{seq.title}</div>
-          {seq.items.map((it) => (
-            <div className="case-ablation__row" key={it.id}>
-              <span className="case-ablation__label" title={it.label}>
-                {it.label}
-              </span>
-              <code className="case-ablation__val">{fmt(it.rmse)}</code>
-              <span className="case-ablation__bar">
-                <i style={{ width: `${Math.max(2, (it.rmse / vMax) * 100)}%` }} />
-              </span>
-            </div>
-          ))}
-        </div>
-      ))}
-      <div className="case-note case-note--warn">{abl.caveat}</div>
+      {groups.map((g) => {
+        const vMax = Math.max(...g.items.map((i) => i.rmse));
+        return (
+          <div key={g.title} className="case-ablation__group">
+            <div className="case-meta">{g.title}</div>
+            {g.items.map((it) => (
+              <div className="case-ablation__row" key={it.id}>
+                <span className="case-ablation__label" title={it.label}>
+                  {it.label}
+                </span>
+                <code className="case-ablation__val">{fmt(it.rmse)}</code>
+                <span className="case-ablation__bar">
+                  <i style={{ width: `${Math.max(2, (it.rmse / vMax) * 100)}%` }} />
+                </span>
+              </div>
+            ))}
+            <div className="case-note case-note--warn">{g.caveat}</div>
+          </div>
+        );
+      })}
     </div>
   );
 }

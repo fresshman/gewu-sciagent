@@ -1,0 +1,409 @@
+{
+  "schema": "gewu.ablation.component.v1",
+  "generated_at": "2026-11-09T07:22:58+00:00",
+  "provenance": {
+    "produced_by": "coal-mil/scripts/run_component_ablation.py",
+    "aggregated_by": "coal-mil/scripts/aggregate_component_ablation.py",
+    "source_relpath": "coal-mil/outputs/abl_component/ablation_summary.json",
+    "source_sha256": "27f3834eb1eabd6edfa03e812a54583783a3c5c31651460e2593e5b486373b37",
+    "held_out": "原始光谱、模型权重、逐样本预测未入库（未发表资产，留在作者本机）"
+  },
+  "convention": "per-fold 均值口径（每折各自算 RMSE 再取均值），std 为总体标准差 ddof=0；Δ = 该臂 − base（正值表示该臂更差，即被去掉的组件有正贡献）",
+  "folds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "plsr_check": "各臂 per-fold PLSR RMSE 完全一致 → 数据加载与折划分未漂移",
+  "arms": {
+    "base": {
+      "desc": "最终配置（FiLM + SupCon + huber）",
+      "per_fold_rmse": [
+        220.3821,
+        241.6676,
+        244.9398,
+        222.2919,
+        149.451
+      ],
+      "mean_rmse": 215.7465,
+      "std_rmse": 34.5936,
+      "per_fold_plsr_rmse": [
+        231.2064,
+        248.8767,
+        255.2973,
+        230.6638,
+        203.7164
+      ],
+      "mean_plsr_rmse": 233.9521,
+      "epochs_run": [
+        22,
+        22,
+        23,
+        26,
+        84
+      ],
+      "best_epochs": [
+        2,
+        2,
+        3,
+        6,
+        64
+      ]
+    },
+    "no_film": {
+      "desc": "去掉 FiLM 融合",
+      "per_fold_rmse": [
+        217.5337,
+        246.1763,
+        250.356,
+        223.6906,
+        199.427
+      ],
+      "mean_rmse": 227.4367,
+      "std_rmse": 18.8314,
+      "per_fold_plsr_rmse": [
+        231.2064,
+        248.8767,
+        255.2973,
+        230.6638,
+        203.7164
+      ],
+      "mean_plsr_rmse": 233.9521,
+      "epochs_run": [
+        21,
+        25,
+        22,
+        33,
+        51
+      ],
+      "best_epochs": [
+        1,
+        5,
+        2,
+        13,
+        31
+      ],
+      "vs_base": {
+        "n": 5,
+        "deltas": [
+          -2.8484,
+          4.5087,
+          5.4162,
+          1.3987,
+          49.976
+        ],
+        "mean_delta": 11.6902,
+        "std_delta": 21.645,
+        "all_same_direction": false,
+        "n_positive": 4,
+        "method": "paired t-test (two-sided), a - b",
+        "t": 1.2077,
+        "df": 4,
+        "p": 0.293693,
+        "ci95": [
+          -15.1856,
+          38.5661
+        ],
+        "wilcoxon": {
+          "stat": 2.0,
+          "p": 0.1875,
+          "note": "n=5 时双侧最小可达 p=0.0625，永远不可能 <0.05"
+        },
+        "rel_pct": 5.419,
+        "lofo": {
+          "drop_fold0": {
+            "mean_delta": 15.3249,
+            "n": 4,
+            "t": 1.3231,
+            "p": 0.2776,
+            "sign_flip_vs_full": false
+          },
+          "drop_fold1": {
+            "mean_delta": 13.4856,
+            "n": 4,
+            "t": 1.0982,
+            "p": 0.3524,
+            "sign_flip_vs_full": false
+          },
+          "drop_fold2": {
+            "mean_delta": 13.2587,
+            "n": 4,
+            "t": 1.0752,
+            "p": 0.3611,
+            "sign_flip_vs_full": false
+          },
+          "drop_fold3": {
+            "mean_delta": 14.2631,
+            "n": 4,
+            "t": 1.1839,
+            "p": 0.3217,
+            "sign_flip_vs_full": false
+          },
+          "drop_fold4": {
+            "mean_delta": 2.1188,
+            "n": 4,
+            "t": 1.1356,
+            "p": 0.3386,
+            "sign_flip_vs_full": false
+          }
+        },
+        "dominant_fold": {
+          "fold": 4,
+          "delta": 49.976,
+          "abs_delta": 49.976,
+          "mean_abs_delta_others": 3.543,
+          "leverage_ratio": 14.106,
+          "note": "若该折的 |Δ| 远大于其余折均值，则整体结论由单折驱动"
+        }
+      }
+    },
+    "no_supcon": {
+      "desc": "去掉 SupCon 预训练（encoder 随机初始化）",
+      "per_fold_rmse": [
+        221.638,
+        245.3612,
+        242.7499,
+        217.9137,
+        203.8321
+      ],
+      "mean_rmse": 226.299,
+      "std_rmse": 15.6895,
+      "per_fold_plsr_rmse": [
+        231.2064,
+        248.8767,
+        255.2973,
+        230.6638,
+        203.7164
+      ],
+      "mean_plsr_rmse": 233.9521,
+      "epochs_run": [
+        21,
+        21,
+        39,
+        22,
+        21
+      ],
+      "best_epochs": [
+        1,
+        1,
+        19,
+        2,
+        1
+      ],
+      "vs_base": {
+        "n": 5,
+        "deltas": [
+          1.2559,
+          3.6936,
+          -2.1899,
+          -4.3782,
+          54.3811
+        ],
+        "mean_delta": 10.5525,
+        "std_delta": 24.6967,
+        "all_same_direction": false,
+        "n_positive": 3,
+        "method": "paired t-test (two-sided), a - b",
+        "t": 0.9554,
+        "df": 4,
+        "p": 0.393463,
+        "ci95": [
+          -20.1125,
+          41.2175
+        ],
+        "wilcoxon": {
+          "stat": 6.0,
+          "p": 0.8125,
+          "note": "n=5 时双侧最小可达 p=0.0625，永远不可能 <0.05"
+        },
+        "rel_pct": 4.891,
+        "lofo": {
+          "drop_fold0": {
+            "mean_delta": 12.8767,
+            "n": 4,
+            "t": 0.9238,
+            "p": 0.4237,
+            "sign_flip_vs_full": false
+          },
+          "drop_fold1": {
+            "mean_delta": 12.2672,
+            "n": 4,
+            "t": 0.8709,
+            "p": 0.4479,
+            "sign_flip_vs_full": false
+          },
+          "drop_fold2": {
+            "mean_delta": 13.7381,
+            "n": 4,
+            "t": 1.0063,
+            "p": 0.3884,
+            "sign_flip_vs_full": false
+          },
+          "drop_fold3": {
+            "mean_delta": 14.2852,
+            "n": 4,
+            "t": 1.0645,
+            "p": 0.3652,
+            "sign_flip_vs_full": false
+          },
+          "drop_fold4": {
+            "mean_delta": -0.4046,
+            "n": 4,
+            "t": -0.2258,
+            "p": 0.8358,
+            "sign_flip_vs_full": true
+          }
+        },
+        "dominant_fold": {
+          "fold": 4,
+          "delta": 54.3811,
+          "abs_delta": 54.3811,
+          "mean_abs_delta_others": 2.8794,
+          "leverage_ratio": 18.886,
+          "note": "若该折的 |Δ| 远大于其余折均值，则整体结论由单折驱动"
+        }
+      }
+    },
+    "no_huber": {
+      "desc": "huber 换回 MSE",
+      "per_fold_rmse": [
+        213.037,
+        243.213,
+        248.3544,
+        220.1542,
+        165.9123
+      ],
+      "mean_rmse": 218.1342,
+      "std_rmse": 29.3237,
+      "per_fold_plsr_rmse": [
+        231.2064,
+        248.8767,
+        255.2973,
+        230.6638,
+        203.7164
+      ],
+      "mean_plsr_rmse": 233.9521,
+      "epochs_run": [
+        59,
+        22,
+        23,
+        48,
+        74
+      ],
+      "best_epochs": [
+        39,
+        2,
+        3,
+        28,
+        54
+      ],
+      "vs_base": {
+        "n": 5,
+        "deltas": [
+          -7.3451,
+          1.5454,
+          3.4146,
+          -2.1377,
+          16.4613
+        ],
+        "mean_delta": 2.3877,
+        "std_delta": 8.8746,
+        "all_same_direction": false,
+        "n_positive": 3,
+        "method": "paired t-test (two-sided), a - b",
+        "t": 0.6016,
+        "df": 4,
+        "p": 0.579869,
+        "ci95": [
+          -8.6316,
+          13.407
+        ],
+        "wilcoxon": {
+          "stat": 6.0,
+          "p": 0.8125,
+          "note": "n=5 时双侧最小可达 p=0.0625，永远不可能 <0.05"
+        },
+        "rel_pct": 1.107,
+        "lofo": {
+          "drop_fold0": {
+            "mean_delta": 4.8209,
+            "n": 4,
+            "t": 1.191,
+            "p": 0.3193,
+            "sign_flip_vs_full": false
+          },
+          "drop_fold1": {
+            "mean_delta": 2.5983,
+            "n": 4,
+            "t": 0.5078,
+            "p": 0.6466,
+            "sign_flip_vs_full": false
+          },
+          "drop_fold2": {
+            "mean_delta": 2.131,
+            "n": 4,
+            "t": 0.4168,
+            "p": 0.7049,
+            "sign_flip_vs_full": false
+          },
+          "drop_fold3": {
+            "mean_delta": 3.5191,
+            "n": 4,
+            "t": 0.7165,
+            "p": 0.5254,
+            "sign_flip_vs_full": false
+          },
+          "drop_fold4": {
+            "mean_delta": -1.1307,
+            "n": 4,
+            "t": -0.4769,
+            "p": 0.666,
+            "sign_flip_vs_full": true
+          }
+        },
+        "dominant_fold": {
+          "fold": 4,
+          "delta": 16.4613,
+          "abs_delta": 16.4613,
+          "mean_abs_delta_others": 3.6107,
+          "leverage_ratio": 4.559,
+          "note": "若该折的 |Δ| 远大于其余折均值，则整体结论由单折驱动"
+        }
+      }
+    }
+  },
+  "reference_archive": {
+    "source": "outputs/best_solution/summary.json",
+    "mean_rmse": 214.5699,
+    "per_fold_rmse": [
+      218.6108,
+      244.9214,
+      222.3821,
+      220.0729,
+      166.8624
+    ],
+    "base_rerun_mean_rmse": 215.7465,
+    "base_rerun_per_fold": [
+      220.3821,
+      241.6676,
+      244.9398,
+      222.2919,
+      149.451
+    ],
+    "per_fold_diff": [
+      1.7713,
+      -3.2538,
+      22.5577,
+      2.219,
+      -17.4114
+    ],
+    "delta": 1.1766,
+    "abs_diff_median": 3.2538,
+    "abs_diff_mean": 9.4426,
+    "abs_diff_max": 22.5577,
+    "noise_scale_note": "同配置跨环境（CUDA↔本机 CPU）重训的逐折 |Δ| 统计，作为「重训抖动」的量级参照：任何小于该量级的组件效应都无法与重训噪声区分。",
+    "note": "存档为另一台机器（CUDA）+ 另一版 torch 产出；本机 CPU 重训不可能逐位相同。该偏差只用于说明环境差异与噪声量级，**不参与任何组件贡献计算**。"
+  }
+}

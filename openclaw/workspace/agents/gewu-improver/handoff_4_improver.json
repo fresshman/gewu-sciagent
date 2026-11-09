@@ -5,7 +5,7 @@
   "title": "MIL+LIBS 大颗粒原煤热值预测 · 改进分析（基线对比 + 消融 + 统计检验）",
   "created_by": "gewu-improver",
   "created_at": "2026-10-28T16:00:00+08:00",
-  "updated_at": "2026-11-09T10:40:00+08:00",
+  "updated_at": "2026-11-09T15:30:00+08:00",
   "inputs": [
     "handoff_3_repro.json",
     "handoff_plot.json",
@@ -15,7 +15,9 @@
   "outputs": [
     "handoff_4_improver.json",
     "output/documents/coal_report/metrics_recomputed.json",
-    "scripts/recompute_coal_metrics.py"
+    "scripts/recompute_coal_metrics.py",
+    "docs/verification/ablation_component.json",
+    "docs/verification/2026-11-09-component-ablation.md"
   ],
   "provenance": {
     "primary_source": "COAL_PROJECT_ROOT/coal-mil/outputs/best_solution/fold{0..4}/predictions.json（真实推理落盘预测值，n=70）",
@@ -83,6 +85,226 @@
     "registry_entries": ["abl_pool_maxpool", "abl_pool_abmil_scratch", "abl_pool_abmil_frozen", "abl_pool_meanpool", "abl_pool_lse_fixed", "abl_pool_lse_learnable"],
     "reproducibility_caveat": "这批数值由原始项目脚本硬编码于绘图代码，非自动记录；复现需在外部项目运行 compare_hybrid_pools.py / compare_fusion_modes.py。注册表已显式登记该来源与复现路径。",
     "config_caveat": "【重要】以下消融均在「MeanPool 基线阶段」的配置下（MSE loss，无 SupCon 预训练 + 无 FiLM 调制），与最终 214.57 的配置（huber loss + SupCon + TransMIL + FiLM）不同，两组数字不可直接相减比较。",
+    "component_ablation": {
+      "status": "completed",
+      "added_after_scoring_note": "本块为 2026-11-09 新增证据，晚于上方 improve_score 的判分时点；判分记录按原样保留，不改写历史。",
+      "design": "在最终配置上逐个关闭一个组件（FiLM / SupCon / huber），各重训完整 5 折；折划分 seed=42、lr/wd/dropout/batch/epochs/早停/余弦/增强全部不动",
+      "environment": "本机 CPU（torch 2.14.1+cpu，无 CUDA）；单 epoch 6.6s；20 折合计约 127 min",
+      "registry_entries": [
+        "abl_comp_base",
+        "abl_comp_no_film",
+        "abl_comp_no_supcon",
+        "abl_comp_no_huber"
+      ],
+      "input_consistency_check": "PLSR 不依赖被消融组件，四臂逐折 PLSR RMSE 必须相同；实测均为 [231.2064, 248.8767, 255.2973, 230.6638, 203.7164]，与存档逐位一致 → 数据加载与折划分未漂移",
+      "arms": [
+        {
+          "arm": "base",
+          "config": {
+            "fusion_mode": "film",
+            "pretrain": "SupCon",
+            "loss": "huber"
+          },
+          "mean_rmse_kcal_kg": 215.7465,
+          "std_rmse_kcal_kg": 34.5936,
+          "per_fold_rmse": [
+            220.3821,
+            241.6676,
+            244.9398,
+            222.2919,
+            149.451
+          ],
+          "epochs_run": [
+            22,
+            22,
+            23,
+            26,
+            84
+          ],
+          "best_epochs": [
+            2,
+            2,
+            3,
+            6,
+            64
+          ]
+        },
+        {
+          "arm": "no_film",
+          "config": {
+            "fusion_mode": "none",
+            "pretrain": "SupCon",
+            "loss": "huber"
+          },
+          "mean_rmse_kcal_kg": 227.4367,
+          "std_rmse_kcal_kg": 18.8314,
+          "per_fold_rmse": [
+            217.5337,
+            246.1763,
+            250.356,
+            223.6906,
+            199.427
+          ],
+          "epochs_run": [
+            21,
+            25,
+            22,
+            33,
+            51
+          ],
+          "best_epochs": [
+            1,
+            5,
+            2,
+            13,
+            31
+          ],
+          "delta_vs_base_kcal_kg": 11.6902,
+          "relative_pct": 5.419,
+          "paired_t": 1.2077,
+          "p_value": 0.293693,
+          "ci95": [
+            -15.1856,
+            38.5661
+          ],
+          "all_same_direction": false,
+          "n_folds_reversed": 1,
+          "dominant_fold": 4,
+          "leave_dominant_out": {
+            "mean_delta": 2.1188,
+            "p": 0.3386,
+            "sign_flip": false
+          }
+        },
+        {
+          "arm": "no_supcon",
+          "config": {
+            "fusion_mode": "film",
+            "pretrain": "none(随机初始化)",
+            "loss": "huber"
+          },
+          "mean_rmse_kcal_kg": 226.299,
+          "std_rmse_kcal_kg": 15.6895,
+          "per_fold_rmse": [
+            221.638,
+            245.3612,
+            242.7499,
+            217.9137,
+            203.8321
+          ],
+          "epochs_run": [
+            21,
+            21,
+            39,
+            22,
+            21
+          ],
+          "best_epochs": [
+            1,
+            1,
+            19,
+            2,
+            1
+          ],
+          "delta_vs_base_kcal_kg": 10.5525,
+          "relative_pct": 4.891,
+          "paired_t": 0.9554,
+          "p_value": 0.393463,
+          "ci95": [
+            -20.1125,
+            41.2175
+          ],
+          "all_same_direction": false,
+          "n_folds_reversed": 2,
+          "dominant_fold": 4,
+          "leave_dominant_out": {
+            "mean_delta": -0.4046,
+            "p": 0.8358,
+            "sign_flip": true
+          }
+        },
+        {
+          "arm": "no_huber",
+          "config": {
+            "fusion_mode": "film",
+            "pretrain": "SupCon",
+            "loss": "mse"
+          },
+          "mean_rmse_kcal_kg": 218.1342,
+          "std_rmse_kcal_kg": 29.3237,
+          "per_fold_rmse": [
+            213.037,
+            243.213,
+            248.3544,
+            220.1542,
+            165.9123
+          ],
+          "epochs_run": [
+            59,
+            22,
+            23,
+            48,
+            74
+          ],
+          "best_epochs": [
+            39,
+            2,
+            3,
+            28,
+            54
+          ],
+          "delta_vs_base_kcal_kg": 2.3877,
+          "relative_pct": 1.107,
+          "paired_t": 0.6016,
+          "p_value": 0.579869,
+          "ci95": [
+            -8.6316,
+            13.407
+          ],
+          "all_same_direction": false,
+          "n_folds_reversed": 2,
+          "dominant_fold": 4,
+          "leave_dominant_out": {
+            "mean_delta": -1.1307,
+            "p": 0.666,
+            "sign_flip": true
+          }
+        }
+      ],
+      "verdict": "未检出：三组件效应量 +11.69/+10.55/+2.39 kcal/kg，但 p=0.294/0.393/0.580、95% CI 全部跨 0、5 折方向不一致（1/2/2 折反向）",
+      "leverage_finding": "三组的最大差值均出现在 fold4（杠杆比 14.1x / 18.9x / 4.6x）；剔除该折后效应收缩到 +2.12 / -0.40 / -1.13（后两者符号翻转）",
+      "noise_scale": {
+        "source": "base 本机重训 vs 存档（CUDA，另一版 torch）逐折差",
+        "abs_diff_median": 3.2538,
+        "abs_diff_mean": 9.4426,
+        "abs_diff_max": 22.5577,
+        "mean_level_delta": 1.1766,
+        "reading": "同配置同 seed 仅换执行环境，单折即可差 22.56 kcal/kg；小于该量级的组件效应无法与重训噪声区分"
+      },
+      "resolution_limit": "以现有 CI 宽度衡量，约 15–20 kcal/kg 以下的效应在该 5 折设计下不可分辨",
+      "claims_allowed": [
+        "5 折设计分辨率不足，可量化",
+        "单次 5 折的组件贡献声明可能由个别折主导（已有杠杆比证据）"
+      ],
+      "claims_forbidden": [
+        "不能宣称 FiLM/SupCon/huber 有效（统计不支持）",
+        "不能宣称三者无效（CI 过宽，同样不支持）",
+        "不能与存档 214.57 混算，也不能与注册表 347.55 那组相减"
+      ],
+      "artifact": "docs/verification/ablation_component.json",
+      "artifact_sha256_of_source": "27f3834eb1eabd6edfa03e812a54583783a3c5c31651460e2593e5b486373b37",
+      "doc": "docs/verification/2026-11-09-component-ablation.md",
+      "reproduce": [
+        "python scripts/run_component_ablation.py --arm all --resume  (外部煤项目)",
+        "python scripts/aggregate_component_ablation.py              (外部煤项目)",
+        "python scripts/ablation_ingest.py --check                   (本仓库)"
+      ],
+      "known_limits": [
+        "单 seed、单次重训；噪声标尺用跨环境差，混合了设备与版本两因素，只能作上界参考",
+        "未做 2^3 交互效应（70 bag 上估不准）",
+        "最终配置的 TransMIL vs Mean/Max 池化仍未覆盖"
+      ]
+    },
     "pooling_comparison": {
       "setting": "hybrid(残差) 模式 + MSE loss，5 折平均 RMSE (kcal/kg)",
       "results": [

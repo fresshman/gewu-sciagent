@@ -127,6 +127,9 @@ export interface CaseAblation {
   caveat: string;
   pooling: AblationItem[];
   path: AblationItem[];
+  /** 组件级消融（第三组，基准为最终配置本机重训）；与上面两组不可相减 */
+  component?: AblationItem[];
+  component_caveat?: string;
   source?: string;
 }
 

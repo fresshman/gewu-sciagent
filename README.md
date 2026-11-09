@@ -421,7 +421,7 @@ python -c "import sys;sys.path.insert(0,'gewu/mcp');import sci_exp,json;print(js
 
 ### 9. 论文编译成 PDF（可选）
 
-仓库里已有编译好的成品 `docs/paper/*/main.pdf`（7 页 / 3 页），不跑这一步也能直接翻阅。
+仓库里已有编译好的成品 `docs/paper/*/main.pdf`（9 页 / 3 页），不跑这一步也能直接翻阅。
 想自己从 `.tex` 重编：
 
 ```bash
@@ -500,7 +500,8 @@ A：替换 `gewu/domain_packs/` 下的领域包即可，通用内核与七阶段
 | 文档 | 内容 |
 |---|---|
 | [`docs/architecture.md`](docs/architecture.md) | 架构设计、配置要点与分阶段落地路线图 |
-| [`docs/paper/README.md`](docs/paper/README.md) | **论文成品**：两篇 `.tex` 源 + 编译好的 PDF（7 页 / 3 页）、内容指纹与页数，说明为何用文本指纹而非文件哈希、以及 `214.57` 与 `73.03` 禁止并列比较 |
+| [`docs/paper/README.md`](docs/paper/README.md) | **论文成品**：两篇 `.tex` 源 + 编译好的 PDF（9 页 / 3 页）、内容指纹与页数，说明为何用文本指纹而非文件哈希、以及 `214.57` 与 `73.03` 禁止并列比较 |
+| [`docs/verification/2026-11-09-component-ablation.md`](docs/verification/2026-11-09-component-ablation.md) | **组件级消融取证**：最终配置下逐个关闭 FiLM / SupCon / huber，各重训完整 5 折（20 折，CPU 约 127 min）。结论是**阴性**：效应量 +11.69 / +10.55 / +2.39 kcal/kg，但 `p=0.294/0.393/0.580`、95% CI 全部跨 0、5 折方向不一致，且 83%–95% 的均值差由单一离群折贡献；含「同配置跨环境重训」噪声标尺（单折最大差 22.56）与分辨率上限估算 |
 | [`docs/verification/2026-11-09-pdf-pipeline.md`](docs/verification/2026-11-09-pdf-pipeline.md) | **PDF 编译链路取证**：tectonic 接入、两篇论文真实编译（0 error / 0 缺字 / 0 overfull）、抓到「中文全丢但退出码为 0」「三处 overfull 截断」「快照天天漂移」三类真缺陷与修法，含确定性实测（二进制不同、文本指纹相同）与未覆盖边界 |
 | [`docs/verification/2026-11-09-min-case.md`](docs/verification/2026-11-09-min-case.md) | **冷启动端到端取证**：合成数据七阶段一条命令跑通，PLSR `150.44` → MIL `122.79` → hybrid `73.03` kcal/kg；十层 72 项校验、12 条负向测试、`sci_exp` 零改代码重算 `abs_diff=0.0` |
 | [`docs/verification/2026-11-04-clean-unpack-drill.md`](docs/verification/2026-11-04-clean-unpack-drill.md) | **开箱可复现演练**：干净解包 → 生成配置 → `config validate` → `mcp probe` 10 服务 → 两套件 → `npm install/build` → 代理起服的真实数字，含演练里发现并修掉的 6 个缺陷、如实记录的已知缺口，以及 §10 的 parse_figure 批次追加复验（含「MCP 子进程 env 白名单」部署链路单验） |

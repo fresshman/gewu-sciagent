@@ -138,6 +138,14 @@ def test_real_coal_registry_loads():
     assert exps["our_hybrid"]["domain"] == "coal-mil"
     assert exps["our_hybrid"]["reproducibility"] == "realizable_by_gewu"
     assert exps["our_hybrid"]["rerun"]["type"] == "cli"
-    # 15 条对比/消融实验诚实标注为 requires_original_script
+    # 19 条对比/消融实验诚实标注为 requires_original_script
+    # （17 条含池化/路径两组 12 条 + 组件级消融 4 条；our_hybrid 与 plsr_baseline 可重算）
     n_needs = sum(1 for e in exps.values() if e["reproducibility"] == "requires_original_script")
-    assert n_needs == 15
+    assert n_needs == 19
+    assert exps["our_hybrid"]["reproducibility"] != "requires_original_script"
+    # 组件级消融 4 臂必须都在台账里，且都不可由格物重算
+    for arm in ("base", "no_film", "no_supcon", "no_huber"):
+        e = exps["abl_comp_" + arm]
+        assert e["reproducibility"] == "requires_original_script"
+        assert e["metrics"]["rmse_kcal_mean"] is not None
+        assert len(e["metrics"]["per_fold_rmse_kcal"]) == 5

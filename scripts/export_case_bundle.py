@@ -64,6 +64,15 @@ ABLATION_CAVEAT = (
     "该系列只用于比较组内相对优劣。"
 )
 
+# 组件级消融（2026-11-09）是**第三组**：基准就是最终配置本身（本机 CPU 重训 215.75），
+# 与上面那组（基准 347.55）和存档 214.57 都不同源，三组之间一律不可相减。
+COMPONENT_ABLATION_CAVEAT = (
+    "组件级消融的基准为最终配置本机 CPU 重训（215.75 ± 34.59），"
+    "与存档 214.57 非同一进程产出，也与上面「MSE 阶段」那组（基准 347.55）不同源；"
+    "三组数值互不可相减。三个组件均**未检出**（p=0.29/0.39/0.58，95% CI 全部跨 0，"
+    "5 折方向不一致），故只报方向、不作有效性声明。"
+)
+
 # 仓库内需要登记为「阶段产出物」的文件（相对仓库根）。
 ARTIFACT_GLOBS = [
     ("output/documents/coal_report", ("*.tex", "*.json")),
@@ -452,31 +461,41 @@ def build_ablation() -> dict | None:
     except (json.JSONDecodeError, OSError):
         return None
 
-    pool_seq, path_seq = [], []
+    pool_seq, path_seq, comp_seq = [], [], []
     for e in reg.get("experiments", []):
         if e.get("category") != "ablation":
             continue
         rmse = (e.get("metrics") or {}).get("rmse_kcal_mean")
         if rmse is None:
             continue
-        label = re.sub(r"^消融-(池化策略|优化路径):\s*", "", e.get("name") or e["id"])
+        label = re.sub(
+            r"^(消融-(?:池化策略|优化路径):\s*|组件级消融-)", "", e.get("name") or e["id"]
+        )
         item = {
             "id": e["id"],
             "label": label,
             "rmse": round(float(rmse), 2),
             "config": e.get("config") or {},
         }
-        (pool_seq if e["id"].startswith("abl_pool_") else path_seq).append(item)
+        # 三组分开放：任何跨组拼接都会把不同基准的数字放进同一条排序里
+        if e["id"].startswith("abl_pool_"):
+            pool_seq.append(item)
+        elif e["id"].startswith("abl_comp_"):
+            comp_seq.append(item)
+        else:
+            path_seq.append(item)
 
-    if not pool_seq and not path_seq:
+    if not pool_seq and not path_seq and not comp_seq:
         return None
-    for seq in (pool_seq, path_seq):
+    for seq in (pool_seq, path_seq, comp_seq):
         seq.sort(key=lambda x: x["rmse"])
     return {
         "status": "available",
         "caveat": ABLATION_CAVEAT,
         "pooling": pool_seq,
         "path": path_seq,
+        "component": comp_seq,
+        "component_caveat": COMPONENT_ABLATION_CAVEAT,
         "source": "gewu/mcp/registry/coal_mil.json#category=ablation",
     }
 
@@ -783,6 +802,14 @@ def validate_bundle(bundle: dict, *, tol: float = 0.02) -> list[str]:
     abl = bundle.get("ablation")
     if abl and not (abl.get("caveat") or "").strip():
         errs.append("ablation 缺少 caveat，跨配置数值会被误读")
+    if abl and abl.get("component") and not (abl.get("component_caveat") or "").strip():
+        errs.append("组件级消融缺少 component_caveat，三组基准不同会被混算")
+    # 三组不许混：组件臂一旦落进 pooling/path，就会与 347.55 那组排进同一张表
+    if abl:
+        for key in ("pooling", "path"):
+            bad_ids = [x["id"] for x in (abl.get(key) or []) if x["id"].startswith("abl_comp_")]
+            if bad_ids:
+                errs.append(f"组件臂误入 ablation.{key}: {bad_ids}")
 
     # 7) 来源必须可辨识：快照模式要显式标注「非本机重算」，不能冒充实测
     mode = bundle.get("mode")

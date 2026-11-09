@@ -100,6 +100,21 @@ def test_ablation_carries_caveat():
     assert rm == sorted(rm)
 
 
+def test_component_ablation_is_its_own_group():
+    """组件级消融是第三组（基准 215.75），不得混进 pooling/path 与 347.55 那组排序。"""
+    abl = E.build_ablation()
+    assert abl is not None
+    comp = abl.get("component") or []
+    assert len(comp) == 4
+    assert all(x["id"].startswith("abl_comp_") for x in comp)
+    assert not [x for x in abl["pooling"] + abl["path"] if x["id"].startswith("abl_comp_")]
+    assert (abl.get("component_caveat") or "").strip()
+    # 三组基准互不相同，caveat 必须说清「不可相减」
+    assert "不可相减" in abl["component_caveat"]
+    rm = [x["rmse"] for x in comp]
+    assert rm == sorted(rm)
+
+
 # --------------------------------------------------------------------------- #
 # 文献解析边界
 # --------------------------------------------------------------------------- #
