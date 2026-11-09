@@ -90,7 +90,9 @@ def inject_vl_key(text: str, api_key: str) -> tuple[str, str]:
         return text, f"⚠ 模板里找不到 {VL_SERVER} 段，未注入 Key"
     body = m.group("body")
     if re.search(r"^\s*env\s*:", body, re.M):
-        new_body = re.sub(r'(\n\s*env\s*:\s*\{)[^}]*\}',
+        # 用 (?m)^ 锚行首：body 是「{ 之后的第一行」开头，前面没有 \n，
+        # 若写成 (\n\s*env...) 会匹配不到第一行的 env，导致重跑时不更新 Key。
+        new_body = re.sub(r'(?m)^(\s*env\s*:\s*\{)[^}]*\}',
                           rf'\1 INTERN_API_KEY: "{json_escape(api_key)}" }}', body, count=1)
         action = "更新"
     else:
@@ -227,15 +229,118 @@ def node_version(exe: str) -> str:
         return ""
 
 
+def _node_gate_ok(ver: str) -> bool:
+    """openclaw 的 Node 版本闸门：≥24.16 且 <25，或 ≥26.1。"""
+    m = re.match(r"v?(\d+)\.(\d+)", ver or "")
+    if not m:
+        return False
+    major, minor = int(m.group(1)), int(m.group(2))
+    return (major == 24 and minor >= 16) or (major == 26 and minor >= 1) or major > 26
+
+
+def find_node() -> str:
+    """自动挑一个满足 openclaw 闸门的 node：优先 PATH，其次常见便携安装目录。
+
+    实测动机：本机 PATH 上的 node 常是 v22（WorkBuddy 自带），不满足闸门会直接
+    被 openclaw 拒绝启动；但机器上往往还有 tools/node26 或 versions 目录里的合规
+    版本。零参数跑本脚本时应自动挑到合规的那个，而不是让产物留一个起不来的解释器。
+    """
+    import glob
+    cands: list[str] = []
+    w = shutil.which("node")
+    if w:
+        cands.append(w)
+    home = os.path.expanduser("~")
+    for pat in (
+        os.path.join(home, "tools", "node26", "*", "node.exe"),
+        os.path.join(home, ".workbuddy", "binaries", "node", "versions", "*", "node.EXE"),
+    ):
+        cands.extend(sorted(glob.glob(pat)))
+    for c in cands:
+        if os.path.exists(c) and _node_gate_ok(node_version(c)):
+            return c
+    return w or ""
+
+
+def find_venv_python(env_name: str, module: str) -> str:
+    """探测 WorkBuddy 托管的独立 venv，并验证目标模块确实可导入。
+
+    只按目录名猜路径不够：venv 存在但没装包同样起不来（paper-search / office-word
+    常是后装的）。这里用 `import <module>` 做一次真实探针，避免生成"看起来成功"的配置。
+    """
+    import subprocess
+    home = os.path.expanduser("~")
+    for c in (
+        os.path.join(home, ".workbuddy", "binaries", "python", "envs", env_name, "Scripts", "python.exe"),
+        os.path.join(home, ".workbuddy", "binaries", "python", "envs", env_name, "bin", "python"),
+    ):
+        if not os.path.exists(c):
+            continue
+        try:
+            r = subprocess.run([c, "-c", f"import {module}"], capture_output=True, timeout=60)
+            if r.returncode == 0:
+                return c
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return ""
+
+
+def detect_coal_root() -> str:
+    """从仓库根的 .coal_project_root（已 gitignore）读外部煤项目根，路径存在才返回。"""
+    hint = REPO_ROOT / ".coal_project_root"
+    if hint.exists():
+        v = hint.read_text(encoding="utf-8").strip()
+        if v and os.path.exists(v):
+            return v
+    return ""
+
+
+def inject_coal_env(text: str, coal_python: str, coal_root: str) -> tuple[str, str]:
+    """把 GEWU_COAL_PYTHON / COAL_PROJECT_ROOT 注入 mil-model 的 env 段。
+
+    为什么需要：mil-model 以 subprocess 拉起 coal_infer.py，而 openclaw 给 stdio
+    子进程的是 15 键白名单，shell 里 export 的变量不会透传。mil_model 自身虽有
+    「按名探测 coal-torch + 读 .coal_project_root」的兜底，但依赖固定目录名；
+    对换了 venv 名/路径的机器，显式注入 env 才稳。两者都探测不到就不注入，让
+    mil-model 返回 not-configured（诚实降级，不编数）。
+    """
+    if not coal_python and not coal_root:
+        return text, ""
+    m = re.search(r'"mil-model"\s*:\s*\{\n(?P<body>.*?)\n[ ]*\}', text, re.S)
+    if not m:
+        return text, "⚠ 模板里找不到 mil-model 段，未注入 coal env"
+    pairs: list[str] = []
+    if coal_python:
+        pairs.append(f'GEWU_COAL_PYTHON: "{json_escape(as_posix(coal_python))}"')
+    if coal_root:
+        pairs.append(f'COAL_PROJECT_ROOT: "{json_escape(as_posix(coal_root))}"')
+    body = m.group("body")
+    joined = ", ".join(pairs)
+    if re.search(r"^\s*env\s*:", body, re.M):
+        # 同 inject_vl_key：body 首行没有前置 \n，必须用 (?m)^ 锚行首才能命中。
+        new_body = re.sub(r'(?m)^(\s*env\s*:\s*\{)[^}]*\}', rf'\1 {joined} }}', body, count=1)
+        action = "更新"
+    else:
+        indent = re.match(r"[ ]*", body.split("\n", 1)[0]).group(0)
+        new_body = f"{indent}env: {{ {joined} }},\n" + body
+        action = "新增"
+    out = text[: m.start("body")] + new_body + text[m.end("body") :]
+    names = " + ".join(p.split(":", 1)[0] for p in pairs)
+    return out, f"{action} mil-model.env（{names}）"
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="生成网关配置（模板 → ~/.openclaw/openclaw.json）")
     ap.add_argument("--target", default=str(DEFAULT_TARGET), help="输出文件，默认 ~/.openclaw/openclaw.json")
     ap.add_argument("--python", default=sys.executable,
                     help="自研 MCP server 的解释器，默认当前 python。**请用装了 mcp<2/numpy/… 的那个 env 跑本脚本**")
-    ap.add_argument("--node", default=shutil.which("node") or "",
-                    help="chart-cloud 用的 Node，默认取 PATH 上的 node")
-    ap.add_argument("--paper-python", default="", help="paper-search-mcp 所在 venv 的 python（可选）")
-    ap.add_argument("--office-python", default="", help="office-word-mcp-server 所在 venv 的 python（可选）")
+    ap.add_argument("--node", default="",
+                    help="chart-cloud 用的 Node；默认自动挑满足 openclaw 闸门的版本（PATH → tools/node26 → versions）")
+    ap.add_argument("--paper-python", default="", help="paper-search-mcp 所在 venv 的 python；默认自动探测 envs/paper-search")
+    ap.add_argument("--office-python", default="", help="office-word-mcp-server 所在 venv 的 python；默认自动探测 envs/office-word")
+    ap.add_argument("--coal-python", default="",
+                    help="含 torch 的解释器（mil-model 真实推理）；默认自动探测 envs/coal-torch 或 envs/gewu")
+    ap.add_argument("--coal-root", default="", help="外部煤项目根；默认读仓库根 .coal_project_root")
     ap.add_argument("--intern-api-key", default=os.environ.get("INTERN_API_KEY", ""),
                     help="写进 sci-data.env 的书生 API Key；缺省取当前 shell 的 INTERN_API_KEY，"
                          "都没有就不注入（parse_figure 会返回 missing_key，其余工具不受影响）")
@@ -248,9 +353,22 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     raw = TEMPLATE.read_text(encoding="utf-8")
-    bins = {"python": args.python, "node": args.node,
-            "paper-python": args.paper_python, "office-python": args.office_python}
+
+    # 自动探测：显式传入优先，其次自动找。目标是「零参数也能生成一份起得来的配置」。
+    node = args.node or find_node()
+    paper_py = args.paper_python or find_venv_python("paper-search", "paper_search_mcp")
+    office_py = args.office_python or find_venv_python("office-word", "word_document_server")
+    coal_py = (args.coal_python
+               or find_venv_python("coal-torch", "torch")
+               or find_venv_python("gewu", "torch"))
+    coal_root = args.coal_root or detect_coal_root()
+
+    bins = {"python": args.python, "node": node,
+            "paper-python": paper_py, "office-python": office_py}
     text, notes, unresolved = substitute(raw, bins)
+    text, coal_note = inject_coal_env(text, coal_py, coal_root)
+    if coal_note:
+        notes.append(coal_note)
     key = (args.intern_api_key or "").strip()
     text, vl_note = inject_vl_key(text, key)
     if vl_note:
@@ -260,9 +378,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"仓库根：{REPO_ROOT}")
     print(f"目标：{args.target}")
     print(f"当前状态：{'已存在' if Path(args.target).exists() else '不存在（全新机器）'}")
-    nv = node_version(args.node)
+    nv = node_version(node)
     if nv:
-        print(f"Node：{args.node}（{nv}）")
+        print(f"Node：{node}（{nv}）")
     if notes:
         print("\n替换动作：")
         for n in notes:
