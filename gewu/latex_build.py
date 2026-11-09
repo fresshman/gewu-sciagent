@@ -166,6 +166,7 @@ def build(
     engine: str | None = None,
     timeout: int = DEFAULT_TIMEOUT,
     keep_intermediates: bool = False,
+    source_date_epoch: int | str | None = None,
 ) -> dict:
     """编译单个 .tex 文件为 PDF。
 
@@ -174,6 +175,11 @@ def build(
     - ``pdf``: 成功时的 PDF 绝对路径
     - ``log``: 解析后的问题清单（errors / missing_glyphs / undefined_citations ...）
     - ``pdf_text_ok``: 仅在成功时有意义，交由上层做内容核验
+
+    ``source_date_epoch``：传给引擎的 ``SOURCE_DATE_EPOCH``。默认 ``None`` 表示沿用
+    调用方环境；给整数则**钉住** PDF 内嵌时间戳。实测（tectonic 0.17.0）钉住同一
+    epoch 连续三次编译，输出**字节级完全相同**；不钉则每次都不同。需要「产物可被
+    第三方按哈希复核」时用它，需要「排版可复现即可」时用内容指纹即可。
 
     失败时 ``ok=False`` 且 ``reason`` 说明原因，绝不伪造成功。
     """
@@ -226,6 +232,9 @@ def build(
     passes = 1 if engine_name in ("tectonic", "latexmk") else 2
     stdout_parts: list[str] = []
     rc = 0
+    compile_env = os.environ.copy()
+    if source_date_epoch is not None:
+        compile_env["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
     try:
         for i in range(passes):
             proc = subprocess.run(
@@ -236,7 +245,7 @@ def build(
                 encoding="utf-8",
                 errors="replace",
                 timeout=timeout,
-                env=os.environ.copy(),
+                env=compile_env,
             )
             stdout_parts.append(proc.stdout or "")
             rc = proc.returncode
@@ -274,6 +283,8 @@ def build(
         "log": parsed,
         "command": " ".join(cmd),
         "out_dir": str(out),
+        "source_date_epoch": str(source_date_epoch) if source_date_epoch is not None
+        else compile_env.get("SOURCE_DATE_EPOCH"),
     }
     if pdf_ok:
         result["pdf"] = str(pdf_path)
@@ -352,10 +363,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", default=None, help="输出目录（默认与 tex 同目录）")
     ap.add_argument("--engine", default=None, help="指定引擎名或可执行文件路径")
     ap.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help="超时秒数")
+    ap.add_argument("--source-date-epoch", type=int, default=None,
+                    help="钉住 PDF 内嵌时间戳；同一值重复编译可得到字节级相同产物")
     ap.add_argument("--json", action="store_true", help="输出完整 JSON 结果")
     args = ap.parse_args(argv)
 
-    r = build(args.tex, out_dir=args.out, engine=args.engine, timeout=args.timeout)
+    r = build(args.tex, out_dir=args.out, engine=args.engine, timeout=args.timeout,
+              source_date_epoch=args.source_date_epoch)
     if args.json:
         print(json.dumps(r, ensure_ascii=False, indent=2))
     elif r.get("ok"):

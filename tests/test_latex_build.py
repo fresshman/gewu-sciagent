@@ -181,17 +181,40 @@ def test_pdf_page_count(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------
 @needs_engine
 def test_fingerprint_stable_across_rebuilds(tmp_path: Path) -> None:
-    """同一 tex 连编两次：二进制哈希不同（内嵌时间戳），内容指纹必须相同。"""
+    """时间戳不同（内嵌 /CreationDate 变）时，二进制不同而内容指纹必须相同。
+
+    此前这用例靠「两次编译自然跨秒」制造差异，套件里编译变快就会落在同一秒而假失败
+    （实测确实如此）。改为用 ``SOURCE_DATE_EPOCH`` 确定性控制时间戳，不再赌时钟。
+    """
     tex = tmp_path / "good.tex"
     tex.write_text(GOOD_TEX, encoding="utf-8")
     digests, bins = [], []
-    for i in range(2):
-        r = latex_build.build(tex, out_dir=tmp_path / f"o{i}", timeout=600)
+    for i, epoch in enumerate((1_000_000_000, 1_600_000_000)):
+        r = latex_build.build(tex, out_dir=tmp_path / f"o{i}", timeout=600,
+                              source_date_epoch=epoch)
         assert r["ok"], r
         digests.append(latex_build.pdf_text_fingerprint(r["pdf"]))
         bins.append(hashlib.sha256(Path(r["pdf"]).read_bytes()).hexdigest())
-    assert digests[0] == digests[1]
-    assert bins[0] != bins[1], "若二进制一致，说明该引擎去掉了时间戳，测试前提需更新"
+    assert digests[0] == digests[1], "改时间戳不应改变内容指纹"
+    assert bins[0] != bins[1], "不同 SOURCE_DATE_EPOCH 应产生不同字节，否则本用例没测到点子上"
+
+
+def test_byte_reproducible_with_pinned_epoch(tmp_path: Path) -> None:
+    """钉住 SOURCE_DATE_EPOCH 后，重复编译必须**字节级**一致（实测 3 次相同）。
+
+    这条比内容指纹更强：证明「产物可被第三方按文件哈希复核」是能做到的，
+    只是默认不钉时间戳时才做不到。
+    """
+    tex = tmp_path / "good.tex"
+    tex.write_text(GOOD_TEX, encoding="utf-8")
+    hashes = []
+    for i in range(2):
+        r = latex_build.build(tex, out_dir=tmp_path / f"r{i}", timeout=600,
+                              source_date_epoch=1_600_000_000)
+        assert r["ok"], r
+        assert r["source_date_epoch"] == "1600000000"
+        hashes.append(hashlib.sha256(Path(r["pdf"]).read_bytes()).hexdigest())
+    assert hashes[0] == hashes[1], "同一 SOURCE_DATE_EPOCH 下字节应完全相同"
 
 
 def test_fingerprint_normalizes_date(tmp_path: Path, monkeypatch) -> None:
