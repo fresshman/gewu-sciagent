@@ -1,0 +1,118 @@
+{
+  "schema_version": "1.0",
+  "domain": "clinical-diabetes",
+  "domain_label": "临床基线指标 → 疾病进展（UCI Diabetes, 表格回归）",
+  "primary_seed": 42,
+  "n_folds": 5,
+  "wall_clock_s": 0.84,
+  "provenance": {
+    "dataset": "sklearn.datasets.load_diabetes (UCI Diabetes, Efron et al. 2004)",
+    "n_samples": 442,
+    "n_features": 10,
+    "target_range": [
+      25.0,
+      346.0
+    ],
+    "sklearn_version": "1.9.1",
+    "csv_sha256": "7fc0ded571454b1982210d3bb43f0aca44eae01a0b8654a3b24022bdb6b38009",
+    "network": "none (数据随 scikit-learn 分发包离线提供)"
+  },
+  "summary": {
+    "ols": {
+      "rmse_mean": 54.84894090589967,
+      "rmse_std": 2.641093672779811,
+      "mae_mean": 44.269746335379594,
+      "mae_std": 2.607682194411246,
+      "r2_mean": 0.47847030225778475,
+      "r2_std": 0.08496746925761753,
+      "per_fold_rmse": [
+        53.8534,
+        51.6008,
+        57.5526,
+        52.895,
+        58.3428
+      ],
+      "per_fold_r2": [
+        0.4526,
+        0.5732,
+        0.3914,
+        0.5843,
+        0.3908
+      ]
+    },
+    "ridge_poly2": {
+      "rmse_mean": 55.64609563203978,
+      "rmse_std": 2.311017432432378,
+      "mae_mean": 44.70315413390364,
+      "mae_std": 1.9678035600060497,
+      "r2_mean": 0.4669171300948971,
+      "r2_std": 0.0607149524575054,
+      "per_fold_rmse": [
+        51.4744,
+        55.4798,
+        58.3101,
+        55.8605,
+        57.1056
+      ],
+      "per_fold_r2": [
+        0.4999,
+        0.5066,
+        0.3753,
+        0.5364,
+        0.4164
+      ]
+    },
+    "pls": {
+      "rmse_mean": 54.85688917899962,
+      "rmse_std": 2.4346765365744085,
+      "mae_mean": 44.25114188248948,
+      "mae_std": 2.403856515636025,
+      "r2_mean": 0.4787403649641293,
+      "r2_std": 0.08138352711684883,
+      "per_fold_rmse": [
+        53.7837,
+        51.9678,
+        57.599,
+        53.0302,
+        57.9038
+      ],
+      "per_fold_r2": [
+        0.454,
+        0.5671,
+        0.3905,
+        0.5822,
+        0.3999
+      ]
+    },
+    "negative_control_ridge_poly2_shuffled_y": {
+      "rmse_mean": 77.35095642381101,
+      "r2_mean": -0.015762549285691076,
+      "note": "目标被打乱后 R² 应接近 0；明显为正说明流程有泄漏"
+    }
+  },
+  "seed_stability": {
+    "ols": {
+      "rmse_mean_over_seeds": 54.8936,
+      "rmse_std_over_seeds": 0.2231,
+      "n_seeds": 10
+    },
+    "ridge_poly2": {
+      "rmse_mean_over_seeds": 56.1464,
+      "rmse_std_over_seeds": 0.6204,
+      "n_seeds": 10
+    },
+    "pls": {
+      "rmse_mean_over_seeds": 54.9748,
+      "rmse_std_over_seeds": 0.2526,
+      "n_seeds": 10
+    }
+  },
+  "evidence": {
+    "script": "scripts/run_domain_diabetes.py",
+    "script_sha256": "8dde967955d5e8d0ce736602e9c1a116180b042fda27c777b8f1535499711913",
+    "gewu_commit": "6e9db85c2d1317b9f9e654a734c6f17e755a8722",
+    "generated_at_local": "2026-11-10 08:47:46",
+    "rerun": "python scripts/run_domain_diabetes.py --json",
+    "caveat": "只验证机制泛化（注册/重算/溯源），不验证方法泛化；未在第二领域跑 7 阶段 LLM 链路"
+  }
+}

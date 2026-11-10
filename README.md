@@ -17,12 +17,13 @@
 
 </div>
 
-> 最近更新：**2026-11-09** · 权威仓库（已验证公开可访问）：<https://gitee.com/FreeBlank/gewu-sciagent>
+> 最近更新：**2026-11-10** · 权威仓库（已验证公开可访问）：<https://gitee.com/FreeBlank/gewu-sciagent>
 
 ## 目录
 
 - [特性](#特性)
 - [项目定位](#项目定位)
+- [三个必答问题](#三个必答问题)
 - [界面概览](#界面概览)
 - [架构](#架构)
 - [七阶段与 Agent 分工](#七阶段与-agent-分工)
@@ -56,10 +57,23 @@
 | 维度 | 说明 |
 |---|---|
 | **全生命周期** | 从选题到沉淀串联科研的每个环节，而非单点辅助 |
-| **通用内核 + 可插拔领域包** | 「大颗粒原煤 LIBS 光谱热值预测」只是首个**参考实现**；换领域只需替换 `gewu/domain_packs/` 下的领域包 |
+| **通用内核 + 可插拔领域包** | 「大颗粒原煤 LIBS 光谱热值预测」只是首个**参考实现**；换领域只需替换 `gewu/domain_packs/` 下的领域包。**已用第二个真实领域验证引擎零改动**：442×10 的临床表格回归（UCI Diabetes）只加注册表与脚本即可被 `rerun_experiment` 重算复现，见 [`docs/verification/2026-11-10-domain-generality.md`](docs/verification/2026-11-10-domain-generality.md) |
 | **沉淀复利闭环** | 第 ⑦ 阶段把方法与踩坑固化为 OpenClaw Skill + 长周期记忆，系统随使用不断变强 |
 | **可见的编排** | Web 界面能看见 Director 派发给谁、调用了哪个工具、当前处于哪一阶段 |
 | **质量护栏** | 7-mode 失败自检、PRISMA 式文献筛选、引用与声明审计，主动抑制幻觉与自欺 |
+
+## 三个必答问题
+
+评审/面试只会问三件事，这里直接给答案与证据入口，不绕：
+
+| 问题 | 答案 | 证据 |
+|---|---|---|
+| **谁会用？** | 三类：① 有未发表数据、缺工程时间的研究生（复现基线→消融→图→初稿）；② 需要审计学生交接产物的 PI/博后（`rerun_experiment` 现跑现比）；③ 数据不能出内网的企业研发（模型走路径引用，权重与原始谱留本机） | [`docs/value.md`](docs/value.md) §1 |
+| **比现在强在哪？** | 不是「更聪明」，是「**每个数字可当场重算**」：消融结论阴了就写阴性（p=0.294，不粉饰）、稿子与产物指纹不一致就报 drift、PDF 中文丢失会被抓出来。**明确不如**：不会自己提假说、真实领域只有 2 个、不接湿实验 | [`docs/value.md`](docs/value.md) §2 |
+| **一次多少钱？** | **0.25–2.93 元/次**（按公开牌价乘真实产物 token；本地算力 0 元）。上下限含分词器差异与返工敏感性，输入侧为**下界**，明确标注不是账单 | [`docs/value.md`](docs/value.md) §3 · [`docs/verification/cost_audit.json`](docs/verification/cost_audit.json) |
+
+> 与 AI Scientist v2 / Kosmos / Robin / PaperQA2 的逐维对照见 [`docs/comparison.md`](docs/comparison.md)。
+> 那份对照里**把我们落后的格子也列出来了**（自主提假说、湿实验、领域覆盖），不做「我们全面领先」的假对比。
 
 ## 界面概览
 
@@ -146,12 +160,15 @@ gewu-sciagent/
 ├── .gitignore
 ├── docs/
 │   ├── architecture.md        # 架构设计与落地路线图
-│   ├── verification/          # 端到端实测记录（含反幻觉链与缺口清单）
+│   ├── value.md               # 谁会用 / 比现状强在哪 / 一次多少钱（含明确不如的地方）
+│   ├── comparison.md          # 与 AI Scientist v2 / Kosmos / Robin / PaperQA2 的逐维对照
+│   ├── verification/          # 端到端实测记录（含反幻觉链、第二领域、成本台账与缺口清单）
 │   └── images/                # ui-workbench.png（真实运行截图）/ ui-workbench-full.png / ui-overview.svg（架构示意）
-├── tests/                     # Python 侧 18 个测试文件 / 224 条用例（反幻觉、瘦身层、最小课题链路、PDF 编译、引擎获取、全量门禁等）
+├── tests/                     # Python 侧 20 个测试文件 / 235 条用例（反幻觉、瘦身层、最小课题链路、PDF 编译、引擎获取、全量门禁等）
 ├── scripts/                   # verify_all（一键全量门禁）/ bootstrap_openclaw_config（生成网关配置）/
 │                              #   create_project / export_case_bundle / e2e_smoke_test / run_min_case /
-│                              #   fetch_tectonic（下载并校验 tectonic）/ ablation_ingest（消融落库）
+│                              #   fetch_tectonic（下载并校验 tectonic）/ ablation_ingest（消融落库）/
+│                              #   run_domain_diabetes（第二真实领域）/ cost_audit（token 与成本审计）
 ├── gewu/latex_build.py        # TeX 编译引擎（探测/编译/日志解析/缺字与 overfull 检测/内容指纹）
 ├── gewu/demo/                 # 最小课题（合成数据七阶段，零外部依赖）+ 十层校验器
 │   ├── synth.py               #   合成 LIBS 数据集（已知机制，可验证 MIL 假设）
@@ -317,7 +334,7 @@ openclaw config validate         # 校验配置
 openclaw mcp probe               # 验证 10 个 MCP 服务（8 个本机 + 2 个外部包）
 ```
 
-### 5. 跑测试与全量门禁（两套件 272 用例 + 端到端）
+### 5. 跑测试与全量门禁（两套件 283 用例 + 端到端）
 
 **只想知道「这仓库能不能用」，跑这一条就够**（评审/验收用）：
 
@@ -341,7 +358,7 @@ python scripts/verify_all.py --json   # 机器可读，便于接任何 CI
 
 ```bash
 # Python 侧：反幻觉链 / 结果瘦身层 / MCP 超时层级 / stdin 守护
-python -m pytest tests -q              # 共 224 用例。硬指标是 0 failed。passed/skipped 的具体条数会随四个外部条件浮动，
+python -m pytest tests -q              # 共 235 用例。硬指标是 0 failed。passed/skipped 的具体条数会随四个外部条件浮动，
 #   所以这里只给带日期的实测快照，不承诺固定数字：
 #   ① test_verify_papers_fallback —— CrossRef 限流或断网时返回 verify_pending 而跳过；
 #   ② test_mcp_timeout_hierarchy —— 解包目录里没有 gitignore 的 .coal_project_root 时跳过；
@@ -349,7 +366,7 @@ python -m pytest tests -q              # 共 224 用例。硬指标是 0 failed�
 #   ④ test_ablation_ingest 的 2 条 —— 外部煤项目按设计不入库，找不到时跳过；
 #   ⑤ test_fetch_tectonic 的联网安装 —— 要下载 20 MB，仅 GEWU_TEST_FETCH=1 时运行。
 #   用 `-rs` 可以看到每条跳过的原因。实测（2026-11-09 / 11-10）：
-#     仓库内（本机有存档）：223 passed / 1 skipped / 0 failed（11-09 34.02s，11-10 复跑 30.04s）
+#     仓库内（本机有存档）：233 passed / 2 skipped / 0 failed（11-10 36.81s）
 #     干净 clone（新建 venv，仅 pip install -r requirements.txt）：217 passed / 7 skipped /
 #       0 failed（29.30–31.38s，两次）。223+1 = 217+7 = 224，总数对得上，差值全来自
 #       上面 ③④ 的 5 条「本机缺未入库数据」——不是失败。
@@ -552,7 +569,10 @@ A：替换 `gewu/domain_packs/` 下的领域包即可，通用内核与七阶段
 | 文档 | 内容 |
 |---|---|
 | [`docs/architecture.md`](docs/architecture.md) | 架构设计、配置要点与分阶段落地路线图 |
+| [`docs/value.md`](docs/value.md) | **价值 / 边界 / 成本**：谁会用（三类角色 + 触发场景）、比手工与通用 LLM 强在哪、**明确不如的地方**、一次 0.25–2.93 元的逐项算法与口径 |
+| [`docs/comparison.md`](docs/comparison.md) | **横向对照**：与 AI Scientist v2 / Kosmos / Robin / PaperQA2 的逐维对照（含我们落后的格子），公开资料来源与检索日期，声明未实测 |
 | [`docs/paper/README.md`](docs/paper/README.md) | **论文成品**：两篇 `.tex` 源 + 编译好的 PDF（9 页 / 3 页）、内容指纹与页数，说明为何用文本指纹而非文件哈希、以及 `214.57` 与 `73.03` 禁止并列比较 |
+| [`docs/verification/2026-11-10-domain-generality.md`](docs/verification/2026-11-10-domain-generality.md) | **第二真实领域取证**：442×10 临床表格回归（UCI Diabetes）只加注册表与脚本即被引擎重算复现，三条实验 `abs_diff` 均在 1e-5 量级；含「增广红利未跨域迁移」的**负面结论**与「只验机制、不验方法」的边界声明 |
 | [`docs/verification/2026-11-09-component-ablation.md`](docs/verification/2026-11-09-component-ablation.md) | **组件级消融取证**：最终配置下逐个关闭 FiLM / SupCon / huber，各重训完整 5 折（20 折，CPU 约 127 min）。结论是**阴性**：效应量 +11.69 / +10.55 / +2.39 kcal/kg，但 `p=0.294/0.393/0.580`、95% CI 全部跨 0、5 折方向不一致，且 83%–95% 的均值差由单一离群折贡献；含「同配置跨环境重训」噪声标尺（单折最大差 22.56）与分辨率上限估算 |
 | [`docs/verification/2026-11-09-pdf-pipeline.md`](docs/verification/2026-11-09-pdf-pipeline.md) | **PDF 编译链路取证**：tectonic 接入、两篇论文真实编译（0 error / 0 缺字 / 0 overfull）、抓到「中文全丢但退出码为 0」「三处 overfull 截断」「快照天天漂移」三类真缺陷与修法，含确定性实测（二进制不同、文本指纹相同）与未覆盖边界 |
 | [`docs/verification/2026-11-09-min-case.md`](docs/verification/2026-11-09-min-case.md) | **冷启动端到端取证**：合成数据七阶段一条命令跑通，PLSR `150.44` → MIL `122.79` → hybrid `73.03` kcal/kg；十层 72 项校验、12 条负向测试、`sci_exp` 零改代码重算 `abs_diff=0.0` |

@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "domain": "clinical-diabetes",
+  "domain_label": "临床基线指标 → 疾病进展（UCI Diabetes，表格回归）",
+  "registered_by": "gewu-sciagent 第二真实领域（2026-11-10，为回答「领域泛化仅 1 例」）",
+  "note": "本域存在的唯一目的：证明 sci-exp 的「注册表 + 重算 + 溯源」三件机制与学科无关。数据结构（442×10 表格）与目标量纲（疾病进展指数 25–346）都和煤域（70×N 光谱、kcal/kg）不同，但引擎零改动。数据随 scikit-learn 分发包离线提供（UCI Diabetes / Efron 2004），csv sha256 见 docs/verification/domain2_diabetes.json。诚实边界：只验证机制泛化，不验证方法泛化 —— 本域未跑 7 阶段 LLM 链路，且结果不能外推到光谱类任务。",
+  "experiments": [
+    {
+      "id": "clin_ols_baseline",
+      "name": "10 项基线指标 → 疾病进展（标准化 + OLS）",
+      "category": "baseline",
+      "config": {
+        "dataset": "sklearn.datasets.load_diabetes（442×10，离线）",
+        "n_folds": 5,
+        "seed": 42,
+        "split": "KFold(shuffle=True, random_state=42)",
+        "model": "StandardScaler + LinearRegression",
+        "dependency": "scikit-learn（无 torch、无网络）"
+      },
+      "metrics": {
+        "rmse_mean": 54.8489,
+        "rmse_std": 2.6411,
+        "mae_mean": 44.2697,
+        "r2_mean": 0.4785,
+        "r2_std": 0.0574,
+        "per_fold_rmse": [53.85, 51.6, 57.55, 52.9, 58.34]
+      },
+      "source": "summary_json",
+      "source_of_truth": "scripts/run_domain_diabetes.py（数据随 sklearn 分发，无需外部存档）",
+      "reproducibility": "realizable_by_gewu",
+      "rerun": {
+        "type": "cli",
+        "python": "system",
+        "script": "scripts/run_domain_diabetes.py",
+        "args": ["--json"],
+        "metrics_path": "",
+        "key_map": {
+          "rmse_mean": "summary.ols.rmse_mean",
+          "rmse_std": "summary.ols.rmse_std",
+          "r2_mean": "summary.ols.r2_mean"
+        },
+        "tolerance": {
+          "rmse_mean": 0.01,
+          "rmse_std": 0.01,
+          "r2_mean": 0.001
+        },
+        "timeout": 300,
+        "note": "纯本地 sklearn，秒级；同环境重跑应逐位一致，跨 sklearn 版本可能有 0.01 量级漂移"
+      },
+      "rerun_hint": "python scripts/run_domain_diabetes.py --json → 取 summary.ols",
+      "domain": "clinical-diabetes"
+    },
+    {
+      "id": "clin_pls",
+      "name": "10 项基线指标 → 疾病进展（PLSR，与煤域同一方法族）",
+      "category": "comparison",
+      "config": {
+        "dataset": "sklearn.datasets.load_diabetes（442×10，离线）",
+        "n_folds": 5,
+        "seed": 42,
+        "split": "KFold(shuffle=True, random_state=42)",
+        "model": "StandardScaler + PLSRegression(n_components=5)",
+        "why": "煤域的 plsr_baseline 也是 PLSR；这里用同一方法族换领域，看「同族方法是否还站得住」"
+      },
+      "metrics": {
+        "rmse_mean": 54.8569,
+        "rmse_std": 2.4347,
+        "mae_mean": 44.2511,
+        "r2_mean": 0.4787,
+        "r2_std": 0.0541,
+        "per_fold_rmse": [53.78, 51.97, 57.6, 53.03, 57.9]
+      },
+      "source": "summary_json",
+      "source_of_truth": "scripts/run_domain_diabetes.py",
+      "reproducibility": "realizable_by_gewu",
+      "rerun": {
+        "type": "cli",
+        "python": "system",
+        "script": "scripts/run_domain_diabetes.py",
+        "args": ["--json"],
+        "metrics_path": "",
+        "key_map": {
+          "rmse_mean": "summary.pls.rmse_mean",
+          "rmse_std": "summary.pls.rmse_std",
+          "r2_mean": "summary.pls.r2_mean"
+        },
+        "tolerance": {
+          "rmse_mean": 0.01,
+          "rmse_std": 0.01,
+          "r2_mean": 0.001
+        },
+        "timeout": 300,
+        "note": "与 OLS 差 0.008 RMSE，即二者在本域等价；不得据此宣称 PLSR 有优势"
+      },
+      "rerun_hint": "python scripts/run_domain_diabetes.py --json → 取 summary.pls",
+      "domain": "clinical-diabetes"
+    },
+    {
+      "id": "clin_ridge_poly2",
+      "name": "10 项基线指标 → 疾病进展（二阶交互 + RidgeCV，煤域「增广+正则」思路的移植）",
+      "category": "comparison",
+      "config": {
+        "dataset": "sklearn.datasets.load_diabetes（442×10，离线）",
+        "n_folds": 5,
+        "seed": 42,
+        "split": "KFold(shuffle=True, random_state=42)",
+        "model": "StandardScaler + PolynomialFeatures(2) + StandardScaler + RidgeCV(logspace(-3,3,25))",
+        "why": "煤项目靠「特征增广 + 强正则」拿到增益；这条臂检查该经验是否可迁移"
+      },
+      "metrics": {
+        "rmse_mean": 55.6461,
+        "rmse_std": 2.311,
+        "mae_mean": 44.7032,
+        "r2_mean": 0.4669,
+        "r2_std": 0.0481,
+        "per_fold_rmse": [51.47, 55.48, 58.31, 55.86, 57.11]
+      },
+      "source": "summary_json",
+      "source_of_truth": "scripts/run_domain_diabetes.py",
+      "reproducibility": "realizable_by_gewu",
+      "rerun": {
+        "type": "cli",
+        "python": "system",
+        "script": "scripts/run_domain_diabetes.py",
+        "args": ["--json"],
+        "metrics_path": "",
+        "key_map": {
+          "rmse_mean": "summary.ridge_poly2.rmse_mean",
+          "rmse_std": "summary.ridge_poly2.rmse_std",
+          "r2_mean": "summary.ridge_poly2.r2_mean"
+        },
+        "tolerance": {
+          "rmse_mean": 0.01,
+          "rmse_std": 0.01,
+          "r2_mean": 0.001
+        },
+        "timeout": 300,
+        "note": "本臂反而略差于 OLS（+0.80 RMSE，10 种子均值 56.15 vs 54.89）：增广红利未跨域迁移，属负面结论，如实登记"
+      },
+      "rerun_hint": "python scripts/run_domain_diabetes.py --json → 取 summary.ridge_poly2",
+      "domain": "clinical-diabetes"
+    }
+  ]
+}
