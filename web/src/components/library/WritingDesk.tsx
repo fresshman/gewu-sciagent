@@ -20,10 +20,16 @@ function initialSel(): Sel {
   return hit ? { kind: "asset", key: hit } : { kind: "sec", index: 0 };
 }
 
-/** \includegraphics{xxx.pdf} 与图纸台账的 base 同名对齐（去掉扩展名比） */
+/**
+ * \includegraphics{xxx.pdf} 与图纸台账对齐。
+ * 图纸化后 leaf 已带内容寻址 fig_id（服务端注入）：有 id 直接按 id 找——
+ * 同一张图换了文件名也能对上；id 缺失（旧响应/台账还没扫到）才退回 base 名匹配。
+ */
 function figForLeaf(leaf: WritingLeaf, figures: FigureItem[]): FigureItem | null {
+  if (leaf.kind !== "fig") return null;
+  if (leaf.fig_id) return figures.find((x) => x.fig_id === leaf.fig_id) || null;
   const f = String(leaf.file || "");
-  if (!f || leaf.kind !== "fig") return null;
+  if (!f) return null;
   const base = f.split(/[\\/]/).pop()!.replace(/\.[a-z0-9]+$/i, "");
   return figures.find((x) => x.base === base) || null;
 }
@@ -346,6 +352,21 @@ function LeafDetail({
           <span className="k">\label</span>
           <span className="v mono">{leaf.texLabel || "无（不能交叉引用）"}</span>
         </div>
+        {leaf.fig_id && (
+          <div className="pw-kv">
+            <span className="k">图纸 id</span>
+            <span className="v mono" title="内容寻址：pdf 字节 sha256 前 8 位，同图在任何目录/文件名下都是它">
+              {leaf.fig_id}
+              {typeof leaf.fig_copies === "number" && `　· ${leaf.fig_copies} 份副本 / ${leaf.fig_dirs} 个目录`}
+              {leaf.fig_provenance ? "　· 有出处" : "　· 无出处记录"}
+            </span>
+          </div>
+        )}
+        {leaf.fig_reused && (
+          <div className="pw-warnbox">
+            这张图在正文多处出现：{leaf.fig_reused}。改图时两处会一起变——改完记得全部核对。
+          </div>
+        )}
         {figure ? (
           <div style={{ marginTop: 8 }}>
             <FigureCard fig={figure} compact onToast={onToast} />

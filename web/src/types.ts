@@ -275,6 +275,22 @@ export interface WritingLeaf {
   file?: string;
   /** tex 里的 \label{fig:*}；没有就是空串（本稿全部为空） */
   texLabel?: string;
+  /** 图纸化：内容寻址 id（fig-<sha 前 8>）。同一张图在任何目录、任何文件名下都是它 */
+  fig_id?: string | null;
+  /** 这张图散落的副本数 / 目录数（来自台账） */
+  fig_copies?: number;
+  fig_dirs?: number;
+  /** 旁文件出处是否在场（true/false，不猜） */
+  fig_provenance?: boolean;
+  /** 同一张图被正文多处引用时，列出全部图号（如「图 1、图 3」）；单处引用不写 */
+  fig_reused?: string;
+}
+
+/** 图纸化注记的统计：正文图谱侧有多少 fig leaf 挂上了内容 id */
+export interface FigGraph {
+  leaves: number;
+  figures: number;
+  reusedIds: string[];
 }
 
 export interface WritingResponse {
@@ -293,6 +309,8 @@ export interface WritingResponse {
     source: string;
   };
   outline?: WritingNode[];
+  /** 图纸化注记统计（annotateFigLeaves 产出）；旧响应没有这个字段 */
+  fig_graph?: FigGraph;
   assets?: {
     claims: { n: number; withSource: number; path: string };
     equations: { n: number };

@@ -90,7 +90,26 @@
 | 合并「同一张图不同名字」 | 只按内容 sha256 合并。换了名字又改了内容，就是两张图 |
 | 自动插回 tex | 引用位置由人决定；台账只报「未引用」，不改稿 |
 
-## 四、验证
+## 四、图纸化收尾：id 与 provenance 进正文图谱（2026-11-10 下午）
+
+台账层早就按内容合并了，但**正文图谱**（写作台的大纲/图叶）此前仍按文件名识别一张图
+——同一张图的换名副本在图谱里各算各的，对不上就报「找不到同名文件」。
+
+`annotateFigLeaves(structure, ledger)`（`web/proxy/figure_index.mjs`）把台账注进图谱，
+`GET /api/writing` 组装时用同一份 5s 缓存调用（不重复扫盘）：
+
+- 每个 fig leaf 挂 `fig_id`（内容寻址）、`fig_copies`/`fig_dirs`（副本数/目录数）、
+  `fig_provenance`（旁文件在不在场，不猜）；
+- 对齐**先按内容再按名字**：名字集合 = 母版 base + 全部副本的 basename——
+  同一张图换了文件名的副本也指到同一个 id；两个 fig_id 抢同一个名字时保留
+  台账排序先到的，不猜；
+- 同一张图被正文多处引用时挂 `fig_reused`（「图 1、图 3」），UI 提示改图要两处同核；
+- 台账里没有的图如实记 `fig_id: null`，统计口径 `fig_graph.leaves` 只计对上的。
+
+UI：图叶详情新增「图纸 id」行与同图复用提示；`figForLeaf` 对齐升级为 id 优先、
+base 名兜底（旧响应兼容）。测试：`web/tests/figure_index.test.mjs` +4 条（17 条全过）。
+
+## 五、验证
 
 - `tests/test_figure_provenance.py`（13 条）：文件 sha256 与磁盘一致、同数据重画
   `draw.digest` 不变而换数据会变、数值原值不进 json、旁文件失败不影响出图、

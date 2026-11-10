@@ -17,6 +17,7 @@ import {
   figIdOf,
   isFigId,
   refsFromStructure,
+  annotateFigLeaves,
 } from "../proxy/figure_index.mjs";
 import { parseTexStructure } from "../proxy/paper_index.mjs";
 
@@ -195,4 +196,78 @@ test("图没有 \label 时要提示无法交叉引用", () => {
   const files = [f("output/figures/a.pdf", "pdf", 10, SHA_A)];
   const { figures } = buildFigureIndex({ files, refs });
   assert.ok(figures[0].concerns.some((c) => c.code === "no-label"));
+});
+
+// ── 图纸化收尾：annotateFigLeaves（台账 → 正文图谱）──
+
+const TEX_REUSE = String.raw`\section{结果}
+\begin{figure}[htbp]
+\includegraphics{fig_a_20261028.pdf}
+\caption{图 A 正式位置}
+\end{figure}
+
+\subsection{附录对比}
+\begin{figure}[htbp]
+\includegraphics{fig_a_renamed.pdf}
+\caption{图 A 换名副本的引用}
+\end{figure}
+
+\begin{figure}[htbp]
+\includegraphics{ghost_missing.pdf}
+\caption{台账里没有的图}
+\end{figure}
+`;
+
+function annotate(files, tex) {
+  const st = parseTexStructure(tex);
+  const refs = refsFromStructure(st);
+  const { figures } = buildFigureIndex({ files, refs, readMeta: () => null });
+  return { figures, annotated: annotateFigLeaves(st, { figures }), st };
+}
+
+test("fig leaf 挂上内容 id、副本数、出处有无——不再只靠文件名", () => {
+  const { annotated, st } = annotate(FILES, TEX);
+  const leaf = st.outline.flatMap((n) => n.leaves).find((l) => l.kind === "fig" && l.file?.includes("fig_a"));
+  assert.equal(leaf.fig_id, "fig-aaaaaaaa");
+  assert.equal(leaf.fig_copies, 4);
+  assert.equal(leaf.fig_dirs, 2);
+  assert.equal(leaf.fig_provenance, false);
+  assert.equal(annotated.fig_graph.leaves, 1, "只有对上的算数；ghost 记 null 不计");
+});
+
+test("同一张图换名副本：正文用副本名引用也能对上同一个 fig_id", () => {
+  // fig_a_renamed.pdf 与 fig_a_20261028.pdf 字节相同 → 同一 fig_id
+  const files = [
+    ...FILES,
+    f("output/figures/fig_a_renamed.pdf", "pdf", 1000, SHA_A),
+  ];
+  const { st } = annotate(files, TEX_REUSE);
+  const leaves = st.outline.flatMap((n) => n.leaves).filter((l) => l.kind === "fig");
+  const formal = leaves.find((l) => l.file?.includes("fig_a_20261028"));
+  const renamed = leaves.find((l) => l.file?.includes("fig_a_renamed"));
+  assert.equal(formal.fig_id, "fig-aaaaaaaa");
+  assert.equal(renamed.fig_id, "fig-aaaaaaaa", "副本名也指到同一份图");
+  assert.equal(renamed.fig_reused, `${formal.label}、${renamed.label}`, "同图复用要标出全部图号");
+});
+
+test("台账里没有的图：fig_id 如实为 null，不猜", () => {
+  const { st } = annotate(FILES, TEX_REUSE);
+  const ghost = st.outline.flatMap((n) => n.leaves).find((l) => l.file?.includes("ghost_missing"));
+  assert.equal(ghost.fig_id, null);
+  assert.equal(ghost.fig_reused, undefined);
+});
+
+test("名字冲突：两个 fig_id 抢同一个名字时保留先到的，不猜", () => {
+  const files = [
+    f("output/figures/dup_name.pdf", "pdf", 111, SHA_A),
+    f("stages/5-paper/draft/dup_name.pdf", "pdf", 222, SHA_B), // 同名不同字节 = 两张图
+  ];
+  const { st } = annotate(files, String.raw`\section{X}
+\begin{figure}[htbp]
+\includegraphics{dup_name.pdf}
+\caption{哪个 id？}
+\end{figure}
+`);
+  const leaf = st.outline.flatMap((n) => n.leaves).find((l) => l.kind === "fig");
+  assert.equal(leaf.fig_id, "fig-aaaaaaaa", "台账排序后先出现的拿到名字");
 });

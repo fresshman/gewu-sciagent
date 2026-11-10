@@ -345,3 +345,62 @@ export function collectFigures({ projectPath, repoRoot, projectName, texPath }) 
     summary,
   };
 }
+
+/**
+ * 图纸化收尾：把「一份图一个 id + provenance」从台账层落到正文图谱层。
+ *
+ * 给 parseTexStructure 产出的每个 fig leaf 注入：
+ *   fig_id          台账里的内容寻址 id（fig-<sha 前 8>），同一张图在任何目录都是它；
+ *   fig_copies/fig_dirs   这张图散落的副本数 / 目录数；
+ *   fig_provenance  有无旁文件出处（true/false，不猜）；
+ *   fig_reused      同一张图被正文多处引用时，列出全部「图 N」（单处引用不写字段）。
+ *
+ * 对齐规则：**先按内容，再按名字**。名字集合 = 母版 base + 全部副本的 basename
+ * （去扩展名）——同一张图换了文件名的副本也能对上；两个 fig_id 抢同一个名字
+ * 时保留先到的（台账按内容排序后先出现的），不猜。
+ */
+export function annotateFigLeaves(structure, ledger) {
+  const figs = ledger?.figures || [];
+  const nameToFig = new Map();
+  for (const fig of figs) {
+    const names = new Set([fig.base]);
+    for (const c of fig.copies || []) {
+      const b = String(c.rel || "").split(/[\\/]/).pop().replace(/\.(pdf|png|jpg|jpeg|eps)$/i, "");
+      if (b) names.add(b);
+    }
+    for (const n of names) if (!nameToFig.has(n)) nameToFig.set(n, fig.fig_id);
+  }
+
+  const byId = new Map(figs.map((f) => [f.fig_id, f]));
+  let annotated = 0;
+  const reuse = new Map(); // fig_id -> ["图 1", "图 2", ...]
+
+  for (const node of structure?.outline || []) {
+    for (const leaf of node.leaves || []) {
+      if (leaf.kind !== "fig" || !leaf.file) continue;
+      const base = String(leaf.file).split(/[\\/]/).pop().replace(/\.[a-z0-9]+$/i, "");
+      const figId = nameToFig.get(base) || null;
+      leaf.fig_id = figId;
+      if (!figId) continue;
+      annotated += 1;
+      const fig = byId.get(figId);
+      if (fig) {
+        leaf.fig_copies = fig.copyCount;
+        leaf.fig_dirs = fig.dirCount;
+        leaf.fig_provenance = Boolean(fig.provenance);
+      }
+      if (!reuse.has(figId)) reuse.set(figId, []);
+      reuse.get(figId).push(leaf.label);
+    }
+  }
+  for (const [figId, labels] of reuse) {
+    if (labels.length < 2) continue;
+    for (const node of structure?.outline || []) {
+      for (const leaf of node.leaves || []) {
+        if (leaf.fig_id === figId) leaf.fig_reused = labels.join("、");
+      }
+    }
+  }
+  structure.fig_graph = { leaves: annotated, figures: reuse.size, reusedIds: [...reuse.keys()] };
+  return structure;
+}

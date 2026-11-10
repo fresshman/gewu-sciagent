@@ -32,7 +32,7 @@ import {
   NODE_GATE_TEXT,
 } from "../shared/launch_guard.mjs";
 import { collectLibrary, collectWriting, findRepoPaperTex } from "./paper_index.mjs";
-import { collectFigures, isFigId } from "./figure_index.mjs";
+import { collectFigures, isFigId, annotateFigLeaves } from "./figure_index.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -1080,11 +1080,18 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, { available: false, reason: "无活跃项目", hint: "在左上角选择一个课题" });
     }
     try {
-      return sendJSON(res, 200, collectWriting({
+      const writing = collectWriting({
         projectPath: cur.project.path,
         repoRoot: REPO_ROOT,
         projectName: cur.name,
-      }));
+      });
+      // 图纸化收尾：台账（内容寻址 fig_id + provenance）注入正文图谱的 fig leaf。
+      // 用同一份 5s 缓存，避免与 /api/writing/figures 各扫一遍盘。
+      if (writing.available) {
+        const ledger = await figureIndexFor(cur);
+        annotateFigLeaves(writing, ledger);
+      }
+      return sendJSON(res, 200, writing);
     } catch (e) {
       return sendJSON(res, 200, { available: false, project: cur.name, reason: `解析失败：${e.message}`, hint: "" });
     }
