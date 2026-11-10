@@ -1,0 +1,5 @@
+请在最小课题（gewu/demo 的合成数据 min_case，可公开复现）上，自主完成一次完整的七阶段科研闭环：
+
+你全程自主规划——由你决定每个阶段的任务怎么拆、派发给哪个 Agent（用 sessions_spawn），不需要向我请示，也不要向我提问。阶段间用 handoff 交接，产出的 handoff 文件统一加 demo_ 前缀（demo_handoff_1_direction.json … demo_handoff_7_distillation.json），避免覆盖现有煤课题档案。数据与模型一律用最小课题自带的（PLSR / MIL / hybrid 三臂对比），不要动外部未发表项目。
+
+如果某个阶段失败，如实记录失败原因与现场，不要跳过也不要编造成功。全部阶段结束后，给我一份总结：每个阶段做了什么、spawn 了几次、哪些产物落盘了、有哪些失败与修复。
