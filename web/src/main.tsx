@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./styles/tokens.css";
 import "./styles/global.css";
+import "./styles/library.css";
 
 // 防主题闪烁：读取本地偏好，无则跟随系统
 const stored = localStorage.getItem("gewu-theme");

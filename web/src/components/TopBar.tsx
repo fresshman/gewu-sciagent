@@ -1,4 +1,4 @@
-import type { Agent, ModelOption } from "../types";
+import type { Agent, ModelOption, ViewMode } from "../types";
 import { useTheme } from "../theme/ThemeProvider";
 import { ProjectSelector } from "./ProjectSelector";
 
@@ -20,8 +20,8 @@ export function TopBar({
   models: ModelOption[];
   selectedModel: string;
   onSelectModel: (id: string) => void;
-  viewMode: "chat" | "papers";
-  onViewModeChange: (mode: "chat" | "papers") => void;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
 }) {
   const { theme, toggle } = useTheme();
   return (
@@ -68,13 +68,22 @@ export function TopBar({
           ))}
         </select>
 
+        {/* 论文阅读器 / 论文管理是两个入口：前者读单篇 PDF，后者管理整条文献链与自己的稿子 */}
         <button
           className={`topbar__btn ${viewMode === "papers" ? "topbar__btn--active" : ""}`}
-          onClick={() => onViewModeChange(viewMode === "chat" ? "papers" : "chat")}
-          aria-label="切换论文阅读器"
-          title={viewMode === "chat" ? "打开论文阅读器" : "返回对话"}
+          onClick={() => onViewModeChange(viewMode === "papers" ? "chat" : "papers")}
+          aria-label="论文阅读器"
+          title={viewMode === "papers" ? "返回对话" : "打开论文阅读器"}
         >
-          {viewMode === "chat" ? "📄" : "💬"}
+          📄
+        </button>
+        <button
+          className={`topbar__btn ${viewMode === "library" ? "topbar__btn--active" : ""}`}
+          onClick={() => onViewModeChange(viewMode === "library" ? "chat" : "library")}
+          aria-label="论文库与写作台"
+          title={viewMode === "library" ? "返回对话" : "论文库 / 写作台"}
+        >
+          📚
         </button>
 
         <button className="topbar__btn" onClick={toggle} aria-label="切换主题">

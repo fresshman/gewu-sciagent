@@ -23,6 +23,7 @@ import { canonicalSessionKey } from "../shared/session_key.mjs";
 import { BudgetGate, budgetFromEnv } from "../shared/run_budget.mjs";
 import { TraceReader, agentStateDb } from "../shared/trace_source.mjs";
 import { isCurrentRoundLine } from "../shared/tail_time.mjs";
+import { collectLibrary, collectWriting } from "./paper_index.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -662,14 +663,21 @@ async function serveStatic(req, res) {
   }
   if (existsSync(filePath) && (await readFile(filePath).then(() => true).catch(() => false))) {
     const ext = path.extname(filePath);
-    res.writeHead(200, { "Content-Type": MIME[ext] || "application/octet-stream" });
+    res.writeHead(200, {
+      "Content-Type": MIME[ext] || "application/octet-stream",
+      // /assets/ 下的文件名带内容 hash，可以长缓存；index.html 必须每次回源，
+      // 否则 rebuild 之后浏览器还在用旧 bundle（实测踩过：改完页面没变化）。
+      "Cache-Control": urlPath.startsWith("/assets/")
+        ? "public, max-age=31536000, immutable"
+        : "no-cache",
+    });
     res.end(await readFile(filePath));
     return;
   }
   // SPA 回退
   const idx = join(DIST, "index.html");
   if (existsSync(idx)) {
-    res.writeHead(200, { "Content-Type": MIME[".html"] });
+    res.writeHead(200, { "Content-Type": MIME[".html"], "Cache-Control": "no-cache" });
     res.end(await readFile(idx));
     return;
   }
@@ -884,6 +892,71 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, { papers });
     } catch (e) {
       return sendJSON(res, 500, { error: "读取论文列表失败", detail: e.message });
+    }
+  }
+
+  // ---- 论文库 / 写作台（只读投影）----
+  // 两个视图都不新建数据：论文库 = 仓库参考文献 × 本机 PDF × 笔记 × 复现请求的合并，
+  // 写作台 = main.tex 的语法结构（章节/图表/公式/引用）+ 核查产物计数。
+  // 解析不出来的字段留空；缺源文件时 available:false + reason + hint，不返回空壳冒充有数据。
+  const REPO_ROOT = join(ROOT, "..");
+
+  async function loadActiveProject() {
+    try {
+      const txt = await readFile(GEWU_CONFIG, "utf8");
+      const config = JSON.parse(txt);
+      const name = config.active_project;
+      const project = config.projects?.[name];
+      return project ? { name, project } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  if (p === "/api/library" && req.method === "GET") {
+    const cur = await loadActiveProject();
+    if (!cur) {
+      return sendJSON(res, 200, {
+        available: false,
+        reason: "无活跃项目",
+        hint: "在左上角选择一个课题",
+        items: [],
+        summary: { total: 0, verified: 0, ownChecked: 0, withNotes: 0, withRepro: 0, missingPdf: 0 },
+        progressSteps: [],
+      });
+    }
+    try {
+      return sendJSON(res, 200, collectLibrary({
+        projectPath: cur.project.path,
+        repoRoot: REPO_ROOT,
+        projectName: cur.name,
+      }));
+    } catch (e) {
+      return sendJSON(res, 200, {
+        available: false,
+        project: cur.name,
+        reason: `索引失败：${e.message}`,
+        hint: "",
+        items: [],
+        summary: { total: 0, verified: 0, ownChecked: 0, withNotes: 0, withRepro: 0, missingPdf: 0 },
+        progressSteps: [],
+      });
+    }
+  }
+
+  if (p === "/api/writing" && req.method === "GET") {
+    const cur = await loadActiveProject();
+    if (!cur) {
+      return sendJSON(res, 200, { available: false, reason: "无活跃项目", hint: "在左上角选择一个课题" });
+    }
+    try {
+      return sendJSON(res, 200, collectWriting({
+        projectPath: cur.project.path,
+        repoRoot: REPO_ROOT,
+        projectName: cur.name,
+      }));
+    } catch (e) {
+      return sendJSON(res, 200, { available: false, project: cur.name, reason: `解析失败：${e.message}`, hint: "" });
     }
   }
 

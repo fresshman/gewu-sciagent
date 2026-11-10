@@ -203,3 +203,105 @@ export interface CaseBundle {
   papers?: CasePaper[];
   artifacts?: CaseArtifact[];
 }
+
+/* ============ 论文库 / 写作台（/api/library、/api/writing） ============ */
+
+/** 一行论文。kind=own 是本人稿子（来自 main.tex），ext 是外部文献。 */
+export interface LibraryItem {
+  id: string;
+  kind: "own" | "ext";
+  label: string;
+  title: string;
+  src: string;
+  year: string;
+  identifier: string;
+  tags: string[];
+  /** 本机是否有 PDF；没有就是 null，不假设 */
+  pdf: { bytes: number; pages: number } | null;
+  check: { t: string; cls: "b-ok" | "b-warn" | "b-mut"; sub: string };
+  rel: { note: number; repro: number; cite: number };
+  /** 推进度 0–100，五段流水线等分 */
+  prog: number;
+  /** 五段命中情况，顺序同 LibraryResponse.progressSteps */
+  steps: boolean[];
+  lines: string[];
+  tex?: string;
+  claimsCount?: number;
+}
+
+export interface LibraryResponse {
+  available: boolean;
+  project?: string;
+  reason?: string;
+  hint?: string;
+  items: LibraryItem[];
+  summary: {
+    total: number;
+    /** 只统计外部文献；本人稿子的核查口径不同，见 ownChecked */
+    verified: number;
+    ownChecked: number;
+    withNotes: number;
+    withRepro: number;
+    missingPdf: number;
+  };
+  progressSteps: string[];
+}
+
+/** 写作台大纲节点。level=0 章节、1 小节；leaves 是该节下的表/图/引用。 */
+export interface WritingNode {
+  level: 0 | 1;
+  num: string;
+  title: string;
+  /** 源文件行号（1-based） */
+  line: number;
+  leaves: WritingLeaf[];
+}
+
+export interface WritingLeaf {
+  kind: "tbl" | "fig" | "cite";
+  num: number;
+  label: string;
+  text: string;
+  line: number;
+}
+
+export interface WritingResponse {
+  available: boolean;
+  project?: string;
+  reason?: string;
+  hint?: string;
+  tex?: {
+    path: string;
+    bytes: number;
+    sha256: string;
+    lines: number;
+    title: string;
+    date: string;
+    mtime: string;
+    source: string;
+  };
+  outline?: WritingNode[];
+  assets?: {
+    claims: { n: number; withSource: number; path: string };
+    equations: { n: number };
+    refs: {
+      n: number;
+      verified: number;
+      verdict: string;
+      checkedAt: string;
+      hallucinationRate: number | null;
+      path: string;
+      items: { id: string; title: string; identifier: string; status: string; method: string }[];
+    };
+    tables: number;
+    figures: number;
+    bibitems: number;
+  };
+  pdf?: { path: string; bytes: number } | null;
+  /** 项目目录下同一稿子的另一份副本；same=false 表示内容不同 */
+  duplicates?: { path: string; bytes: number; sha256: string; same: boolean; lines: number; tables: number }[];
+  projectDraft?: { path: string; bytes: number; sha256: string } | null;
+}
+
+/** 顶层视图：对话工作台 / 单篇 PDF 阅读器 / 论文库与写作台 */
+export type ViewMode = "chat" | "papers" | "library";

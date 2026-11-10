@@ -1,4 +1,4 @@
-import type { Agent, Stage, ModelOption, ChatMessage, CaseBundle, RunRecord, RunListEntry, RunStep, RunStatus } from "../types";
+import type { Agent, Stage, ModelOption, ChatMessage, CaseBundle, RunRecord, RunListEntry, RunStep, RunStatus, LibraryResponse, WritingResponse } from "../types";
 
 async function getJSON<T>(url: string): Promise<T> {
   const r = await fetch(url);
@@ -41,6 +41,16 @@ export function getActiveProject(): Promise<any> {
 
 export function getPapers(): Promise<{ papers: any[] }> {
   return getJSON("/api/papers");
+}
+
+// 论文库：仓库参考文献 × 本机 PDF × 笔记 × 复现请求的合并视图（只读）
+export function getLibrary(): Promise<LibraryResponse> {
+  return getJSON("/api/library");
+}
+
+// 写作台：main.tex 的结构（章节行号 / 表图 / 引用）+ 核查资产计数（只读）
+export function getWriting(): Promise<WritingResponse> {
+  return getJSON("/api/writing");
 }
 
 export async function uploadPaper(pdfBase64: string, filename: string): Promise<any> {

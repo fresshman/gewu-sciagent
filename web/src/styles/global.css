@@ -18,7 +18,9 @@ button { font-family: inherit; cursor: pointer; }
 .app {
   display: grid;
   height: 100vh;
-  grid-template-columns: 1fr;
+  /* minmax(0,1fr)：不写的话 1fr 的下限是 min-content，
+     顶栏里几个 select 就能把整列撑得比视口宽，窄屏整页横向滚动 */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--topbar-h) 1fr auto;
   grid-template-areas: "top" "main" "tab";
 }
@@ -38,7 +40,7 @@ button { font-family: inherit; cursor: pointer; }
 /* 桌面端（≥1024）：三区驾驶舱 */
 @media (min-width: 1024px) {
   .app {
-    grid-template-columns: var(--left-w) 1fr var(--right-w);
+    grid-template-columns: var(--left-w) minmax(0, 1fr) var(--right-w);
     grid-template-rows: var(--topbar-h) 1fr;
     grid-template-areas: "top top top" "left center right";
   }
@@ -63,6 +65,8 @@ button { font-family: inherit; cursor: pointer; }
 .topbar__logo {
   display: flex; align-items: center; gap: var(--space-2);
   font-size: var(--fs-h2); font-weight: 600; color: var(--text-primary);
+  /* 窄屏下顶栏塞满后「格物」会被压成竖排两行，锁住不换行 */
+  flex: 0 0 auto; white-space: nowrap;
 }
 .topbar__logo .mark {
   width: 22px; height: 22px; border-radius: 6px;
@@ -71,6 +75,9 @@ button { font-family: inherit; cursor: pointer; }
 .topbar__topic {
   color: var(--text-secondary); font-size: var(--fs-cap);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* min-width:0 缺了它，nowrap 文本的 min-content 会把整个顶栏撑出视口，
+     窄屏下整页横向滚动（实测 760px 视口被撑到 962px） */
+  min-width: 0; flex: 0 1 auto;
 }
 .topbar__spacer { flex: 1; }
 .topbar__actions { display: flex; align-items: center; gap: var(--space-2); }
@@ -1338,6 +1345,10 @@ button { font-family: inherit; cursor: pointer; }
 
 /* 全屏论文阅读器 */
 .paper-reader-full {
+  /* 顶层网格是三栏（top / left center right）；满宽视图必须显式跨满第二行，
+     否则会被自动放置进左栏那 280px 里 */
+  grid-column: 1 / -1;
+  grid-row: 2;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -1347,4 +1358,10 @@ button { font-family: inherit; cursor: pointer; }
   background: var(--brand-soft);
   border-color: var(--brand);
   color: var(--brand);
+}
+
+/* 窄屏顶栏：模型选择收起（设置面板里仍可改），把位置让给视图切换 */
+@media (max-width: 900px) {
+  .topbar__actions .topbar__model:last-of-type { display: none; }
+  .topbar { gap: var(--space-2); }
 }

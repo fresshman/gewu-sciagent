@@ -26,9 +26,12 @@ interface Paper {
 export function PaperReader({
   onReproduce,
   isStreaming,
+  initialPaperId,
 }: {
   onReproduce: (instruction: string) => void;
   isStreaming: boolean;
+  /** 从论文库点「打开阅读器」时带过来的 id；找不到就正常空白 */
+  initialPaperId?: string;
 }) {
   const [papers, setPapers] = useState<Paper[]>([]);
   const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
@@ -107,7 +110,12 @@ export function PaperReader({
   async function loadPapers() {
     try {
       const data = await getPapers();
-      setPapers(data.papers || []);
+      const list: Paper[] = data.papers || [];
+      setPapers(list);
+      if (initialPaperId) {
+        const hit = list.find((p) => p.id === initialPaperId);
+        if (hit) handleSelect(hit);
+      }
     } catch (e) {
       console.error("Failed to load papers:", e);
     }

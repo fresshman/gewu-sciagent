@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { useIsDesktop } from "./hooks/useMediaQuery";
 import { getAgents, getStages, getModels, getHealth, sendChat, getRun } from "./api/client";
-import type { Agent, Stage, ModelOption, ChatMessage, RunStep, RunStatus } from "./types";
+import type { Agent, Stage, ModelOption, ChatMessage, RunStep, RunStatus, ViewMode } from "./types";
 import { TopBar } from "./components/TopBar";
 import { PipelinePanel } from "./components/PipelinePanel";
 import { ChatPanel } from "./components/ChatPanel";
@@ -11,9 +11,18 @@ import { RunPanel } from "./components/RunPanel";
 import { MobileTabBar, type MobileTab } from "./components/MobileTabBar";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { PaperReader } from "./components/PaperReader";
+import { PaperWorkspace } from "./components/library/PaperWorkspace";
 
 let msgSeq = 0;
 const uid = () => `m${++msgSeq}`;
+
+// 视图落在 hash 上：刷新/收藏不丢位置，#writing 直接进写作台
+function viewFromHash(): ViewMode {
+  const h = (typeof location !== "undefined" ? location.hash : "").replace(/^#/, "");
+  if (h === "papers") return "papers";
+  if (h === "library" || h === "writing") return "library";
+  return "chat";
+}
 
 // 同一次工具调用只占一行。优先按 toolCallId 定位，id 缺失时退回「同工具且仍在运行」。
 function findToolSlot(prev: RunStep[], step: RunStep): number {
@@ -78,7 +87,9 @@ export default function App() {
   const [currentRunKey, setCurrentRunKey] = useState<string | null>(null);
   const [runStatus, setRunStatus] = useState<RunStatus | null>(null);
   const [pendingResumeKey, setPendingResumeKey] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"chat" | "papers">("chat");
+  const [viewMode, setViewMode] = useState<ViewMode>(viewFromHash);
+  // 从论文库点「打开阅读器」时带过去的 target；阅读器加载完列表后自己定位
+  const [openPaperId, setOpenPaperId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -182,6 +193,28 @@ export default function App() {
     [selectedAgent, isStreaming, pendingResumeKey]
   );
 
+  // 手改 hash / 浏览器后退时跟着切视图
+  useEffect(() => {
+    const onHash = () => setViewMode(viewFromHash());
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  // 顶栏切视图时同步 hash。#library/#writing 由论文库内部 tab 管，
+  // 这里不去覆盖，否则刷新后「写作台」会被重置回论文库。
+  useEffect(() => {
+    if (viewMode === "library") {
+      if (location.hash !== "#library" && location.hash !== "#writing") {
+        history.replaceState(null, "", "#library");
+      }
+      return;
+    }
+    const want = viewMode === "chat" ? "" : `#${viewMode}`;
+    if (location.hash !== want) {
+      history.replaceState(null, "", want || location.pathname);
+    }
+  }, [viewMode]);
+
   const handleResume = useCallback((key: string) => {
     setPendingResumeKey(key);
     setCurrentRunKey(key);
@@ -223,8 +256,19 @@ export default function App() {
 
         {viewMode === "papers" ? (
           <div className="paper-reader-full">
-            <PaperReader onReproduce={handleReproduce} isStreaming={isStreaming} />
+            <PaperReader
+              onReproduce={handleReproduce}
+              isStreaming={isStreaming}
+              initialPaperId={openPaperId ?? undefined}
+            />
           </div>
+        ) : viewMode === "library" ? (
+          <PaperWorkspace
+            onOpenPaper={(id) => {
+              setOpenPaperId(id);
+              setViewMode("papers");
+            }}
+          />
         ) : isDesktop ? (
           <>
             <div className="col-left">
