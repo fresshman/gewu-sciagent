@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { RunStep, RunStatus } from "../types";
+import { dispositionText } from "../lib/disposition";
 
 // 一条消息做了什么 —— 挂在气泡下面，而不是全塞进顶部的执行进度面板。
 //
@@ -61,7 +62,7 @@ function StepLine({ s }: { s: RunStep }) {
     return (
       <li className="act__row act__row--end">
         <span className="act__ic">⏹</span>
-        <span className="act__note">结束 · {s.disposition || "—"}</span>
+        <span className="act__note">结束 · {dispositionText(s.disposition)}</span>
       </li>
     );
   }

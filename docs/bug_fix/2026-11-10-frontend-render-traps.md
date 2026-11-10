@@ -76,3 +76,24 @@ cd web && npm test          # 87 passed（markdown 16 条覆盖渲染结构）
 msedge --headless=new --window-size=1600,1000 --screenshot=a.png "http://localhost:3112/#claims"
 msedge --headless=new --window-size=760,1100  --screenshot=b.png "http://localhost:3112/#claims"
 ```
+
+## 5. 内部枚举直出界面（`success` / `aborted`）
+
+会话结束原因 `disposition` 是协议字段，取值 `success` / `timeout` / `aborted`。
+三处（任务圆环、消息内执行行、执行面板）都直接把它铺到界面上，于是中文界面里
+出现 `结束 · success`。
+
+**约束**：协议字段进界面前必须有显式映射，且映射失败要**原样显示**，不许猜。
+`dispositionText()` 就是这么写的：认不出来的值一字不改地返回——宁可露出内部字段，
+也不要把它翻成「成功」。同理，给行定色不能反读中文标签，要另一条 `dispositionTone()`，
+否则翻译改一个字，颜色就跟着变。
+
+```ts
+dispositionText("success")           // 成功
+dispositionText("cancelled_by_user") // 取消（含 cancel 就该认）
+dispositionText("partial")           // partial（不猜）
+```
+
+**踩坑提醒**：写这条测试时我先断言 `cancelled_by_user` 原样返回，测挂了——
+是实现对、断言错。判「认不认得出」要用真没规则的词（`partial`），
+不能用带后缀的复合值。

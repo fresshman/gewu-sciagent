@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getRuns, getRun } from "../api/client";
 import type { RunStep, RunListEntry, RunRecord, RunStatus } from "../types";
+import { dispositionText } from "../lib/disposition";
 
 const STATUS_TEXT: Record<RunStatus, string> = {
   running: "运行中",
@@ -36,7 +37,7 @@ function StepRow({ step }: { step: RunStep }) {
     );
   }
   if (step.kind === "model") return <li className="runstep">🧠 模型推理完成</li>;
-  if (step.kind === "ended") return <li className="runstep runstep--end">⏹ 会话结束 · {step.disposition || "—"}</li>;
+  if (step.kind === "ended") return <li className="runstep runstep--end">⏹ 会话结束 · {dispositionText(step.disposition)}</li>;
   if (step.detail) return <li className="runstep runstep--muted">• {step.detail}</li>;
   return null;
 }

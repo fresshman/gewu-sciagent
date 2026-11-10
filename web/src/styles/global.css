@@ -1548,3 +1548,87 @@ h5.md-h, h6.md-h { font-size: var(--fs-body); }
   .orb__btn.is-live .orb__svg { animation: none; }
   .orb__dot.is-live { animation: none; }
 }
+
+/* ── 结构化提问卡（AskUserCard） ──
+   一页一题。卡片自己拿焦点，↑↓ 换项、Space 选中、Enter 提交；
+   焦点环必须可见，否则键盘用户不知道自己停在哪个选项上。 */
+.ask {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--brand);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  padding: 10px 12px;
+  outline: none;
+}
+.ask:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 35%, transparent); }
+.ask.is-done, .ask.is-locked { border-left-color: var(--border); opacity: 0.86; }
+
+.ask__head { display: flex; align-items: flex-start; gap: 8px; }
+.ask__badge {
+  flex: none; margin-top: 1px;
+  font-size: 10px; padding: 1px 6px; border-radius: 4px;
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 14%, transparent);
+}
+.ask__q { font-size: var(--fs-body); font-weight: 600; line-height: 1.5; color: var(--text-primary); }
+.ask__why { margin: 5px 0 0 0; font-size: var(--fs-micro); line-height: 1.55; color: var(--text-tertiary); }
+
+.ask__opts { display: flex; flex-direction: column; gap: 4px; margin-top: 9px; }
+.ask__opt {
+  display: flex; align-items: flex-start; gap: 8px;
+  width: 100%; text-align: left;
+  padding: 7px 9px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary); font: inherit; font-size: var(--fs-micro);
+  cursor: pointer;
+}
+.ask__opt:hover:not(:disabled) { background: var(--bg-hover); }
+.ask__opt:disabled { cursor: default; }
+/* 键盘停留的那一项：和「已选中」是两件事，必须能区分 */
+.ask__opt.is-active { border-color: var(--brand); }
+.ask__opt.is-on { background: color-mix(in srgb, var(--brand) 10%, var(--bg-card)); }
+.ask__mark { flex: none; color: var(--brand); font-size: 12px; line-height: 1.4; }
+.ask__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ask__label { font-weight: 500; }
+.ask__desc { color: var(--text-tertiary); font-size: 11px; line-height: 1.5; }
+.ask__key {
+  margin-left: auto; flex: none;
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-tertiary);
+}
+
+.ask__foot { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
+.ask__submit {
+  padding: 5px 12px; border-radius: var(--radius-sm);
+  border: 1px solid transparent; background: var(--brand); color: #fff;
+  font-size: var(--fs-micro); cursor: pointer;
+}
+.ask__submit:disabled { opacity: 0.45; cursor: not-allowed; }
+.ask__hint { font-size: 10px; color: var(--text-tertiary); }
+.ask__bypass {
+  margin-left: auto; padding: 0; border: 0; background: none;
+  color: var(--text-tertiary); font-size: 10px; cursor: pointer; text-decoration: underline;
+}
+.ask__bypass:hover { color: var(--text-secondary); }
+.ask__picked { font-size: 11px; color: var(--accent-teal); }
+.ask__skipped { font-size: 11px; color: var(--text-tertiary); }
+
+/* 待答时的输入框占位条：留个位置，别让布局跳，也别假装能聊天 */
+.chat__gate {
+  display: flex; align-items: center; gap: 10px;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border); background: var(--bg-surface);
+}
+.chat__gate-txt { font-size: var(--fs-micro); color: var(--text-tertiary); }
+.chat__gate-btn {
+  margin-left: auto; padding: 4px 10px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-card); color: var(--text-secondary);
+  font-size: 11px; cursor: pointer;
+}
+.chat__gate-btn:hover { background: var(--bg-hover); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ask__opt { transition: none; }
+}

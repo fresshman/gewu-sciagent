@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { RunStatus, RunStep } from "../types";
+import { dispositionText, dispositionTone } from "../lib/disposition";
 
 // 左下角常驻任务圆环：7 阶段的长任务可能跑十几分钟，一旦切到论文库/阅读器，
 // 顶部那排「执行进度」就整块消失了，用户只能靠猜。
@@ -121,11 +122,21 @@ export function TaskOrb({
               .filter((s) => s.kind === "tool" || s.kind === "ended")
               .slice(-6)
               .map((s, i) => (
-                <li key={`${s.ts}-${i}`} className={`orb__row orb__row--${s.status || "ok"}`}>
+                <li
+                  key={`${s.ts}-${i}`}
+                  className={`orb__row orb__row--${
+                    // 结束行没有 status，得按 disposition 定色，否则「出错结束」也显示成绿色对勾
+                    s.kind === "ended"
+                      ? { ok: "ok", err: "error", warn: "running" }[dispositionTone(s.disposition)]
+                      : s.status || "ok"
+                  }`}
+                >
                   <span className="orb__ic">
                     {s.kind === "ended" ? "⏹" : s.status === "running" ? "◐" : s.status === "error" ? "✕" : "✓"}
                   </span>
-                  <code>{s.kind === "ended" ? s.disposition || "结束" : s.tool}</code>
+                  <code title={s.kind === "ended" ? s.disposition : undefined}>
+                    {s.kind === "ended" ? `结束 · ${dispositionText(s.disposition)}` : s.tool}
+                  </code>
                 </li>
               ))}
           </ol>
