@@ -29,3 +29,8 @@ pymupdf>=1.24
 
 # 测试运行器：README「5. 跑测试」的 python -m pytest tests -q 需要它。
 pytest>=8.0
+
+# 分词器：scripts/cost_audit.py 用它对真实产物做 BPE 分词，算 token 与成本；
+# tests/test_cost_audit.py 直接 import 该脚本，缺它会在干净环境里失败 5 条。
+# 首次调用会从 openaipublic 拉一次编码表（约 1 MB），之后离线可用。
+tiktoken>=0.7
