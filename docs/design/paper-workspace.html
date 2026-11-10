@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>格物 · 论文管理设计稿</title>
+<style>
+  :root{
+    --bg:#fff; --surface:#fafaf9; --surface-2:#f4f4f2; --hover:#f0f0ee;
+    --border:rgba(0,0,0,.09); --border-soft:rgba(0,0,0,.06); --border-strong:rgba(0,0,0,.16);
+    --text:#1a1a18; --text-2:#5f5e5a; --text-3:#8f8e88;
+    --accent:#185fa5; --accent-weak:rgba(55,138,221,.13); --accent-line:rgba(55,138,221,.45);
+    --ok:#0f6e56; --ok-weak:rgba(29,158,117,.14);
+    --warn:#854f0b; --warn-weak:rgba(239,159,39,.16);
+    --err:#a32d2d; --err-weak:rgba(226,75,74,.13);
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  [data-theme="dark"]{
+    --bg:#1c1c1a; --surface:#232321; --surface-2:#2a2a28; --hover:#303030;
+    --border:rgba(255,255,255,.10); --border-soft:rgba(255,255,255,.06); --border-strong:rgba(255,255,255,.18);
+    --text:#f0f0ee; --text-2:#b4b2a9; --text-3:#888780;
+    --accent:#85b7eb; --accent-weak:rgba(55,138,221,.22); --accent-line:rgba(133,183,235,.5);
+    --ok:#5dcaa5; --ok-weak:rgba(29,158,117,.22);
+    --warn:#ef9f27; --warn-weak:rgba(239,159,39,.2);
+    --err:#f09595; --err-weak:rgba(226,75,74,.2);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;line-height:1.5;
+       -webkit-font-smoothing:antialiased;overflow:hidden}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+  .app{height:100%;display:flex;flex-direction:column}
+
+  /* ── 顶栏 ── */
+  .top{height:46px;flex:0 0 auto;display:flex;align-items:center;gap:14px;
+       padding:0 14px;border-bottom:1px solid var(--border);background:var(--bg)}
+  .proj{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-2)}
+  .proj b{font-weight:500;color:var(--text)}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--ok)}
+  .tabs{display:flex;gap:2px;margin-left:6px}
+  .tab{padding:5px 11px;border-radius:6px;font-size:12.5px;color:var(--text-2)}
+  .tab:hover{background:var(--hover)}
+  .tab[aria-selected="true"]{background:var(--surface-2);color:var(--text);font-weight:500}
+  .spacer{flex:1}
+  .ghost{border:1px solid var(--border);border-radius:6px;padding:4px 9px;font-size:12px;color:var(--text-2)}
+  .ghost:hover{background:var(--hover);color:var(--text)}
+  .banner{flex:0 0 auto;padding:5px 14px;font-size:11.5px;color:var(--warn);
+          background:var(--warn-weak);border-bottom:1px solid var(--border-soft)}
+
+  /* ── 视图容器 ── */
+  .view{flex:1;min-height:0;display:none}
+  .view.on{display:flex}
+
+  /* ═══ 论文库 ═══ */
+  .lib{flex:1;min-width:0;display:flex;flex-direction:column}
+  .lib-bar{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:9px 14px;
+           border-bottom:1px solid var(--border-soft);background:var(--bg);
+           transition:opacity .18s ease}
+  .lib.scrolling .lib-bar{opacity:0}
+  .search{position:relative;flex:0 0 240px}
+  .search input{width:100%;height:28px;padding:0 9px 0 27px;border-radius:6px;
+                border:1px solid var(--border);background:var(--surface);color:var(--text);
+                font-size:12.5px;outline:none}
+  .search input:focus{border-color:var(--accent-line);background:var(--bg)}
+  .search .ic{position:absolute;left:8px;top:7px;color:var(--text-3);font-size:12px}
+  .chips{display:flex;gap:5px;flex:0 0 auto}
+  .chip{padding:3px 9px;border-radius:99px;font-size:11.5px;color:var(--text-2);
+        border:1px solid var(--border);white-space:nowrap}
+  .chip:hover{background:var(--hover)}
+  .chip.on{background:var(--accent-weak);border-color:var(--accent-line);color:var(--accent)}
+  .legend{margin-left:auto;font-size:11px;color:var(--text-3);display:flex;align-items:center;
+          gap:5px;white-space:nowrap;flex:0 0 auto}
+  .legend i{display:inline-block;width:28px;height:8px;border-radius:2px;
+            background:linear-gradient(90deg,var(--accent-weak) 0,var(--accent-weak) 62%,transparent 62%)}
+
+  .twrap{flex:1;min-height:0;overflow:auto}
+  .lib-foot{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:6px 14px;
+            border-top:1px solid var(--border-soft);font-size:11px;color:var(--text-3);
+            white-space:nowrap;overflow:hidden}
+  .lib-foot .sep{opacity:.5}
+  .lib-foot .hint{margin-left:auto;opacity:.75}
+
+  @media (max-width:1180px){ .peek{display:none} .legend{display:none} }
+  @media (max-width:920px){ .search{flex:1 1 auto} .chips{display:none} }
+  table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
+  thead th{position:sticky;top:0;z-index:2;background:var(--bg);
+           font-weight:500;font-size:11.5px;color:var(--text-3);text-align:left;
+           padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;
+           user-select:none}
+  thead th .hd{display:flex;align-items:center;gap:4px}
+  thead th:hover{color:var(--text-2)}
+  thead th .so{opacity:.35;font-size:9px}
+  tbody tr{border-bottom:1px solid var(--border-soft);cursor:pointer}
+  tbody tr:hover{background:var(--hover)}
+  tbody tr.sel{background:var(--accent-weak)}
+  td{padding:8px 10px;vertical-align:middle;overflow:hidden}
+  .cell{display:block;width:100%;text-align:left;overflow:hidden}
+  .cell:active{opacity:.6}
+
+  .t-main{display:flex;align-items:center;gap:6px;min-width:0}
+  .heat{border-radius:3px;padding:1px 5px;margin-left:-5px;
+        background-repeat:no-repeat;background-size:100% 100%;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+  .kind{flex:0 0 auto;font-size:10px;line-height:1.4;padding:0 4px;border-radius:3px;
+        border:1px solid var(--border-strong);color:var(--text-2);white-space:nowrap}
+  .kind.own{border-color:var(--accent-line);color:var(--accent);background:var(--accent-weak)}
+  .sub{font-size:11px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mono{font-family:var(--mono);font-size:11px}
+  .idf{display:block;font-family:var(--mono);font-size:10.5px;color:var(--text-3);
+       overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;
+       font-variant-numeric:tabular-nums}
+  .badge{display:inline-block;font-size:10px;line-height:1.5;padding:0 5px;border-radius:3px}
+  .b-ok{background:var(--ok-weak);color:var(--ok)}
+  .b-warn{background:var(--warn-weak);color:var(--warn)}
+  .b-mut{background:var(--surface-2);color:var(--text-3)}
+  .tags{display:flex;gap:3px;flex-wrap:wrap}
+  .tg{font-size:10px;padding:0 5px;border-radius:3px;background:var(--surface-2);color:var(--text-2)}
+  .rel{display:flex;gap:6px;font-size:10.5px;color:var(--text-3);
+       font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}
+  .rel span{flex:0 0 auto}
+  .rel b{font-weight:500;color:var(--text-2)}
+  .rel .zero{color:var(--text-3);opacity:.55}
+  .addtg{font-size:10px;color:var(--text-3);opacity:0}
+  tbody tr:hover .addtg{opacity:1}
+
+  /* 右侧预览 */
+  .peek{flex:0 0 288px;border-left:1px solid var(--border);background:var(--surface);
+        padding:14px;overflow:auto}
+  .peek h3{margin:0 0 3px;font-size:13.5px;font-weight:500;line-height:1.45}
+  .peek .p-meta{font-size:11.5px;color:var(--text-3);margin-bottom:12px}
+  .peek .p-sec{margin-top:14px}
+  .peek .p-lb{font-size:10.5px;color:var(--text-3);letter-spacing:.03em;margin-bottom:4px}
+  .peek .p-v{font-size:12px;color:var(--text-2);line-height:1.55}
+  .note{background:var(--surface-2);border-radius:6px;padding:8px 9px;font-size:11.5px;
+        color:var(--text-2);line-height:1.6;white-space:pre-wrap}
+  .peek .empty{font-size:12px;color:var(--text-3);padding:8px 0}
+  .pbar{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin-top:6px}
+  .pbar i{height:3px;border-radius:2px;background:var(--surface-2);display:block}
+  .pbar i.on{background:var(--accent)}
+  .plab{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin-top:3px}
+  .plab span{font-size:9.5px;color:var(--text-3);text-align:center}
+  .plab span.on{color:var(--accent)}
+
+  /* ═══ 写作台 ═══ */
+  .outline{flex:0 0 246px;border-right:1px solid var(--border);overflow:auto;padding:8px 6px 20px}
+  .ol-h{font-size:10.5px;color:var(--text-3);letter-spacing:.03em;padding:6px 8px 5px}
+  .node{display:flex;align-items:center;gap:6px;width:100%;height:25px;padding:0 7px;
+        border-radius:5px;text-align:left;color:var(--text-2);overflow:hidden}
+  .node:hover{background:var(--hover)}
+  .node.sel{background:var(--accent-weak);color:var(--accent)}
+  .node .tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .node .ln{font-family:var(--mono);font-size:10px;color:var(--text-3);opacity:0}
+  .node:hover .ln{opacity:1}
+  .node .ic{flex:0 0 14px;text-align:center;font-size:10px;color:var(--text-3)}
+  .node.s0{font-size:12.5px;font-weight:500;color:var(--text);margin-top:5px}
+  .node.s1{font-size:12px;padding-left:22px}
+  .node.leaf{font-size:11.5px;color:var(--text-3);padding-left:36px}
+  .node.leaf .ic{color:var(--text-3);opacity:.7}
+  .ol-sep{height:1px;background:var(--border-soft);margin:9px 8px}
+
+  .pdfbox{flex:1;min-width:0;background:var(--surface-2);overflow:auto;padding:16px;display:flex;
+          justify-content:center}
+  .page{width:100%;max-width:452px;align-self:flex-start;min-height:560px;
+        background:#fff;border-radius:3px;
+        box-shadow:0 1px 3px rgba(0,0,0,.14);padding:30px 34px;color:#1a1a18;
+        font-family:var(--sans);display:flex;flex-direction:column}
+  [data-theme="dark"] .page{background:#f7f7f5}
+  .page h1{font-size:14px;font-weight:600;text-align:center;margin:0 0 4px;line-height:1.45}
+  .page .au{font-size:10px;text-align:center;color:#6b6a65;margin-bottom:14px}
+  .page h2{font-size:11.5px;font-weight:600;margin:13px 0 4px}
+  .page p{font-size:9.5px;line-height:1.75;margin:0 0 5px;color:#3a3a37;text-align:justify}
+  .page .sk{height:3px;background:#eceae5;border-radius:2px;margin:4px 0}
+  .page .placeholder{margin-top:auto;padding:14px;border:1px dashed #cfcdc6;border-radius:4px;
+                     font-size:10px;color:#8b8a84;text-align:center;line-height:1.7}
+  .page .pgno{text-align:center;font-size:9px;color:#a9a8a2;margin-top:10px}
+
+  .detail{flex:0 0 300px;border-left:1px solid var(--border);overflow:auto;padding:14px}
+  .detail h3{margin:0 0 2px;font-size:13px;font-weight:500;line-height:1.5}
+  .detail .d-kind{font-size:10.5px;color:var(--text-3);margin-bottom:12px}
+  .kv{display:flex;gap:8px;font-size:11.5px;padding:4px 0;border-bottom:1px solid var(--border-soft)}
+  .kv .k{flex:0 0 62px;color:var(--text-3)}
+  .kv .v{flex:1;min-width:0;color:var(--text-2);word-break:break-word}
+  .kv .v.mono{font-family:var(--mono);font-size:10.5px}
+  .arm{display:flex;align-items:center;gap:7px;font-size:11.5px;padding:3px 0}
+  .arm .n{flex:0 0 62px;font-family:var(--mono);font-size:10.5px;color:var(--text-2)}
+  .arm .v{flex:0 0 58px;text-align:right;font-variant-numeric:tabular-nums}
+  .arm .d{flex:0 0 52px;font-size:10.5px;color:var(--err)}
+  .arm .p{flex:0 0 42px;font-size:10.5px;color:var(--text-3);text-align:right}
+  .warnbox{margin-top:10px;padding:8px 9px;border-radius:5px;background:var(--warn-weak);
+           color:var(--warn);font-size:11px;line-height:1.6}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,10px);opacity:0;
+         background:var(--text);color:var(--bg);font-size:12px;padding:7px 14px;border-radius:6px;
+         pointer-events:none;transition:.18s ease;z-index:9}
+  .toast.on{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="top">
+    <div class="proj"><span class="dot"></span><b>coal-thermal</b><span>MIL+LIBS 大颗粒原煤热值预测</span></div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-v="lib">论文库</button>
+      <button class="tab" role="tab" aria-selected="false" data-v="write">写作台</button>
+    </div>
+    <div class="spacer"></div>
+    <button class="ghost" id="theme">切换主题</button>
+    <button class="ghost">导入 PDF</button>
+  </div>
+
+  <div class="banner">设计稿 · 非真实交互；数据取自 coal-thermal 真实产物（6 篇文献 / 5 表 / 2 图 / 12 条声明 / 0 条编号公式）</div>
+
+  <!-- ══════ 论文库 ══════ -->
+  <section class="view on" id="v-lib">
+    <div class="lib" id="lib">
+      <div class="lib-bar">
+        <div class="search"><span class="ic">⌕</span><input placeholder="搜索标题、作者、DOI、标签…" id="q"></div>
+        <div class="chips">
+          <button class="chip on">全部 8</button>
+          <button class="chip">我的稿子 1</button>
+          <button class="chip">有笔记 1</button>
+          <button class="chip">缺 PDF 0</button>
+        </div>
+        <div class="legend"><i></i>标题底色 = 推进度（入库→笔记→复现→引用→成稿）</div>
+      </div>
+      <div class="twrap" id="twrap">
+        <table>
+          <colgroup>
+            <col style="width:31%"><col style="width:14%"><col style="width:6%">
+            <col style="width:14%"><col style="width:10%"><col style="width:16%"><col style="width:9%">
+          </colgroup>
+          <thead>
+            <tr>
+              <th><span class="hd">标题 <span class="so">▲▼</span></span></th>
+              <th><span class="hd">来源 / 作者</span></th>
+              <th><span class="hd">年份 <span class="so">▲▼</span></span></th>
+              <th><span class="hd">核查状态</span></th>
+              <th><span class="hd">标签</span></th>
+              <th><span class="hd">标识符</span></th>
+              <th><span class="hd">关联</span></th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="lib-foot">
+        <span>8 篇</span><span class="sep">·</span>
+        <span>6 篇已核验</span><span class="sep">·</span>
+        <span>1 篇有笔记</span><span class="sep">·</span>
+        <span>1 篇有复现请求（无结果）</span>
+        <span class="spacer"></span>
+        <span class="hint">单击选中，双击任意单元格复制</span>
+      </div>
+    </div>
+    <aside class="peek" id="peek"></aside>
+  </section>
+
+  <!-- ══════ 写作台 ══════ -->
+  <section class="view" id="v-write">
+    <nav class="outline" id="outline"></nav>
+    <div class="pdfbox">
+      <div class="page">
+        <h1>MIL+LIBS 大颗粒原煤热值预测</h1>
+        <div class="au">复现报告 · 9 页 · v3</div>
+        <h2>摘要</h2>
+        <p>本文以激光诱导击穿光谱（LIBS）为输入，采用多实例学习对整袋原煤的热值进行回归，5 折交叉验证 RMSE 均值 214.57 ± 25.71 kcal/kg。</p>
+        <div class="sk" style="width:96%"></div><div class="sk" style="width:99%"></div><div class="sk" style="width:88%"></div>
+        <h2>1　引言</h2>
+        <p>煤质快速定量对燃烧优化与碳核算具有直接意义。已有工作将 LIBS 与偏最小二乘及常规机器学习结合<sup>[1,2,4]</sup>，注意力型 MIL 在包级任务上表现突出<sup>[6]</sup>。</p>
+        <div class="sk" style="width:99%"></div><div class="sk" style="width:94%"></div>
+        <h2>2　方法</h2>
+        <p>每个煤样建模为一个 bag，单颗粒光谱为实例，热值标签位于 bag 级。聚合采用 LSE 池化与 TransMIL 注意力两种实现，融合层使用 FiLM 注入 PLSR 得分。</p>
+        <div class="sk" style="width:97%"></div><div class="sk" style="width:91%"></div><div class="sk" style="width:99%"></div>
+        <div class="placeholder">PDF 预览位<br>实际接入现有 PDFViewer 组件</div>
+        <div class="pgno">1 / 9</div>
+      </div>
+    </div>
+    <aside class="detail" id="detail"></aside>
+  </section>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const P = [
+  { id:"coal-report", kind:"own", label:"我的稿子",
+    title:"MIL+LIBS 大颗粒原煤热值预测",
+    src:"复现报告 · 本人", year:"2026",
+    check:{ t:"已核", cls:"b-ok", sub:"12 条声明 · 0 条失效" },
+    tags:["MIL","LIBS","煤炭"], idf:"—", rel:{note:0, repro:0, cite:6},
+    prog:100,
+    lines:["v3 · 9 页 · 指纹 d912711f93fbffe6","5 表 2 图 6 文献","源 docs/paper/coal_report/main.tex"] },
+
+  { id:"test_paper", kind:"ext", label:"文献",
+    title:"Test Paper for Gewu Paper Reader",
+    src:"Test Author 1, Test Author 2", year:"2026",
+    check:{ t:"未核验", cls:"b-mut", sub:"无 DOI · 测试件" },
+    tags:[], idf:"—", rel:{note:1, repro:2, cite:0},
+    prog:40,
+    lines:["2,566 B · 1 页","笔记 326 B","2 次复现请求，均无结果"],
+    note:"MIL 多实例学习 + LIBS 光谱：创新点是把整袋煤建模为 bag，热值标签在 bag 级。需验证：1) 注意力聚合是否优于 mean-pooling；2) 单颗粒光谱信噪比。\n\n补充：消融实验还要对比 instance 数量 K 对 RMSE 的影响。" },
+
+  { id:"p1", kind:"ext", label:"文献",
+    title:"A model combining spectrum standardization and dominant factor based PLS for carbon analysis in coal by LIBS",
+    src:"Spectrochimica Acta Part B", year:"2014",
+    check:{ t:"已核验", cls:"b-ok", sub:"arXiv · 置信 high" },
+    tags:[], idf:"10.1016/j.sab.2014.06.017", rel:{note:0, repro:0, cite:1},
+    prog:60, lines:["arXiv:1402.2062","本稿引用 1 处（§1 引言）"] },
+
+  { id:"p2", kind:"ext", label:"文献",
+    title:"The application of spectrum standardization method for carbon analysis in coal using LIBS",
+    src:"arXiv", year:"2014",
+    check:{ t:"已核验", cls:"b-ok", sub:"arXiv · 置信 high" },
+    tags:[], idf:"arXiv:1402.2060", rel:{note:0, repro:0, cite:1},
+    prog:60, lines:["本稿引用 1 处（§1 引言）"] },
+
+  { id:"p3", kind:"ext", label:"文献",
+    title:"milearn: A Python Package for Multi-Instance Machine Learning",
+    src:"arXiv", year:"2025",
+    check:{ t:"已核验", cls:"b-ok", sub:"arXiv · 置信 high" },
+    tags:[], idf:"arXiv:2512.01287", rel:{note:0, repro:0, cite:1},
+    prog:60, lines:["本稿引用 1 处（§1 引言，工具实现）"] },
+
+  { id:"p4", kind:"ext", label:"文献",
+    title:"Rapid Classification and Quantification of Coal by Using LIBS and Machine Learning",
+    src:"Applied Sciences 13(14):8158", year:"2023",
+    check:{ t:"已核验", cls:"b-ok", sub:"CrossRef · 置信 high" },
+    tags:[], idf:"10.3390/app13148158", rel:{note:0, repro:0, cite:1},
+    prog:60, lines:["本稿引用 1 处（§1 引言）"] },
+
+  { id:"p5", kind:"ext", label:"文献",
+    title:"Coal Analysis by Laser-Induced Breakdown Spectroscopy",
+    src:"Wiley", year:"2021",
+    check:{ t:"已核验", cls:"b-ok", sub:"CrossRef · 置信 high" },
+    tags:[], idf:"10.1002/9781119758396.ch27", rel:{note:0, repro:0, cite:1},
+    prog:60, lines:["本稿引用 1 处（§1 引言，领域综述）"] },
+
+  { id:"p6", kind:"ext", label:"文献",
+    title:"Attention-based Deep Multiple Instance Learning",
+    src:"Ilse M., Tomczak J., Welling M. · ICML", year:"2018",
+    check:{ t:"已核验", cls:"b-ok", sub:"arXiv · 置信 high" },
+    tags:[], idf:"arXiv:1802.04712", rel:{note:0, repro:0, cite:1},
+    prog:60, lines:["本稿引用 1 处（§1 引言，注意力 MIL）"] },
+];
+
+const rowsEl = document.getElementById("rows");
+let selId = null;
+
+function heatStyle(p){
+  const a = Math.max(0, p - 5), b = Math.min(100, p + 2);
+  return "background-image:linear-gradient(90deg,var(--accent-weak) 0,var(--accent-weak) "
+    + a + "%,transparent " + b + "%)";
+}
+function relHtml(p){
+  const r = p.rel;
+  const f=(n,k)=>`<span class="${n?'':'zero'}">${k}<b>${n||0}</b></span>`;
+  const tip = p.kind==="own"
+    ? `引用外部文献 ${r.cite} 篇`
+    : `笔记 ${r.note} 篇 · 复现请求 ${r.repro} 次 · 被本稿引用 ${r.cite} 处`;
+  return `<div class="rel" title="${tip}">${f(r.note,'笔')}${f(r.repro,'复')}${f(r.cite,'引')}</div>`;
+}
+
+function render(){
+  rowsEl.innerHTML = P.map(p => `
+    <tr data-id="${p.id}" class="${selId===p.id?'sel':''}">
+      <td>
+        <button class="cell" data-copy="${p.title.replace(/"/g,'&quot;')}" data-lb="标题">
+          <div class="t-main">
+            <span class="kind ${p.kind==='own'?'own':''}">${p.label}</span>
+            <span class="heat" style="${heatStyle(p.prog)}" title="推进度 ${p.prog}%">${p.title}</span>
+          </div>
+        </button>
+      </td>
+      <td><button class="cell" data-copy="${p.src.replace(/"/g,'&quot;')}" data-lb="来源">
+        <span class="sub" style="color:var(--text-2)">${p.src}</span></button></td>
+      <td><span class="sub mono">${p.year}</span></td>
+      <td><span class="badge ${p.check.cls}">${p.check.t}</span>
+          <div class="sub">${p.check.sub}</div></td>
+      <td>${p.tags.length
+            ? `<div class="tags">${p.tags.map(t=>`<span class="tg">${t}</span>`).join("")}</div>`
+            : `<span class="addtg">+ 标签</span>`}</td>
+      <td><button class="cell" data-copy="${p.idf}" data-lb="标识符" title="${p.idf}">
+        <span class="idf">${p.idf}</span></button></td>
+      <td>${relHtml(p)}</td>
+    </tr>`).join("");
+
+  rowsEl.querySelectorAll("tr").forEach(tr=>{
+    tr.addEventListener("click", e=>{
+      if (e.target.closest("[data-copy]") && e.detail === 2) return;
+      selId = tr.dataset.id; render();
+    });
+    tr.addEventListener("mouseenter", ()=>{ schedulePeek(tr.dataset.id); });
+  });
+  rowsEl.querySelectorAll("[data-copy]").forEach(b=>{
+    b.addEventListener("dblclick", e=>{
+      e.stopPropagation();
+      navigator.clipboard?.writeText(b.dataset.copy);
+      toast("已复制" + b.dataset.lb);
+    });
+  });
+  paintPeek(selId || P[0].id);
+}
+
+let peekTimer=null, peekId=null;
+function schedulePeek(id){
+  if (peekId===id) return;
+  clearTimeout(peekTimer);
+  peekTimer=setTimeout(()=>{ peekId=id; paintPeek(id); },180);
+}
+function paintPeek(id){
+  const p = P.find(x=>x.id===id); if(!p) return;
+  const nodes = [
+    ["入库", true], ["笔记", p.rel.note>0], ["复现", p.rel.repro>0],
+    ["引用", p.rel.cite>0], ["成稿", p.kind==="own"]
+  ];
+  document.getElementById("peek").innerHTML = `
+    <h3>${p.title}</h3>
+    <div class="p-meta">${p.src} · ${p.year}</div>
+    <div class="p-lb">推进</div>
+    <div class="pbar">${nodes.map(([n,on])=>
+      `<i class="${on?'on':''}" title="${n}${on?' 已完成':' 未开始'}"></i>`).join("")}</div>
+    <div class="plab">${nodes.map(([n,on])=>
+      `<span class="${on?'on':''}">${n}</span>`).join("")}</div>
+    <div class="p-sec"><div class="p-lb">核查</div>
+      <div class="p-v"><span class="badge ${p.check.cls}">${p.check.t}</span> ${p.check.sub}</div></div>
+    <div class="p-sec"><div class="p-lb">标识符</div><div class="p-v mono">${p.idf}</div></div>
+    <div class="p-sec"><div class="p-lb">明细</div>
+      <div class="p-v">${p.lines.map(l=>"· "+l).join("<br>")}</div></div>
+    <div class="p-sec"><div class="p-lb">笔记</div>
+      ${p.note ? `<div class="note">${p.note}</div>`
+               : `<div class="empty">无笔记　<a href="#" style="color:var(--accent);text-decoration:none">去读 →</a></div>`}</div>`;
+}
+
+const twrap=document.getElementById("twrap"), lib=document.getElementById("lib");
+let st=null;
+twrap.addEventListener("scroll",()=>{
+  lib.classList.add("scrolling"); clearTimeout(st);
+  st=setTimeout(()=>lib.classList.remove("scrolling"),450);
+});
+
+// 写作台大纲：真实章节行号与图表标题
+const TREE = [
+  {d:0,t:"摘要",ln:17},
+  {d:0,t:"1　引言",ln:32,leaf:[["cite","引用 p1 p2 p4 p5 p6",null]]},
+  {d:0,t:"2　方法",ln:49},
+  {d:1,t:"2.1　数据与预处理",ln:50},
+  {d:1,t:"2.2　模型架构",ln:54},
+  {d:0,t:"3　实验设置",ln:64},
+  {d:0,t:"4　结果",ln:73},
+  {d:1,t:"4.1　fold0 逐袋预测",ln:74,leaf:[
+    ["tbl","表 1　fold0 逐袋预测",78],["fig","图 1　预测 vs 真实 R²=0.8786",106]]},
+  {d:1,t:"4.2　5 折交叉验证汇总",ln:109,leaf:[
+    ["tbl","表 2　逐折指标",111],["fig","图 2　5 折 RMSE 214.57±25.71",140]]},
+  {d:1,t:"4.3　统计显著性",ln:143},
+  {d:1,t:"4.4　消融实验",ln:160,leaf:[["tbl","表 3　聚合策略消融",167]]},
+  {d:1,t:"4.5　组件级消融",ln:201,leaf:[["tbl","表 4　组件级消融",218],["tbl","表 5　留一折敏感性",244]]},
+  {d:1,t:"4.6　可复现性交叉校验",ln:275},
+  {d:0,t:"5　结论",ln:285},
+  {d:0,t:"数据与代码可用性",ln:301},
+];
+const SEP = [
+  {k:"claims",t:"核查声明 12",n:"12"},
+  {k:"eqs",t:"编号公式 0",n:"0"},
+  {k:"refs",t:"参考文献 6",n:"6"},
+];
+
+const ICON={tbl:"▦",fig:"◨",cite:"❝"};
+
+function renderOutline(){
+  const el=document.getElementById("outline");
+  let h=`<div class="ol-h">结构（与编译后 PDF 一致）</div>`;
+  TREE.forEach((n,i)=>{
+    h+=`<button class="node s${n.d}" data-i="${i}" title="${n.t}">
+      <span class="tx">${n.t}</span><span class="ln">L${n.ln}</span></button>`;
+    (n.leaf||[]).forEach(([k,t,ln],j)=>{
+      h+=`<button class="node leaf" data-leaf="${i}-${j}" title="${t}">
+        <span class="ic">${ICON[k]}</span><span class="tx">${t}</span>
+        ${ln?`<span class="ln">L${ln}</span>`:""}</button>`;
+    });
+  });
+  h+=`<div class="ol-sep"></div><div class="ol-h">资产</div>`;
+  SEP.forEach(s=>{
+    h+=`<button class="node s1" data-sep="${s.k}">
+      <span class="ic">#</span><span class="tx">${s.t}</span>
+      <span class="ln">${s.n}</span></button>`;
+  });
+  el.innerHTML=h;
+
+  el.querySelectorAll(".node").forEach(b=>{
+    b.addEventListener("click",()=>{
+      el.querySelectorAll(".node.sel").forEach(x=>x.classList.remove("sel"));
+      b.classList.add("sel");
+      if (b.dataset.leaf) showLeaf(b.dataset.leaf);
+      else if (b.dataset.sep) showSep(b.dataset.sep);
+      else showSection(b.dataset.i);
+    });
+  });
+  el.querySelector(".node").classList.add("sel");
+  showSection(0);
+}
+
+function showSection(i){
+  const n=TREE[i];
+  document.getElementById("detail").innerHTML=`
+    <h3>${n.t}</h3><div class="d-kind">章节 · 第 ${n.ln} 行</div>
+    <div class="kv"><span class="k">源文件</span><span class="v mono">main.tex</span></div>
+    <div class="kv"><span class="k">状态</span><span class="v"><span class="badge b-ok">已核</span> 本节声明全部可溯源</span></div>
+    <div class="kv"><span class="k">子节点</span><span class="v">${(n.leaf||[]).length} 个图表</span></div>
+    <div class="warnbox">点击左侧图表节点，看它的数据从哪来、能不能核。</div>`;
+}
+
+const LEAF_DETAIL = {
+  "7-0":{ t:"表 1　fold0 逐袋预测（kcal/kg）", k:"表 · 第 78 行",
+    kv:[["数据源","registry:coal_mil#our_hybrid.per_fold[0]"],["校验","e2e 断言与本表逐位一致"],["行数","14 袋"]],
+    tip:"表的每一行都能回到落盘预测值，不是从图里读的。" },
+  "7-1":{ t:"图 1　fold0 预测 vs 真实", k:"图 · 第 106 行",
+    kv:[["图源","output/figures/coal_fold0_pred_true_*.pdf"],["标注","R²=0.8786，RMSE=218.6108"],["来源","sha256 已记，可复算"]],
+    tip:"图目前**没有 provenance 记录**：哪次 run、哪个脚本生成的，只能靠文件名猜。这是要补的。" },
+  "8-0":{ t:"表 2　5 折逐折指标", k:"表 · 第 111 行",
+    kv:[["数据源","registry:coal_mil#our_hybrid.metrics"],["均值","214.5699 ± 25.7094"],["交叉校验","与官方 summary.json 差 1.1e-05"]],
+    tip:"这是全篇最核心的一张表，12 条声明里有 6 条引它。" },
+  "8-1":{ t:"图 2　5 折 RMSE", k:"图 · 第 140 行",
+    kv:[["图源","output/figures/coal_5fold_rmse_*.pdf"],["标注","214.57 ± 25.71"],["重复","与 5-paper/figures/ 逐字节相同"]],
+    tip:"同一张图存了两份，sha256 相同。图纸化后应只留一处。" },
+  "10-0":{ t:"表 3　聚合策略消融", k:"表 · 第 167 行",
+    kv:[["数据源","registry:coal_mil#abl_*"],["臂数","4"],["结论","LSE 与注意力差异未达显著"]],
+    tip:"消融表必须有结论，不能只列数字。" },
+  "11-0":{ t:"表 4　组件级消融", k:"表 · 第 218 行",
+    kv:[["数据源","docs/verification/ablation_component.json"],["臂数","4 臂 × 5 折"],["结论","未检出（CI 全跨 0）"]],
+    arms:[["base","215.75","—","—"],["no_film","227.44","+11.69","0.294"],
+          ["no_supcon","226.30","+10.55","0.393"],["no_huber","218.13","+2.39","0.580"]],
+    tip:"83%–95% 的均值差来自 fold4 单折，杠杆比 14.1–18.9×。分辨率下限约 15–20 kcal/kg。" },
+  "11-1":{ t:"表 5　留一折敏感性", k:"表 · 第 244 行",
+    kv:[["数据源","同 ablation_component.json"],["方法","逐折剔除后重算"],["结论","剔 fold4 后 Δ 收缩到 +2.12 / −0.40 / −1.13"]],
+    tip:"后两臂剔折后符号翻转 —— 这是「未检出」而非「无效」的直接证据。" },
+};
+
+function showLeaf(key){
+  const d=LEAF_DETAIL[key];
+  if(!d) return;
+  const arms = d.arms ? `<div class="p-lb" style="margin-top:10px;font-size:10.5px;color:var(--text-3)">四臂结果（RMSE kcal/kg）</div>`
+    + d.arms.map(([n,v,dd,p])=>`<div class="arm"><span class="n">${n}</span>
+        <span class="v">${v}</span><span class="d">${dd}</span>
+        <span class="p">p=${p}</span></div>`).join("") : "";
+  document.getElementById("detail").innerHTML=`
+    <h3>${d.t}</h3><div class="d-kind">${d.k}</div>
+    ${d.kv.map(([k,v])=>`<div class="kv"><span class="k">${k}</span><span class="v">${v}</span></div>`).join("")}
+    ${arms}
+    <div class="warnbox">${d.tip}</div>`;
+}
+
+function showSep(k){
+  const M={
+    claims:{t:"核查声明 12",k:"claims.json · 12 条",kv:[["已核","12"],["失效","0"],["来源","claims.json"],["结论","全部 grounding 通过"]],
+      tip:"每条声明带 registry 指针。改注册表某值，这里会变红并指出是哪一句。"},
+    eqs:{t:"编号公式 0",k:"本文没有独立编号公式",kv:[["原因","LSE 池化与 FiLM 写成行内式"],["资产","0 条"],["符号表","不存在"]],
+      tip:"这是真缺口：公式不资产化，就无法检查「实现改了公式没改」。§2.2 的 β 与 lse_beta 参数无任何关联。"},
+    refs:{t:"参考文献 6",k:"refs_verified.json · PASS",kv:[["幻觉率","0.0"],["待核","0.0"],["方法","arXiv → CrossRef"],["核验日","2026-11-09"]],
+      tip:"全部 6 条已核验，可点开每条看命中的 identifier。"},
+  }[k];
+  document.getElementById("detail").innerHTML=`
+    <h3>${M.t}</h3><div class="d-kind">${M.k}</div>
+    ${M.kv.map(([a,b])=>`<div class="kv"><span class="k">${a}</span><span class="v">${b}</span></div>`).join("")}
+    <div class="warnbox">${M.tip}</div>`;
+}
+
+function activateTab(v){
+  document.querySelectorAll(".tab").forEach(x=>{
+    x.setAttribute("aria-selected", x.dataset.v===v ? "true" : "false");
+  });
+  document.querySelectorAll(".view").forEach(el=>el.classList.remove("on"));
+  document.getElementById("v-"+v).classList.add("on");
+}
+document.querySelectorAll(".tab").forEach(t=>{
+  t.addEventListener("click",()=>{ activateTab(t.dataset.v); history.replaceState(null,"","#"+t.dataset.v); });
+});
+document.getElementById("theme").addEventListener("click",()=>{
+  const h=document.documentElement;
+  h.dataset.theme = h.dataset.theme==="dark" ? "light" : "dark";
+});
+function toast(m){
+  const t=document.getElementById("toast"); t.textContent=m; t.classList.add("on");
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("on"),1200);
+}
+
+render(); renderOutline();
+if (location.hash === "#write") activateTab("write");
+if (/[?&]dark\b/.test(location.search)) document.documentElement.dataset.theme = "dark";
+</script>
+</body>
+</html>
