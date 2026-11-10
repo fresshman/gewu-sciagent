@@ -1,0 +1,747 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>格物 · 科研工作台 — 项目介绍</title>
+    <style>
+      /* 本地字体（编译器随 fonts/ 嵌入） */
+      @font-face {
+        font-family: "Noto Sans SC";
+        font-style: normal;
+        font-weight: 300;
+        src: url("fonts/noto-sans-sc-latin-300-normal.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F;
+      }
+      @font-face {
+        font-family: "Noto Sans SC";
+        font-style: normal;
+        font-weight: 300;
+        src: url("fonts/noto-sans-sc-chinese-simplified-300-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Noto Sans SC";
+        font-style: normal;
+        font-weight: 400;
+        src: url("fonts/noto-sans-sc-latin-400-normal.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F;
+      }
+      @font-face {
+        font-family: "Noto Sans SC";
+        font-style: normal;
+        font-weight: 400;
+        src: url("fonts/noto-sans-sc-chinese-simplified-400-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Noto Sans SC";
+        font-style: normal;
+        font-weight: 700;
+        src: url("fonts/noto-sans-sc-latin-700-normal.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F;
+      }
+      @font-face {
+        font-family: "Noto Sans SC";
+        font-style: normal;
+        font-weight: 700;
+        src: url("fonts/noto-sans-sc-chinese-simplified-700-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Noto Sans SC";
+        font-style: normal;
+        font-weight: 900;
+        src: url("fonts/noto-sans-sc-latin-900-normal.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F;
+      }
+      @font-face {
+        font-family: "Noto Sans SC";
+        font-style: normal;
+        font-weight: 900;
+        src: url("fonts/noto-sans-sc-chinese-simplified-900-normal.woff2") format("woff2");
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #0d1b2a;
+        overflow: hidden;
+      }
+      [data-composition-id="gewu-intro"] {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        background: #0d1b2a;
+        font-family: "Noto Sans SC", sans-serif;
+        color: #e0e1dd;
+        overflow: hidden;
+      }
+      /* ---------- 全局背景装饰 ---------- */
+      .bg-grid {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        background-image: linear-gradient(rgba(65, 90, 119, 0.09) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(65, 90, 119, 0.09) 1px, transparent 1px);
+        background-size: 96px 96px;
+      }
+      .glow-a,
+      .glow-b,
+      .glow-c {
+        position: absolute;
+        border-radius: 50%;
+        z-index: 1;
+        pointer-events: none;
+      }
+      .glow-a {
+        width: 1100px;
+        height: 1100px;
+        left: -300px;
+        top: -380px;
+        background: radial-gradient(circle, rgba(252, 163, 17, 0.13) 0%, transparent 62%);
+      }
+      .glow-b {
+        width: 1300px;
+        height: 1300px;
+        right: -420px;
+        bottom: -520px;
+        background: radial-gradient(circle, rgba(65, 90, 119, 0.3) 0%, transparent 60%);
+      }
+      .glow-c {
+        width: 900px;
+        height: 900px;
+        left: 620px;
+        top: 120px;
+        background: radial-gradient(circle, rgba(252, 163, 17, 0.05) 0%, transparent 58%);
+      }
+      .ghost {
+        position: absolute;
+        z-index: 1;
+        font-weight: 900;
+        color: rgba(224, 225, 221, 0.05);
+        user-select: none;
+        white-space: nowrap;
+      }
+      .hairline {
+        position: absolute;
+        height: 1px;
+        background: rgba(65, 90, 119, 0.5);
+        z-index: 2;
+      }
+      /* ---------- 场景通用 ---------- */
+      .scene {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+      }
+      .scene-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+      }
+      .kicker {
+        font-size: 24px;
+        font-weight: 400;
+        letter-spacing: 10px;
+        color: #fca311;
+      }
+      .mono {
+        font-family: "JetBrains Mono", Consolas, monospace;
+        font-variant-numeric: tabular-nums;
+      }
+      /* ---------- Scene 1 标题卡 ---------- */
+      #s1 .scene-content {
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: 26px;
+        padding: 120px 160px;
+      }
+      #s1 .brand {
+        font-size: 170px;
+        font-weight: 900;
+        letter-spacing: 30px;
+        margin-right: -30px; /* 抵消末字间距 */
+        color: #e0e1dd;
+        line-height: 1.05;
+      }
+      #s1 .brand-sub {
+        font-size: 46px;
+        font-weight: 700;
+        letter-spacing: 14px;
+        color: #e0e1dd;
+      }
+      #s1 .tagline {
+        font-size: 26px;
+        font-weight: 300;
+        color: #a9b8cb;
+        letter-spacing: 4px;
+      }
+      #s1 .accent-rule {
+        width: 220px;
+        height: 3px;
+        background: #fca311;
+        border-radius: 2px;
+      }
+      /* ---------- Scene 2 这是什么 ---------- */
+      #s2 .scene-content {
+        flex-direction: row;
+        align-items: center;
+        gap: 90px;
+        padding: 120px 150px;
+      }
+      #s2 .lead {
+        flex: 0 0 560px;
+      }
+      #s2 .lead h2 {
+        font-size: 72px;
+        font-weight: 900;
+        line-height: 1.3;
+        color: #e0e1dd;
+        margin: 18px 0 0 0;
+      }
+      #s2 .lead h2 em {
+        font-style: normal;
+        color: #fca311;
+      }
+      #s2 .points {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 26px;
+      }
+      .point-card {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        background: #1b263b;
+        border: 1px solid rgba(65, 90, 119, 0.45);
+        border-radius: 12px;
+        padding: 26px 32px;
+      }
+      .point-card .num {
+        font-family: "JetBrains Mono", Consolas, monospace;
+        font-size: 30px;
+        font-weight: 700;
+        color: #fca311;
+        width: 56px;
+        flex: 0 0 56px;
+      }
+      .point-card .txt b {
+        display: block;
+        font-size: 28px;
+        font-weight: 700;
+        color: #e0e1dd;
+        margin-bottom: 6px;
+      }
+      .point-card .txt span {
+        font-size: 20px;
+        font-weight: 300;
+        color: #a9b8cb;
+      }
+      /* ---------- Scene 3 七阶段 ---------- */
+      #s3 .scene-content {
+        justify-content: center;
+        gap: 40px;
+        padding: 100px 110px;
+      }
+      #s3 .head {
+        display: flex;
+        align-items: baseline;
+        gap: 28px;
+      }
+      #s3 .head h2 {
+        font-size: 62px;
+        font-weight: 900;
+        color: #e0e1dd;
+        margin: 0;
+      }
+      #s3 .head span {
+        font-size: 22px;
+        color: #a9b8cb;
+        font-weight: 300;
+      }
+      #s3 .pipeline {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        padding: 0 10px;
+      }
+      #s3 .pipe-svg {
+        position: absolute;
+        left: 90px;
+        right: 90px;
+        top: 44px;
+        width: calc(100% - 180px);
+        height: 8px;
+      }
+      #s3 .node {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        width: 200px;
+      }
+      #s3 .ring {
+        width: 88px;
+        height: 88px;
+        border-radius: 50%;
+        border: 2px solid #415a77;
+        background: #1b263b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "JetBrains Mono", Consolas, monospace;
+        font-size: 30px;
+        font-weight: 700;
+        color: #a9b8cb;
+      }
+      #s3 .node.lit .ring {
+        border-color: #fca311;
+        color: #fca311;
+        box-shadow: 0 0 26px rgba(252, 163, 17, 0.22);
+      }
+      #s3 .node .nm {
+        font-size: 24px;
+        font-weight: 700;
+        color: #e0e1dd;
+      }
+      #s3 .node .sb {
+        font-size: 16px;
+        font-weight: 300;
+        color: #a9b8cb;
+        text-align: center;
+        line-height: 1.4;
+      }
+      #s3 .foot {
+        font-size: 21px;
+        color: #a9b8cb;
+        font-weight: 300;
+        letter-spacing: 1px;
+      }
+      #s3 .foot b {
+        color: #fca311;
+        font-weight: 700;
+      }
+      /* ---------- 录屏段 overlay ---------- */
+      #el-demo {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        width: 1920px;
+        height: 1080px;
+        object-fit: cover;
+      }
+      #rec-badge {
+        position: absolute;
+        top: 44px;
+        left: 54px;
+        z-index: 30;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        background: rgba(13, 27, 42, 0.82);
+        border: 1px solid rgba(65, 90, 119, 0.6);
+        border-radius: 999px;
+        padding: 12px 26px;
+      }
+      #rec-badge .dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #e71d36;
+        box-shadow: 0 0 14px rgba(231, 29, 54, 0.7);
+      }
+      #rec-badge .lb {
+        font-size: 20px;
+        font-weight: 700;
+        color: #e0e1dd;
+        letter-spacing: 3px;
+      }
+      #rec-badge .tail {
+        font-size: 16px;
+        font-weight: 300;
+        color: #a9b8cb;
+      }
+      .chapter {
+        position: absolute;
+        left: 54px;
+        bottom: 52px;
+        z-index: 30;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        background: rgba(13, 27, 42, 0.82);
+        border: 1px solid rgba(252, 163, 17, 0.55);
+        border-radius: 12px;
+        padding: 14px 28px;
+      }
+      .chapter .cs {
+        font-family: "JetBrains Mono", Consolas, monospace;
+        font-size: 18px;
+        font-weight: 700;
+        color: #fca311;
+      }
+      .chapter .ct {
+        font-size: 22px;
+        font-weight: 700;
+        color: #e0e1dd;
+        letter-spacing: 2px;
+      }
+      .chapter .cm {
+        font-size: 16px;
+        font-weight: 300;
+        color: #a9b8cb;
+      }
+      /* ---------- Scene 5 成果 ---------- */
+      #s5 .scene-content {
+        align-items: center;
+        justify-content: center;
+        gap: 44px;
+        padding: 110px 150px;
+        text-align: center;
+      }
+      #s5 .grid {
+        display: flex;
+        gap: 34px;
+      }
+      .stat-card {
+        width: 380px;
+        background: #1b263b;
+        border: 1px solid rgba(65, 90, 119, 0.45);
+        border-radius: 12px;
+        padding: 36px 24px 30px;
+      }
+      .stat-card .big {
+        font-family: "JetBrains Mono", Consolas, monospace;
+        font-variant-numeric: tabular-nums;
+        font-size: 74px;
+        font-weight: 700;
+        color: #fca311;
+        line-height: 1.05;
+      }
+      .stat-card .big small {
+        font-size: 34px;
+        color: #a9b8cb;
+        font-weight: 400;
+      }
+      .stat-card .lb {
+        font-size: 22px;
+        font-weight: 700;
+        color: #e0e1dd;
+        margin-top: 14px;
+      }
+      .stat-card .sb {
+        font-size: 16px;
+        font-weight: 300;
+        color: #a9b8cb;
+        margin-top: 6px;
+      }
+      #s5 .repo {
+        font-family: "JetBrains Mono", Consolas, monospace;
+        font-size: 24px;
+        color: #a9b8cb;
+        letter-spacing: 1px;
+      }
+      #s5 .repo b {
+        color: #e0e1dd;
+        font-weight: 700;
+      }
+      #s5 .close-line {
+        font-size: 30px;
+        font-weight: 700;
+        color: #e0e1dd;
+        letter-spacing: 6px;
+      }
+      #s5 .close-line em {
+        font-style: normal;
+        color: #fca311;
+      }
+      /* ---------- 转场擦条 ---------- */
+      .wipe {
+        position: absolute;
+        top: -40px;
+        left: -220px;
+        width: 150px;
+        height: 1160px;
+        z-index: 40;
+        background: linear-gradient(
+          90deg,
+          rgba(252, 163, 17, 0) 0%,
+          #fca311 22%,
+          #1b263b 22.6%,
+          #0d1b2a 78%,
+          rgba(252, 163, 17, 0) 100%
+        );
+        transform: translateX(-260px) skewX(-12deg);
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      data-composition-id="gewu-intro"
+      data-start="0"
+      data-duration="236"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- 全局背景 -->
+      <div class="bg-grid" id="bg-grid"></div>
+      <div class="glow-a" id="glow-a"></div>
+      <div class="glow-b" id="glow-b"></div>
+      <div class="glow-c" id="glow-c"></div>
+      <div class="ghost" id="ghost-1" aria-hidden="true" data-layout-ignore data-layout-allow-occlusion style="top: 90px; right: 60px; font-size: 340px">格物</div>
+      <div class="ghost" id="ghost-2" aria-hidden="true" data-layout-ignore data-layout-allow-occlusion style="bottom: 40px; left: 40px; font-size: 260px">
+        GEWU
+      </div>
+      <div class="hairline" id="hairline-top" style="top: 64px; left: 0; right: 0"></div>
+
+      <!-- Scene 1 标题卡 0-6.5 -->
+      <div id="s1" class="scene clip" data-start="0" data-duration="6.5" data-track-index="3">
+        <div class="scene-content">
+          <div class="kicker">AI FOR SCIENCE · 科研智能体工作台</div>
+          <div class="brand">格物</div>
+          <div class="accent-rule" id="s1-rule"></div>
+          <div class="brand-sub">格物科研工作台</div>
+          <div class="tagline">书生大模型 × OpenClaw · 七阶段自主科研闭环 · 端到端可验证</div>
+        </div>
+      </div>
+
+      <!-- Scene 2 这是什么 6.5-17 -->
+      <div id="s2" class="scene clip" data-start="6.5" data-duration="10.5" data-track-index="3">
+        <div class="scene-content">
+          <div class="lead">
+            <div class="kicker">这是什么</div>
+            <h2>让 AI 真正跑完<br /><em>一次完整的科研</em></h2>
+          </div>
+          <div class="points">
+            <div class="point-card" id="pc-1">
+              <div class="num">01</div>
+              <div class="txt">
+                <b>多智能体七阶段协同</b>
+                <span>探员·复现员·改进员·写手·发表官·沉淀师，总协调编排全程</span>
+              </div>
+            </div>
+            <div class="point-card" id="pc-2">
+              <div class="num">02</div>
+              <div class="txt">
+                <b>每一步产出 handoff</b>
+                <span>阶段交接落盘留痕，可复现、可回溯、可审计</span>
+              </div>
+            </div>
+            <div class="point-card" id="pc-3">
+              <div class="num">03</div>
+              <div class="txt">
+                <b>7-mode 失败自检门禁</b>
+                <span>七类科研失败模式逐条裁决，SUSPECTED 即阻断，不静默放行</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scene 3 七阶段 17-30 -->
+      <div id="s3" class="scene clip" data-start="17" data-duration="13" data-track-index="3">
+        <div class="scene-content">
+          <div class="head">
+            <h2>七阶段闭环</h2>
+            <span>从一句话方向，到技能沉淀与注册表归档</span>
+          </div>
+          <div class="pipeline">
+            <svg class="pipe-svg" viewBox="0 0 1640 8" preserveAspectRatio="none">
+              <line
+                id="pipe-line"
+                x1="0"
+                y1="4"
+                x2="1640"
+                y2="4"
+                stroke="#415a77"
+                stroke-width="3"
+                stroke-dasharray="3280"
+                stroke-dashoffset="3280"
+              />
+            </svg>
+            <div class="node" id="nd-1">
+              <div class="ring">1</div>
+              <div class="nm">方向立项</div>
+              <div class="sb">预注册假设<br />可证伪判据</div>
+            </div>
+            <div class="node" id="nd-2">
+              <div class="ring">2</div>
+              <div class="nm">文献调研</div>
+              <div class="sb">DOI / arXiv<br />逐条核验</div>
+            </div>
+            <div class="node" id="nd-3">
+              <div class="ring">3</div>
+              <div class="nm">复现基线</div>
+              <div class="sb">十层校验链<br />逐层锁定</div>
+            </div>
+            <div class="node" id="nd-4">
+              <div class="ring">4</div>
+              <div class="nm">改进消融</div>
+              <div class="sb">逐项消融<br />证据支撑</div>
+            </div>
+            <div class="node" id="nd-5">
+              <div class="ring">5</div>
+              <div class="nm">撰写</div>
+              <div class="sb">数值可回溯<br />图注登记</div>
+            </div>
+            <div class="node" id="nd-6">
+              <div class="ring">6</div>
+              <div class="nm">投稿匹配</div>
+              <div class="sb">期刊分区<br />如实标注</div>
+            </div>
+            <div class="node" id="nd-7">
+              <div class="ring">7</div>
+              <div class="nm">沉淀</div>
+              <div class="sb">技能 / 记忆<br />注册表归档</div>
+            </div>
+          </div>
+          <div class="foot">阶段间以 <b>handoff</b> 交接 · 全程受 <b>7-mode 失败自检</b> 与 <b>launch 硬闸</b> 保护</div>
+        </div>
+      </div>
+
+      <!-- 录屏 30-305.333（track 0） -->
+      <video
+        id="el-demo"
+        data-start="30"
+        data-duration="190.333"
+        data-track-index="0"
+        src="media/gewu_demo_full.mp4"
+        muted
+        playsinline
+      ></video>
+
+      <!-- 录屏角标与章节字幕 -->
+      <div id="rec-badge" class="clip" data-start="30.6" data-duration="189.4" data-track-index="4">
+        <div class="dot"></div>
+        <div class="lb">真实录屏 · 无人工补档</div>
+        <div class="tail">格物工作台 :3112 · 1920×1080</div>
+      </div>
+      <div class="chapter clip" id="chap1" data-start="31" data-duration="87.4" data-track-index="4">
+        <div class="cs">ROUND 1</div>
+        <div class="ct">第一轮 · 七阶段完整闭环</div>
+        <div class="cm">加速 ×4 · 5:51 原始记录</div>
+      </div>
+      <div class="chapter clip" id="chap2" data-start="118.4" data-duration="101" data-track-index="4">
+        <div class="cs">ROUND 2</div>
+        <div class="ct">第二轮 · 高层自主指令演练</div>
+        <div class="cm">加速 ×24 · 无人工写入产物</div>
+      </div>
+
+      <!-- Scene 5 成果 305.333-321 -->
+      <div
+        id="s5"
+        class="scene clip"
+        data-start="220.333"
+        data-duration="15.667"
+        data-track-index="3"
+      >
+        <div class="scene-content">
+          <div class="kicker" style="letter-spacing: 12px">端到端实测</div>
+          <div class="grid">
+            <div class="stat-card" id="st-1">
+              <div class="big">73<small> / 0</small></div>
+              <div class="lb">校验通过 / 失败</div>
+              <div class="sb">gewu.demo.verify 十层校验链</div>
+            </div>
+            <div class="stat-card" id="st-2">
+              <div class="big">5<small> / 5</small></div>
+              <div class="lb">全量门禁全绿</div>
+              <div class="sb">verify_all 五项 · 0 跳过</div>
+            </div>
+            <div class="stat-card" id="st-3">
+              <div class="big">7<small> / 7</small></div>
+              <div class="lb">失败模式逐条裁决</div>
+              <div class="sb">7-mode 四态审计 · gate PASS</div>
+            </div>
+          </div>
+          <div class="close-line">每一步<em>可复现</em> · 每一句<em>可回溯</em> · 每一项<em>可审计</em></div>
+          <div class="repo">gitee.com/<b>FreeBlank/gewu-sciagent</b></div>
+        </div>
+      </div>
+
+      <!-- 转场擦条 -->
+      <div class="wipe clip" id="w1" data-start="6.05" data-duration="0.9" data-track-index="6"></div>
+      <div class="wipe clip" id="w2" data-start="16.55" data-duration="0.9" data-track-index="6"></div>
+      <div class="wipe clip" id="w3" data-start="29.55" data-duration="0.9" data-track-index="6"></div>
+      <div class="wipe clip" id="w4" data-start="219.883" data-duration="0.9" data-track-index="6"></div>
+
+      <script src="gsap.min.js"></script>
+      <script>
+        window.__timelines = window.__timelines || {};
+        const tl = gsap.timeline({ paused: true });
+        const DUR = 236;
+
+        /* 背景呼吸（有限重复，deterministic，floor 防止超出时长） */
+        tl.to("#glow-a", { scale: 1.12, duration: 3, ease: "sine.inOut", yoyo: true, repeat: Math.max(0, Math.floor(DUR / 3) - 1) }, 0);
+        tl.to("#glow-b", { scale: 1.08, duration: 4, ease: "sine.inOut", yoyo: true, repeat: Math.max(0, Math.floor(DUR / 4) - 1) }, 0);
+        tl.to("#ghost-1", { x: -40, duration: 30, ease: "sine.inOut", yoyo: true, repeat: Math.max(0, Math.floor(DUR / 30) - 1) }, 0);
+
+        /* Scene 1（0-6.5）入场 */
+        tl.from("#s1 .kicker", { y: 30, opacity: 0, duration: 0.5, ease: "power2.out" }, 0.3);
+        tl.from("#s1 .brand", { y: 70, opacity: 0, duration: 0.9, ease: "expo.out" }, 0.45);
+        tl.from("#s1-rule", { scaleX: 0, transformOrigin: "center", duration: 0.6, ease: "power3.out" }, 1.0);
+        tl.from("#s1 .brand-sub", { y: 26, opacity: 0, duration: 0.5, ease: "power3.out" }, 1.15);
+        tl.from("#s1 .tagline", { opacity: 0, duration: 0.7, ease: "power2.out" }, 1.4);
+
+        /* Scene 2（6.5-17）入场 */
+        tl.from("#s2 .lead .kicker", { x: -30, opacity: 0, duration: 0.5, ease: "power2.out" }, 7.5);
+        tl.from("#s2 .lead h2", { y: 50, opacity: 0, duration: 0.7, ease: "expo.out" }, 7.7);
+        tl.from("#pc-1", { x: 60, opacity: 0, duration: 0.55, ease: "power3.out" }, 8.4);
+        tl.from("#pc-2", { x: 60, opacity: 0, duration: 0.55, ease: "power3.out" }, 8.75);
+        tl.from("#pc-3", { x: 60, opacity: 0, duration: 0.55, ease: "power3.out" }, 9.1);
+        tl.to("#pc-1 .num", { scale: 1.25, duration: 0.22, yoyo: true, repeat: 1, ease: "power2.out" }, 9.4);
+        tl.to("#pc-2 .num", { scale: 1.25, duration: 0.22, yoyo: true, repeat: 1, ease: "power2.out" }, 9.75);
+        tl.to("#pc-3 .num", { scale: 1.25, duration: 0.22, yoyo: true, repeat: 1, ease: "power2.out" }, 10.1);
+
+        /* Scene 3（17-30）流水线点亮 */
+        tl.from("#s3 .head h2", { y: 44, opacity: 0, duration: 0.6, ease: "expo.out" }, 18.0);
+        tl.from("#s3 .head span", { opacity: 0, duration: 0.5, ease: "power2.out" }, 18.3);
+        tl.to("#pipe-line", { strokeDashoffset: 0, duration: 1.6, ease: "power2.inOut" }, 19.0);
+        const NODE_T = [19.3, 19.9, 20.5, 21.1, 21.7, 22.3, 22.9];
+        for (let i = 0; i < 7; i++) {
+          const id = "#nd-" + (i + 1);
+          tl.from(id + " .ring", { scale: 0.4, opacity: 0, duration: 0.4, ease: "back.out(1.6)" }, NODE_T[i]);
+          tl.addLabel("lit" + i, NODE_T[i] + 0.18);
+          tl.to(id, { className: "node lit", duration: 0.01 }, NODE_T[i] + 0.18);
+          tl.from(id + " .nm", { y: 16, opacity: 0, duration: 0.3, ease: "power3.out" }, NODE_T[i] + 0.22);
+          tl.from(id + " .sb", { opacity: 0, duration: 0.35, ease: "power2.out" }, NODE_T[i] + 0.34);
+        }
+        tl.from("#s3 .foot", { opacity: 0, y: 20, duration: 0.5, ease: "power2.out" }, 24.6);
+
+        /* 录屏段（30-305.333）overlay 入场 */
+        tl.from("#rec-badge", { y: -34, opacity: 0, duration: 0.5, ease: "power3.out" }, 30.9);
+        tl.from("#chap1", { x: -50, opacity: 0, duration: 0.55, ease: "power3.out" }, 31.4);
+        tl.from("#chap2", { x: -50, opacity: 0, duration: 0.55, ease: "power3.out" }, 118.8);
+        tl.to("#rec-badge .dot", { opacity: 0.35, duration: 0.7, yoyo: true, repeat: Math.max(0, Math.floor(274 / 1.4) - 1), ease: "sine.inOut" }, 31.2);
+
+        /* Scene 5（305.333-322）成果 */
+        tl.from("#s5 .kicker", { y: 26, opacity: 0, duration: 0.5, ease: "power2.out" }, 221.0);
+        tl.from("#st-1", { scale: 0.7, opacity: 0, duration: 0.5, ease: "back.out(1.4)" }, 221.4);
+        tl.from("#st-2", { scale: 0.7, opacity: 0, duration: 0.5, ease: "back.out(1.4)" }, 221.75);
+        tl.from("#st-3", { scale: 0.7, opacity: 0, duration: 0.5, ease: "back.out(1.4)" }, 222.1);
+        tl.to("#st-1", { boxShadow: "0 0 40px rgba(252,163,17,0.35)", duration: 0.35, yoyo: true, repeat: 1, ease: "power2.out" }, 222.8);
+        tl.from("#s5 .close-line", { y: 24, opacity: 0, duration: 0.55, ease: "power3.out" }, 223.4);
+        tl.from("#s5 .repo", { opacity: 0, duration: 0.6, ease: "power2.out" }, 224.0);
+
+        /* 结尾淡出（final scene only） */
+        tl.to("#s5", { opacity: 0, duration: 0.9, ease: "power2.in" }, 234.4);
+        tl.to(["#bg-grid", "#glow-a", "#glow-b", "#glow-c", "#ghost-1", "#ghost-2", "#hairline-top"], { opacity: 0, duration: 0.9, ease: "power2.in" }, 234.4);
+
+        /* 转场擦条：扫过即完成场景切换 */
+        [["#w1", 6.05], ["#w2", 16.55], ["#w3", 29.55], ["#w4", 219.883]].forEach(([sel, t]) => {
+          tl.fromTo(sel, { x: -300, skewX: -12 }, { x: 2200, skewX: -12, duration: 0.9, ease: "power2.inOut" }, t);
+        });
+
+        /* 哨兵：撑满整个 composition 时长 */
+        tl.set({}, {}, DUR - 0.05);
+
+        window.__timelines["gewu-intro"] = tl;
+      </script>
+    </div>
+  </body>
+</html>
