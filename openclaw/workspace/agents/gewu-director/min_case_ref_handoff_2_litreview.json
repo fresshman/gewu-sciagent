@@ -1,0 +1,58 @@
+{
+  "stage": 2,
+  "stage_name": "读论文找 idea",
+  "status": "completed",
+  "title": "方法背景文献检索与 D1 存在性核验",
+  "created_by": "gewu-ideation (min-case harness)",
+  "created_at": "2026-11-10T14:19:33+08:00",
+  "inputs": [
+    "handoff_1_direction.json"
+  ],
+  "outputs": [
+    "output/min_case/refs/refs_check.json",
+    "output/min_case/refs/refs_verified.json"
+  ],
+  "run_mode": "deterministic_script",
+  "data_kind": "synthetic",
+  "references": [
+    {
+      "key": "li2014pls",
+      "title": "A model combining spectrum standardization and dominant factor based partial least square method for carbon analysis in coal by laser-induced breakdown spectroscopy",
+      "doi": "10.1016/j.sab.2014.06.017",
+      "arxiv": "1402.2062",
+      "role": "方法背景，不用于支持合成实验结论"
+    },
+    {
+      "key": "ilse2018mil",
+      "title": "Attention-based Deep Multiple Instance Learning",
+      "doi": "",
+      "arxiv": "1802.04712",
+      "role": "方法背景，不用于支持合成实验结论"
+    },
+    {
+      "key": "yan2023coal",
+      "title": "Rapid Classification and Quantification of Coal by Using Laser-Induced Breakdown Spectroscopy and Machine Learning",
+      "doi": "10.3390/app13148158",
+      "arxiv": "",
+      "role": "方法背景，不用于支持合成实验结论"
+    }
+  ],
+  "d1_citation_verification": {
+    "status": "verified",
+    "reason": "",
+    "tool": "gewu/mcp/verify_papers.py",
+    "verdict": "PASS",
+    "n_checked": 3,
+    "n_verified": 3,
+    "hallucination_rate": 0.0,
+    "artifact": "output/min_case/refs/refs_verified.json",
+    "method_by_ref": {
+      "li2014pls": "arxiv",
+      "ilse2018mil": "arxiv",
+      "yan2023coal": "crossref"
+    }
+  },
+  "note": "仅检索方法背景文献；本课题为合成数据演示，不用文献结论支撑实验数值",
+  "next": "gewu-reproduction",
+  "next_input": "handoff_2_litreview.json"
+}

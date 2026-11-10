@@ -1,0 +1,459 @@
+{
+  "ok": true,
+  "case_dir": "output\\min_case",
+  "n_checks": 73,
+  "n_failed": 0,
+  "layers": [
+    "1-artifacts",
+    "10-pdf",
+    "2-chain",
+    "3-status",
+    "4-numbers",
+    "5-contradiction",
+    "6-tex",
+    "7-provenance",
+    "8-determinism",
+    "9-registry"
+  ],
+  "results": [
+    {
+      "layer": "1-artifacts",
+      "check": "handoff handoff_1_direction.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "1-artifacts",
+      "check": "handoff handoff_2_litreview.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "1-artifacts",
+      "check": "handoff handoff_3_repro.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "1-artifacts",
+      "check": "handoff handoff_4_improver.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "1-artifacts",
+      "check": "handoff handoff_5_writer.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "1-artifacts",
+      "check": "handoff handoff_6_publication.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "1-artifacts",
+      "check": "handoff handoff_7_distillation.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "1-artifacts",
+      "check": "model/summary.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "1-artifacts",
+      "check": "report/main.tex",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "1-artifacts",
+      "check": "report/claims.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "1-artifacts",
+      "check": "data/data_card.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "1-artifacts",
+      "check": "data/split.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "2-chain",
+      "check": "stage2 ← handoff_1_direction.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "2-chain",
+      "check": "stage3 ← handoff_2_litreview.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "2-chain",
+      "check": "stage4 ← handoff_3_repro.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "2-chain",
+      "check": "stage5 ← handoff_4_improver.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "2-chain",
+      "check": "stage6 ← handoff_5_writer.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "2-chain",
+      "check": "stage7 ← handoff_6_publication.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "3-status",
+      "check": "stage1 status=completed",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "3-status",
+      "check": "stage2 status=completed",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "3-status",
+      "check": "stage3 status=completed",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "3-status",
+      "check": "stage4 status=completed",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "3-status",
+      "check": "stage5 status=completed",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "3-status",
+      "check": "stage6 status=completed_with_caveat",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "3-status",
+      "check": "stage7 status=completed",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "fold0 plsr rmse 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "fold0 mil rmse 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "fold0 hybrid rmse 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "fold1 plsr rmse 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "fold1 mil rmse 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "fold1 hybrid rmse 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "fold2 plsr rmse 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "fold2 mil rmse 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "fold2 hybrid rmse 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "fold3 plsr rmse 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "fold3 mil rmse 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "fold3 hybrid rmse 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "fold4 plsr rmse 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "fold4 mil rmse 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "fold4 hybrid rmse 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "plsr 均值/标准差口径一致",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "mil 均值/标准差口径一致",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "hybrid 均值/标准差口径一致",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "plsr pooled OOF 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "mil pooled OOF 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "hybrid pooled OOF 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "handoff_3 基线 = summary",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "handoff_4 改进 = summary",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "handoff_4 消融三臂 = summary",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "4-numbers",
+      "check": "improvement_pct 可重算",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "5-contradiction",
+      "check": "无「声称缺失实则存在」",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "6-tex",
+      "check": "LaTeX 结构自洽",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "6-tex",
+      "check": "含合成数据声明",
+      "status": "PASS",
+      "detail": "摘要未声明数据来源"
+    },
+    {
+      "layer": "7-provenance",
+      "check": "claim 源可解析",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "7-provenance",
+      "check": "claim 数值与源一致",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "7-provenance",
+      "check": "claim 数字出现在论文中",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "10-pdf",
+      "check": "PDF 已生成",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "10-pdf",
+      "check": "PDF 页数 > 0",
+      "status": "PASS",
+      "detail": "pages=3"
+    },
+    {
+      "layer": "10-pdf",
+      "check": "PDF 含可提取正文",
+      "status": "PASS",
+      "detail": "仅 2374 字符（中文未配 ctex 时会整篇空白）"
+    },
+    {
+      "layer": "10-pdf",
+      "check": "关键数值出现在 PDF 正文",
+      "status": "PASS",
+      "detail": "核对 5 项"
+    },
+    {
+      "layer": "10-pdf",
+      "check": "入库快照与本次编译内容一致",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "7-provenance",
+      "check": "D1 verified 有核验产物",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "7-provenance",
+      "check": "D1 通过条数自洽",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "9-registry",
+      "check": "注册表条目存在",
+      "status": "PASS",
+      "detail": "output\\min_case\\registry\\demo_synth.json"
+    },
+    {
+      "layer": "9-registry",
+      "check": "demo_synth_plsr_baseline 指标 = summary",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "9-registry",
+      "check": "demo_synth_plsr_baseline rerun 规格完整",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "9-registry",
+      "check": "demo_synth_mil_direct 指标 = summary",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "9-registry",
+      "check": "demo_synth_mil_direct rerun 规格完整",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "9-registry",
+      "check": "demo_synth_our_hybrid 指标 = summary",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "9-registry",
+      "check": "demo_synth_our_hybrid rerun 规格完整",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "8-determinism",
+      "check": "plsr 逐折结果逐位一致",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "8-determinism",
+      "check": "mil 逐折结果逐位一致",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "layer": "8-determinism",
+      "check": "hybrid 逐折结果逐位一致",
+      "status": "PASS",
+      "detail": ""
+    }
+  ],
+  "errors": []
+}

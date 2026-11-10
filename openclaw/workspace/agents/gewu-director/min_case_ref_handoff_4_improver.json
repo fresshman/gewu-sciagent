@@ -1,0 +1,192 @@
+{
+  "stage": 4,
+  "stage_name": "改进",
+  "status": "completed",
+  "title": "改进：逐实例定标 + 池化 + 强度上尾残差（含三臂消融）",
+  "created_by": "gewu-improver (min-case harness)",
+  "created_at": "2026-11-10T14:19:33+08:00",
+  "inputs": [
+    "handoff_3_repro.json"
+  ],
+  "outputs": [
+    "output/min_case/model/summary.json"
+  ],
+  "run_mode": "deterministic_script",
+  "data_kind": "synthetic",
+  "improvement_analysis": {
+    "baseline": {
+      "arm": "plsr",
+      "rmse_mean": 150.4354,
+      "rmse_std": 13.1549,
+      "r2_mean": 0.6106
+    },
+    "proposed": {
+      "arm": "hybrid",
+      "rmse_mean": 73.027,
+      "rmse_std": 10.1693,
+      "r2_mean": 0.9108
+    },
+    "delta": {
+      "rmse_delta": 77.4084,
+      "rmse_delta_pct": 51.4562,
+      "mil_only_delta_pct": 18.3791,
+      "residual_delta_pct": 33.0771
+    },
+    "per_fold_comparison": [
+      {
+        "fold": 0,
+        "n": 14,
+        "plsr_rmse": 169.6308,
+        "mil_rmse": 141.3063,
+        "hybrid_rmse": 91.8709,
+        "delta_vs_baseline": 77.7599,
+        "beta": 0.0,
+        "ridge_alpha": 1.0
+      },
+      {
+        "fold": 1,
+        "n": 14,
+        "plsr_rmse": 134.7206,
+        "mil_rmse": 109.2403,
+        "hybrid_rmse": 69.1661,
+        "delta_vs_baseline": 65.5545,
+        "beta": 0.25,
+        "ridge_alpha": 1.0
+      },
+      {
+        "fold": 2,
+        "n": 14,
+        "plsr_rmse": 158.1094,
+        "mil_rmse": 118.5462,
+        "hybrid_rmse": 72.3988,
+        "delta_vs_baseline": 85.7106,
+        "beta": 0.25,
+        "ridge_alpha": 0.31622776601683794
+      },
+      {
+        "fold": 3,
+        "n": 14,
+        "plsr_rmse": 136.8353,
+        "mil_rmse": 112.2981,
+        "hybrid_rmse": 61.1779,
+        "delta_vs_baseline": 75.6574,
+        "beta": 0.25,
+        "ridge_alpha": 1.0
+      },
+      {
+        "fold": 4,
+        "n": 14,
+        "plsr_rmse": 152.8811,
+        "mil_rmse": 132.5425,
+        "hybrid_rmse": 70.5212,
+        "delta_vs_baseline": 82.3599,
+        "beta": 0.25,
+        "ridge_alpha": 1.0
+      }
+    ],
+    "statistical_significance": {
+      "n": 5,
+      "mean_delta": -77.4085,
+      "std_delta": 7.6998,
+      "deltas": [
+        -77.7599,
+        -65.5545,
+        -85.7106,
+        -75.6574,
+        -82.3599
+      ],
+      "all_same_direction": true,
+      "method": "paired t-test (two-sided)",
+      "t": -22.4798,
+      "df": 4,
+      "p": 2.3e-05,
+      "ci95": [
+        -86.969,
+        -67.8479
+      ],
+      "wilcoxon": {
+        "stat": 0.0,
+        "p": 0.0625,
+        "note": "n=5 时双侧最小可达 p=0.0625"
+      }
+    },
+    "pooled_oof": {
+      "plsr": {
+        "n": 70,
+        "rmse": 151.0095,
+        "mae": 124.7632,
+        "r2": 0.6309,
+        "bias": 7.624
+      },
+      "hybrid": {
+        "n": 70,
+        "rmse": 73.7316,
+        "mae": 60.3008,
+        "r2": 0.912,
+        "bias": 2.6721
+      }
+    },
+    "observation": "五折方向一致；逐折 Δ=[-77.7599, -65.5545, -85.7106, -75.6574, -82.3599]"
+  },
+  "ablation_study": {
+    "status": "completed",
+    "arms": [
+      {
+        "id": "plsr",
+        "label": "袋均谱 PLSR 基线",
+        "rmse_mean": 150.4354,
+        "rmse_std": 13.1549,
+        "r2_mean": 0.6106
+      },
+      {
+        "id": "mil",
+        "label": "MIL 逐实例定标 + 池化",
+        "rmse_mean": 122.7867,
+        "rmse_std": 12.2446,
+        "r2_mean": 0.7407
+      },
+      {
+        "id": "hybrid",
+        "label": "MIL + 强度上尾残差（本课题方法）",
+        "rmse_mean": 73.027,
+        "rmse_std": 10.1693,
+        "r2_mean": 0.9108
+      }
+    ],
+    "isolation": "三臂共享同一折划分与同一批特征，仅改变「定标方式/池化/残差」",
+    "pooling_finding": {
+      "betas": [
+        0.0,
+        0.25,
+        0.25,
+        0.25,
+        0.25
+      ],
+      "reading": "β=0 表示内层 CV 选中均值池化；此时增益来自逐实例定标与残差，不应声称 LSE 高阶池化有贡献"
+    },
+    "not_covered": [
+      "组件级消融（逐个去掉 max/p90/std 特征）未做，样本量 56 下易过拟合，故留作后续",
+      "未做真实数据上的验证（需外部私有数据，非本课题范围）"
+    ]
+  },
+  "failure_audit": {
+    "verdict": "PASS_WITH_NOTES",
+    "notes": [
+      "本课题为合成数据，不可外推绝对精度",
+      "β 由内层 CV 决定，若为 0 则不得宣称 LSE 有效",
+      "假设 H1 按预注册判据判定，结论写入 handoff_4 与论文，不因结果不利而修改判据"
+    ]
+  },
+  "hypothesis_verdict": {
+    "id": "H1",
+    "supported": true,
+    "criterion": "p<0.05 且五折方向一致",
+    "observed": {
+      "p": 2.3e-05,
+      "all_same_direction": true
+    },
+    "caveat": "增益中残差部分与池化部分未完全解耦，机制解释仅为「与之一致」，不作因果断言"
+  },
+  "next": "gewu-writer",
+  "next_input": "handoff_4_improver.json"
+}

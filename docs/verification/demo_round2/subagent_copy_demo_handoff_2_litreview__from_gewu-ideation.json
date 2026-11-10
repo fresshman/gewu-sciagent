@@ -1,0 +1,99 @@
+{
+  "stage": 2,
+  "stage_name": "读论文找idea",
+  "status": "completed",
+  "title": "合成最小课题 · 方法背景三篇文献调研（离线、有界）",
+  "created_by": "gewu-ideation",
+  "created_at": "2026-11-10T14:28:00+08:00",
+  "assembled_by": "agent",
+  "inputs": [
+    "openclaw/workspace/agents/gewu-ideation/hypothesis_demo.json"
+  ],
+  "outputs": [
+    "openclaw/workspace/agents/gewu-ideation/literature_review_demo.md",
+    "openclaw/workspace/agents/gewu-ideation/demo_handoff_2_litreview.json"
+  ],
+  "search": {
+    "query": "N/A — 未发起新检索，复用 output/min_case/refs/ 中已核验的 3 篇方法背景文献",
+    "sources_requested": "none",
+    "sources_used": [],
+    "total": 3,
+    "raw_total": 3,
+    "top_n": 3,
+    "note": "scope 限定为方法背景三篇（li2014pls / ilse2018mil / yan2023coal），非 novelty 竞品检索"
+  },
+  "literature_corpus": {
+    "records": [
+      {
+        "id": "li2014pls",
+        "title": "A model combining spectrum standardization and dominant factor based partial least square method for carbon analysis in coal by laser-induced breakdown spectroscopy",
+        "doi": "10.1016/j.sab.2014.06.017",
+        "arxiv": "1402.2062",
+        "role": "方法背景：为'基线 + 残差'两阶段策略提供思想前身（PLSR 基线 → 全谱 PLS 修残差）",
+        "relevance": "高 — 结构同源：plsr 基线 + hybrid 残差臂；但 P1 残差是全谱线性，本课题换为 MIL 注意力 + 强度上尾统计量",
+        "rank_source": "local_seed_unverified"
+      },
+      {
+        "id": "ilse2018mil",
+        "title": "Attention-based Deep Multiple Instance Learning",
+        "doi": "",
+        "arxiv": "1802.04712",
+        "role": "方法背景：MIL 形式化（bag-level label）与注意力池化的来源，支撑 G5 的可解释性路径",
+        "relevance": "中高 — H1 的'逐实例定标再池化'天然落在 MIL 框架下；注意力权重可回映击打位点",
+        "rank_source": "local_seed_unverified"
+      },
+      {
+        "id": "yan2023coal",
+        "title": "Rapid Classification and Quantification of Coal by Using Laser-Induced Breakdown Spectroscopy and Machine Learning",
+        "doi": "10.3390/app13148158",
+        "arxiv": "",
+        "role": "方法背景：为 PLSR 作为煤 LIBS 定量基线的领域惯例提供实证",
+        "relevance": "中 — 共享'煤 + LIBS + PLSR'交集；但单谱输入、分类为主、定量对象为灰分/挥发分/固定碳而非热值",
+        "rank_source": "local_seed_unverified"
+      }
+    ],
+    "prisma_counts": {
+      "found": 3,
+      "screened": 3,
+      "excluded": 0,
+      "included": 3
+    }
+  },
+  "d1_citation_verification": {
+    "status": "completed",
+    "reason": "3 篇标识符（2 arXiv + 1 Crossref DOI）全部通过存在性核验，标题与编号一一对应，无幽灵引用",
+    "n_checked": 3,
+    "n_verified": 3,
+    "verdict": "PASS",
+    "method_by_ref": {
+      "li2014pls": { "method": "arxiv", "confidence": "high", "identifiers": { "arxiv_id": "1402.2062", "doi": "10.1016/j.sab.2014.06.017" } },
+      "ilse2018mil": { "method": "arxiv", "confidence": "high", "identifiers": { "arxiv_id": "1802.04712" } },
+      "yan2023coal": { "method": "crossref", "confidence": "high", "identifiers": { "doi": "10.3390/app13148158" } }
+    },
+    "artifact": "output/min_case/refs/refs_verified.json",
+    "hallucination_rate": 0.0,
+    "pending_rate": 0.0,
+    "warnings": []
+  },
+  "gaps": [
+    { "id": "G1", "title": "现有 LIBS 定量工作假设样品均匀/单谱代表整体，未建模大颗粒 intra-bag 异质性", "evidence": "li2014pls 与 yan2023coal 均为单谱/平均谱输入" },
+    { "id": "G2", "title": "残差修正停留在 PLS 全谱，无法区分异常实例与信息性实例", "evidence": "li2014pls 用 dominant-factor PLS 修残差，对 bag 内离群谱无鉴别机制" },
+    { "id": "G3", "title": "小样本 MIL 建模缺少面向光谱的先验结构", "evidence": "ilse2018mil 的实验在图像/文本基准，无光谱、无小样本讨论" },
+    { "id": "G4", "title": "煤 LIBS 定量指标缺少按折单报的方差控制", "evidence": "li2014pls / yan2023coal 报告均值型 RMSEP，无逐折分布" },
+    { "id": "G5", "title": "多击打位点谱的信息结构未被当作第一类对象", "evidence": "li2014pls 把多次击打平均化，丢弃位点间差异" }
+  ],
+  "risks": [
+    "期刊分区/会议排名全部未核验（rank_source = local_seed_unverified）；离线环境无 JCR / 中科院分区 / CORE 数据源",
+    "3 篇均未读全文；P1 样品粒度与击打次数、P4 样品处理细节、ilse2018mil 的回归扩展均未知，影响 Stage 3 参数设定",
+    "检索未更新：中文核心（《光谱学与光谱分析》《煤炭学报》）与 2024 后的 LIBS+深度学习工作未覆盖，不排除更接近的已发表方法",
+    "本课题全部数字来自合成光谱，三篇文献的任何真实实验数字均不可与本课题数字并列比较"
+  ],
+  "citation_discipline": {
+    "li2014pls": "仅支撑'基线 + 残差'两阶段策略的思想谱系；不支持大颗粒异质性、不支持 MIL、不支持本课题任何数字",
+    "ilse2018mil": "仅支撑 MIL 形式化与注意力池化的方法定义；不支持光谱数据、不支持煤/热值、不支持小样本主张、不保证注意力权重可物理解释、不支持本课题任何数字",
+    "yan2023coal": "仅支撑 PLSR 作为煤 LIBS 定量基线的领域惯例；不支持多示例建模、不支持大颗粒异质性、不支持热值定量、不支持残差修正、不支持本课题任何数字"
+  },
+  "next": "reproduction",
+  "next_input": "openclaw/workspace/agents/gewu-ideation/demo_handoff_2_litreview.json",
+  "note": "scope 严格限定为 3 篇方法背景文献；无新检索、无全文下载、无实时联网。三篇均通过 D1 存在性核验（verdict PASS，hallucination_rate 0.0）。rank_source 全部标记 local_seed_unverified，因离线环境无法核验期刊/会议层级。全部实验数字来自合成数据（70 bag / 611 实例），不代表真实煤样精度。"
+}

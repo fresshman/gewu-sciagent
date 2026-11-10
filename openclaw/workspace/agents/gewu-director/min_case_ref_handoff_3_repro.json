@@ -1,0 +1,49 @@
+{
+  "stage": 3,
+  "stage_name": "复现",
+  "status": "completed",
+  "title": "袋均谱 PLSR 基线 5 折复现（合成数据）",
+  "created_by": "gewu-reproduction (min-case harness)",
+  "created_at": "2026-11-10T14:19:33+08:00",
+  "inputs": [
+    "handoff_2_litreview.json"
+  ],
+  "outputs": [
+    "output/min_case/model/fold0/predictions.json",
+    "output/min_case/model/fold1/predictions.json",
+    "output/min_case/model/fold2/predictions.json",
+    "output/min_case/model/fold3/predictions.json",
+    "output/min_case/model/fold4/predictions.json"
+  ],
+  "run_mode": "deterministic_script",
+  "data_kind": "synthetic",
+  "baseline_metrics": {
+    "n_folds": 5,
+    "n_per_fold": [
+      14
+    ],
+    "n_bags": 70,
+    "n_instances": 611,
+    "mean_rmse": 150.4354,
+    "std_rmse": 13.1549,
+    "mean_r2": 0.6106,
+    "unit": "kcal/kg",
+    "per_fold_rmse": [
+      169.6308,
+      134.7206,
+      158.1094,
+      136.8353,
+      152.8811
+    ]
+  },
+  "repro_lock": {
+    "data": "gewu/demo/synth.py（确定性生成，种子固定）",
+    "split": "5 折按 bag 切分，见 data/split.json",
+    "model": "PLSR(n_components<=6) on 64-bin 袋均谱",
+    "metric_caliber": "每折算 RMSE，对 5 折取均值/总体标准差(ddof=0)",
+    "random_seed": 20261109
+  },
+  "note": "该基线即「把 bag 拍平成一个样本」的经典做法，作为后续改进的参照",
+  "next": "gewu-improver",
+  "next_input": "handoff_3_repro.json"
+}

@@ -1,0 +1,52 @@
+{
+  "stage": 7,
+  "stage_name": "沉淀",
+  "status": "completed",
+  "title": "合成最小课题沉淀：技能、记忆、注册表条目与复现说明",
+  "created_by": "gewu-distillation (director-recovered; stage 4 subagent had failed)",
+  "created_at": "2026-11-10T15:07:00+08:00",
+  "inputs": [
+    "openclaw/workspace/agents/gewu-director/demo_handoff_6_publication.json"
+  ],
+  "outputs": [
+    "openclaw/workspace/agents/gewu-director/skills/min-case-libs/SKILL.md",
+    "openclaw/workspace/agents/gewu-director/MEMORY.md",
+    "openclaw/workspace/agents/gewu-director/failure_audit_log_stage7.json",
+    "openclaw/workspace/agents/gewu-director/demo_handoff_7_distillation.json"
+  ],
+  "artifacts": {
+    "skill": "skills/min-case-libs/SKILL.md",
+    "memory": "MEMORY.md",
+    "failure_audit": "failure_audit_log_stage7.json",
+    "registry": "output/min_case/registry/demo_synth.json（pipeline 自带，未修改）",
+    "registry_committed": false
+  },
+  "reproducibility_statement": {
+    "from_scratch": true,
+    "external_data_required": false,
+    "rerun_command": "python scripts/run_min_case.py --json",
+    "deterministic": true,
+    "verified_by": "python -m gewu.demo.verify output/min_case（73 项检查，0 失败）"
+  },
+  "lessons": [
+    "逐谱归一化会连颗粒尺度一起抹掉，定标顺序决定 MIL 是否还有意义",
+    "按 bag 切折是 MIL 的底线，按实例切会泄漏",
+    "per-fold 均值与 pooled OOF 必须分开报，混用会让文档互相矛盾",
+    "β=0 是有效结论，不是失败；不得为叙事强行取 β>0（本例 fold 0 选 β=0，其余 0.25，增益不归因于 LSE 高阶池化）",
+    "子智能体可能无 handoff 落盘就退出（阶段④），此时 director 必须按失败降级铁律用已核验数据恢复，不得空回复",
+    "本机无 TeX 引擎 → stage 5 的 pdf_compiled 必为 false，应标注而非报错",
+    "EASYSCHOLAR_SECRET_KEY 未设置 → 阶段⑥全部 rank_source 降为 local_seed_unverified，不得对外声称已核验分区"
+  ],
+  "subagent_failure": {
+    "stage": 4,
+    "agent": "gewu-improver",
+    "run_id": "14a14b73-30d9-4ba8-8e0e-6b6e6d6a83a2",
+    "outcome": "exited without handoff; final result fragment was 'Now let me write the analysis script and independently verify every number.'",
+    "impact": "demo_handoff_4_improver.json 与 failure_audit_log.json 均未由子智能体落盘",
+    "mitigation": "director 依据 output/min_case/model/summary.json 与 per-fold predictions.json 的已核验数值，确定性写出本 handoff；所有指标与 pipeline 的 stage4 产出逐位一致，并已独立重算核对",
+    "degrade_reason": "子智能体执行中途退出（超时或推理中断），非数据或方法问题"
+  },
+  "failure_audit": "openclaw/workspace/agents/gewu-director/failure_audit_log_stage7.json（7 类失败模式，四态裁决，gate: PASS）",
+  "next": null,
+  "next_input": null
+}

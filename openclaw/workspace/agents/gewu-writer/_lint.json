@@ -1,0 +1,31 @@
+{
+  "cite_keys": [
+    "ilse2018mil",
+    "li2014pls",
+    "yan2023coal"
+  ],
+  "bibitem_keys": [
+    "ilse2018mil",
+    "li2014pls",
+    "yan2023coal"
+  ],
+  "missing_bibitem": [],
+  "unused_bibitem": [],
+  "n_cites": 3,
+  "n_bibitems": 3,
+  "braces_balanced": true,
+  "environments_balanced": true,
+  "sections": [
+    "摘要",
+    "引言",
+    "方法",
+    "实验设置",
+    "结果",
+    "消融与讨论",
+    "结论"
+  ],
+  "missing_sections": [],
+  "synthetic_disclaimer_in_abstract_first_sentence": true,
+  "tables": 1,
+  "lint_ok": true
+}

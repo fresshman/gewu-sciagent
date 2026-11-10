@@ -1,0 +1,74 @@
+{
+  "stage": 5,
+  "stage_name": "写论文",
+  "status": "completed",
+  "title": "由结果字典生成 LaTeX 成稿、逐条可回溯断言，并编译为 PDF",
+  "created_by": "gewu-writer (min-case harness)",
+  "created_at": "2026-11-10T14:19:35+08:00",
+  "inputs": [
+    "handoff_4_improver.json"
+  ],
+  "outputs": [
+    "output/min_case/report/main.tex",
+    "output/min_case/report/claims.json",
+    "output/min_case/report/main.pdf"
+  ],
+  "run_mode": "deterministic_script",
+  "data_kind": "synthetic",
+  "manuscript": {
+    "canonical_source": "output/min_case/report/main.tex",
+    "format": "LaTeX (ctexart, 需 xelatex 或 tectonic)",
+    "generated_from": "output/min_case/model/summary.json",
+    "sections": [
+      "摘要",
+      "引言",
+      "方法",
+      "实验设置",
+      "结果",
+      "消融与讨论",
+      "结论"
+    ],
+    "tables": 1,
+    "citations": 3,
+    "claims_count": 14,
+    "synthetic_disclaimer": "摘要首句显式声明为合成数据演示"
+  },
+  "anti_hallucination_compliance": {
+    "d1_citation_verification": {
+      "status": "verified",
+      "detail": "verified",
+      "note": "D1 核验结果继承自阶段②，未重复调用网络"
+    },
+    "d2_claim_provenance": {
+      "status": "pass",
+      "n_claims": 14,
+      "scheme": "每条断言带 {file, JSON Pointer}，由校验器逐条回溯核对"
+    },
+    "d3_citation_lint": {
+      "ok": true,
+      "errors": [],
+      "n_environments": 6,
+      "n_cites": 3,
+      "n_bibitems": 3,
+      "n_figures": 0,
+      "brace_depth": 0
+    },
+    "d4_grounding": {
+      "status": "not_applicable",
+      "reason": "本课题无数值图表需从原页读取"
+    }
+  },
+  "compilation_status": {
+    "pdf_compiled": true,
+    "engine": "tectonic",
+    "duration_s": 1.73,
+    "pdf": "output/min_case/report/main.pdf",
+    "pdf_bytes": 197762,
+    "log_errors": 0,
+    "missing_glyphs": 0,
+    "overfull_hbox": 0,
+    "note": "由 gewu.latex_build 真实编译；计数取自 TeX 日志"
+  },
+  "next": "gewu-publication",
+  "next_input": "handoff_5_writer.json"
+}

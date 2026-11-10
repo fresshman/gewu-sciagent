@@ -1,0 +1,429 @@
+[
+  {
+    "id": "n_bags",
+    "text": "合成数据集共 70 个 bag、611 条实例光谱",
+    "value": 70,
+    "unit": "bag",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/dataset/n_bags"
+    },
+    "tolerance": 0
+  },
+  {
+    "id": "n_instances",
+    "text": "合成数据集共 611 条实例光谱",
+    "value": 611,
+    "unit": "instance",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/dataset/n_instances"
+    },
+    "tolerance": 0
+  },
+  {
+    "id": "n_folds",
+    "text": "5 折 bag 级交叉验证，每折验证 14 个 bag",
+    "value": 5,
+    "unit": "fold",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/dataset/n_folds"
+    },
+    "tolerance": 0
+  },
+  {
+    "id": "plsr_rmse_mean",
+    "text": "袋均谱 PLSR 基线 5 折 RMSE 均值 150.4354 kcal/kg",
+    "value": 150.4354,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/plsr/rmse_mean"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "plsr_rmse_std",
+    "text": "PLSR 基线 5 折 RMSE 总体标准差 13.1549 kcal/kg",
+    "value": 13.1549,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/plsr/rmse_std"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "plsr_r2_mean",
+    "text": "PLSR 基线 5 折 R^2 均值 0.6106",
+    "value": 0.6106,
+    "unit": "",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/plsr/r2_mean"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "mil_rmse_mean",
+    "text": "MIL 直接臂（逐实例定标 + 池化）5 折 RMSE 均值 122.7867 kcal/kg",
+    "value": 122.7867,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/mil/rmse_mean"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "mil_rmse_std",
+    "text": "MIL 直接臂 5 折 RMSE 总体标准差 12.2446 kcal/kg",
+    "value": 12.2446,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/mil/rmse_std"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "mil_r2_mean",
+    "text": "MIL 直接臂 5 折 R^2 均值 0.7407",
+    "value": 0.7407,
+    "unit": "",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/mil/r2_mean"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "hybrid_rmse_mean",
+    "text": "本方法（hybrid）5 折 RMSE 均值 73.0270 kcal/kg",
+    "value": 73.027,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/hybrid/rmse_mean"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "hybrid_rmse_std",
+    "text": "本方法 5 折 RMSE 总体标准差 10.1693 kcal/kg",
+    "value": 10.1693,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/hybrid/rmse_std"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "hybrid_r2_mean",
+    "text": "本方法 5 折 R^2 均值 0.9108",
+    "value": 0.9108,
+    "unit": "",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/hybrid/r2_mean"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "improvement_pct",
+    "text": "本方法相对 PLSR 基线 RMSE 降低 51.4562%",
+    "value": 51.4562,
+    "unit": "%",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/improvement_pct"
+    },
+    "tolerance": 0.001
+  },
+  {
+    "id": "mil_vs_plsr_delta_pct",
+    "text": "MIL 直接臂相对基线 RMSE 降低 18.3791%",
+    "value": 18.3791,
+    "unit": "%",
+    "source": {
+      "file": "output/min_case/agents/gewu-improver/handoff_4_improver.json",
+      "pointer": "/improvement_analysis/delta/mil_only_delta_pct"
+    },
+    "note": "本课题 delta 分解中 mil_only_delta_pct 字段"
+  },
+  {
+    "id": "residual_delta_pct",
+    "text": "在 MIL 直接之上再叠加强度上尾残差，RMSE 再降低 33.0771%",
+    "value": 33.0771,
+    "unit": "%",
+    "source": {
+      "file": "output/min_case/agents/gewu-improver/handoff_4_improver.json",
+      "pointer": "/improvement_analysis/delta/residual_delta_pct"
+    },
+    "note": "本课题 delta 分解中 residual_delta_pct 字段"
+  },
+  {
+    "id": "paired_t",
+    "text": "逐折配对 t 检验 t = -22.4798",
+    "value": -22.4798,
+    "unit": "",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/paired_tests/hybrid_vs_plsr/t"
+    },
+    "tolerance": 0.001
+  },
+  {
+    "id": "paired_p",
+    "text": "配对 t 检验双侧 p = 2.3e-05",
+    "value": 2.3e-05,
+    "unit": "",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/paired_tests/hybrid_vs_plsr/p"
+    },
+    "tolerance": 1e-05
+  },
+  {
+    "id": "paired_ci95",
+    "text": "配对差值 95% 置信区间 [-86.969, -67.8479] kcal/kg",
+    "value": [
+      -86.969,
+      -67.8479
+    ],
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/paired_tests/hybrid_vs_plsr/ci95"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "wilcoxon_p",
+    "text": "Wilcoxon 符号秩检验 p = 0.0625（n=5 时双侧最小可达 p）",
+    "value": 0.0625,
+    "unit": "",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/paired_tests/hybrid_vs_plsr/wilcoxon/p"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "all_same_direction",
+    "text": "五折差值方向一致，全部为改进",
+    "value": true,
+    "unit": "",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/paired_tests/hybrid_vs_plsr/all_same_direction"
+    },
+    "tolerance": 0
+  },
+  {
+    "id": "pooled_plsr_rmse",
+    "text": "PLSR 基线袋外合并（pooled）RMSE 151.0095 kcal/kg",
+    "value": 151.0095,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/plsr/pooled/rmse"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "pooled_mil_rmse",
+    "text": "MIL 直接臂袋外合并 RMSE 123.3957 kcal/kg",
+    "value": 123.3957,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/mil/pooled/rmse"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "pooled_hybrid_rmse",
+    "text": "本方法袋外合并 RMSE 73.7316 kcal/kg",
+    "value": 73.7316,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/hybrid/pooled/rmse"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "fold0_hybrid_rmse",
+    "text": "第 0 折本方法 RMSE = 91.8709 kcal/kg",
+    "value": 91.8709,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/hybrid/per_fold_rmse/0"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "fold1_hybrid_rmse",
+    "text": "第 1 折本方法 RMSE = 69.1661 kcal/kg",
+    "value": 69.1661,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/hybrid/per_fold_rmse/1"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "fold2_hybrid_rmse",
+    "text": "第 2 折本方法 RMSE = 72.3988 kcal/kg",
+    "value": 72.3988,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/hybrid/per_fold_rmse/2"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "fold3_hybrid_rmse",
+    "text": "第 3 折本方法 RMSE = 61.1779 kcal/kg",
+    "value": 61.1779,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/hybrid/per_fold_rmse/3"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "fold4_hybrid_rmse",
+    "text": "第 4 折本方法 RMSE = 70.5212 kcal/kg",
+    "value": 70.5212,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/hybrid/per_fold_rmse/4"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "beta_selected",
+    "text": "内层 CV 选出的 LSE 温度参数 beta = [0, 0.25, 0.25, 0.25, 0.25]",
+    "value": [
+      0.0,
+      0.25,
+      0.25,
+      0.25,
+      0.25
+    ],
+    "unit": "",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/beta_selected"
+    },
+    "tolerance": 0
+  },
+  {
+    "id": "data_kind",
+    "text": "本数据集为合成光谱，不代表真实煤样精度",
+    "value": "synthetic",
+    "unit": "",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/dataset/kind"
+    },
+    "tolerance": 0
+  },
+  {
+    "id": "fold0_mil_rmse",
+    "text": "第 0 折 MIL 直接臂 RMSE = 141.3063 kcal/kg",
+    "value": 141.3063,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/mil/per_fold_rmse/0"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "fold1_mil_rmse",
+    "text": "第 1 折 MIL 直接臂 RMSE = 109.2403 kcal/kg",
+    "value": 109.2403,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/mil/per_fold_rmse/1"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "fold2_mil_rmse",
+    "text": "第 2 折 MIL 直接臂 RMSE = 118.5462 kcal/kg",
+    "value": 118.5462,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/mil/per_fold_rmse/2"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "fold3_mil_rmse",
+    "text": "第 3 折 MIL 直接臂 RMSE = 112.2981 kcal/kg",
+    "value": 112.2981,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/mil/per_fold_rmse/3"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "fold4_mil_rmse",
+    "text": "第 4 折 MIL 直接臂 RMSE = 132.5425 kcal/kg",
+    "value": 132.5425,
+    "unit": "kcal/kg",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/mil/per_fold_rmse/4"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "pooled_plsr_r2",
+    "text": "PLSR 基线袋外合并 R^2 = 0.6309",
+    "value": 0.6309,
+    "unit": "",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/plsr/pooled/r2"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "pooled_mil_r2",
+    "text": "MIL 直接臂袋外合并 R^2 = 0.7535",
+    "value": 0.7535,
+    "unit": "",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/mil/pooled/r2"
+    },
+    "tolerance": 1e-06
+  },
+  {
+    "id": "pooled_hybrid_r2",
+    "text": "本方法袋外合并 R^2 = 0.912",
+    "value": 0.912,
+    "unit": "",
+    "source": {
+      "file": "model/summary.json",
+      "pointer": "/summary/hybrid/pooled/r2"
+    },
+    "tolerance": 1e-06
+  }
+]

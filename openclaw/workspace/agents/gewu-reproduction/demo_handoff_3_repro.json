@@ -1,0 +1,81 @@
+{
+  "stage": 3,
+  "stage_name": "复现",
+  "status": "completed",
+  "created_by": "gewu-reproduction",
+  "created_at": "2026-11-10T14:28:00+08:00",
+  "assembled_by": "agent",
+  "inputs": [
+    "openclaw/workspace/agents/gewu-ideation/demo_handoff_2_litreview.json"
+  ],
+  "outputs": [
+    "openclaw/workspace/agents/gewu-reproduction/demo_handoff_3_repro.json"
+  ],
+  "baseline_metrics": {
+    "n_folds": 5,
+    "n_per_fold": 14,
+    "n_bags": 70,
+    "n_instances": 611,
+    "mean_rmse": 150.4354,
+    "std_rmse": 13.1549,
+    "mean_r2": 0.6106,
+    "unit": "kcal/kg",
+    "per_fold_rmse": [
+      169.6308,
+      134.7206,
+      158.1094,
+      136.8353,
+      152.8811
+    ],
+    "recomputed_check": "matched",
+    "recomputed_detail": {
+      "max_abs_diff_vs_summary": 3.3175e-05,
+      "per_fold_mae": [
+        130.3945,
+        113.6145,
+        135.3890,
+        113.7943,
+        130.6239
+      ],
+      "per_fold_r2": [
+        0.7102,
+        0.7041,
+        0.5127,
+        0.6187,
+        0.5074
+      ],
+      "pooled": {
+        "n": 70,
+        "rmse": 151.0095,
+        "mae": 124.7632,
+        "r2": 0.6309
+      }
+    }
+  },
+  "repro_lock": {
+    "data": "ground_truth: output/min_case/data/; data_card.json n_bags=70 n_channels=384 seed=20261109; labels.json 70 bag->y; 384-dim spectra, generator v1.0.0",
+    "split": "output/min_case/data/split.json, n_folds=5 seed=20261109, bag-level 5-fold; folds sizes [14,14,14,14,14], disjoint, sum=70, all ids in card/labels",
+    "model": "output/min_case/model/fold{0..4}/predictions.json; 70 rows total, each: fold, bag_id, n_instances, y_true, plsr_pred, mil_pred, hybrid_pred; total n_instances across all folds = 611 matching data_card",
+    "metric_caliber": "per-fold 均值：每折各自算 RMSE/MAE/R2，再对 5 折取均值与总体标准差(ddof=0)；pooled 为 70 个袋外预测合并后的指标。两者不可混用",
+    "random_seed": 20261109,
+    "n_train_per_fold": 56,
+    "hypothesis_source": {
+      "id": "H1",
+      "statement": "对同一 bag 的多条实例光谱先逐实例定标再池化，其热值预测误差低于先把光谱平均再回归。",
+      "mechanism": "袋均使颗粒尺度因子 a_i 的均值趋近 1，异质性 h 被稀释；实例级定标保留 a_i，其池化上尾统计量与 h 单调相关。",
+      "falsifiable_by": "5 折 CV 上 MIL 臂 RMSE 不显著低于 PLSR 基线即证伪",
+      "success_criterion": "配对 t 检验 p<0.05 且五折方向一致",
+      "known_confound": "若增益全部来自残差模型而非池化，则假设的机制解释不成立"
+    }
+  },
+  "verification": {
+    "plsr_rmse_vs_summary_4dp": "matched (max abs diff 3.3e-05)",
+    "fold_sizes": "[14,14,14,14,14] sum 70",
+    "fold_disjoint": true,
+    "fold_cover_card_and_labels": true,
+    "n_bags_matches_card": true,
+    "n_instances_matches_card": true,
+    "pooled_check_consistent": true
+  },
+  "note": "PLSR 臂 5 折 RMSE/MAE/R2 全部从 predictions.json 逐袋重算（MSE 求均值、sqrt）并与 summary.json 核对，4 位小数内完全一致（最大偏差 3.3e-05，浮点截断）。n_bags=70、n_instances=611 与 data_card 一致；split 5 折各 14 bag、互斥、覆盖全部 70 个 bag_id。未动 output/coal_report。H1 假设源已原样存入 repro_lock.hypothesis_source。"
+}

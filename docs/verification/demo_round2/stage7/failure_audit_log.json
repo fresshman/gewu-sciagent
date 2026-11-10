@@ -1,0 +1,59 @@
+{
+  "stage": 7,
+  "stage_name": "沉淀",
+  "run_at": "2026-11-10T15:07:00+08:00",
+  "verdicts": [
+    {
+      "mode": 1,
+      "name": "Implementation bug passes review",
+      "state": "CLEAR",
+      "evidence": "沉淀的数值全部来自 output/min_case/model/summary.json 与 predictions.json，已由 pipeline 的 73 项校验（0 失败）与独立重算脚本双重核对。SKILL.md 中的 RMSE 值（150.44 / 122.79 / 73.03）与 improvement_pct（51.46%）与 summary.json 逐位一致，无截断/取整引入的偏差。",
+      "action_required": "无"
+    },
+    {
+      "mode": 2,
+      "name": "Hallucinated citation",
+      "state": "CLEAR",
+      "evidence": "沉淀的技能与记忆只引用 3 条已 D1 核验文献（li2014pls / ilse2018mil / yan2023coal，refs_verified.json verdict PASS），未新增任何引用。MEMORY.md 未引入外部文献。",
+      "action_required": "无"
+    },
+    {
+      "mode": 3,
+      "name": "Hallucinated experimental result",
+      "state": "CLEAR",
+      "evidence": "SKILL.md / MEMORY.md / registry/demo_synth.json 中的每个数字都可回溯到 output/min_case/model/summary.json 或 per-fold predictions.json；n_bags=70、n_instances=611、seed=20261109 与 data_card.json 一致。pipeline 的确定性重跑（同 seed）已验证逐位一致。",
+      "action_required": "无"
+    },
+    {
+      "mode": 4,
+      "name": "Shortcut reliance",
+      "state": "CLEAR",
+      "evidence": "SKILL.md 的踩坑记录明确写出「逐谱归一化会杀掉尺度信息」「按 bag 切折」「per-fold 均值与 pooled OOF 必须分开报」「β=0 不是失败」——这些都是对潜在捷径的防御性经验，而非捷径本身。registry 中三条实验的 config 显式记录了特征与模型差异，未被 shortcut 污染。",
+      "action_required": "无"
+    },
+    {
+      "mode": 5,
+      "name": "Bug reframed as insight",
+      "state": "CLEAR",
+      "evidence": "β=[0, 0.25, 0.25, 0.25, 0.25] 与 fold 0 的 β=0 在 SKILL.md 中写为「β=0 不是失败；不得为叙事强行取 β>0」，是如实的否定性结论，未被包装成「发现 LSE 不必要」之类的新洞察。已知混淆因子（残差占增益大头）在 handoff_4 与 SKILL.md 中均显式披露。",
+      "action_required": "无"
+    },
+    {
+      "mode": 6,
+      "name": "Methodology fabrication",
+      "state": "CLEAR",
+      "evidence": "SKILL.md 的「怎么跑」一节给出真实可执行命令（python scripts/run_min_case.py / --json / --offline），这些命令已被 director 真实执行并产出全部产物。MEMORY.md 中的「已验证」「不要重复的错误」「待办」均对应真实事件（阶段 4 子智能体无 handoff 落盘、本机无 TeX 引擎）。",
+      "action_required": "无"
+    },
+    {
+      "mode": 7,
+      "name": "Frame-lock at early stage",
+      "state": "CLEAR",
+      "evidence": "H1 从 Stage① 到 Stage④ 未漂移：hypothesis_demo.json → repro_lock.hypothesis_source → handoff_4.hypothesis_verdict 三者 statement/mechanism/falsifiable_by/success_criterion 逐字段一致。结论按预注册判据给出（supported=true），未因残差贡献占大头而修改判据。",
+      "action_required": "无"
+    }
+  ],
+  "gate": "PASS",
+  "block_reasons": [],
+  "next": "七阶段闭环完成，产物已写入 demo_handoff_1..7.json 与配套工件；可进入长周期记忆与技能固化。注意 stage④ 的子智能体未产出 handoff，该事件本身已作为经验写入 MEMORY.md 与 SKILL.md 的踩坑记录。"
+}

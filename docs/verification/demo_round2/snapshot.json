@@ -1,0 +1,53 @@
+{
+  "drill": "demo 第二轮（高层自主指令，demo_ 前缀 handoff）",
+  "captured_at": "2026-11-10T15:45:00+08:00",
+  "trigger": "scripts/demo_prompt.txt（不允许中途提问；失败须如实记录）",
+  "spawn_timeline_utc": [
+    {"stage": 1, "label": "demo stage1 direction", "agent": "director 子会话", "spawned_at": "06:20:36", "ended_at": "06:22:21", "status": "terminal"},
+    {"stage": 2, "label": "demo stage2 literature review", "agent": "director 子会话", "spawned_at": "06:28:48", "ended_at": "06:33:57", "status": "terminal"},
+    {"stage": 3, "label": "demo stage3 reproduction", "agent": "director 子会话", "spawned_at": "06:28:48", "ended_at": "06:33:20", "status": "terminal"},
+    {"stage": 4, "label": "demo stage4 improver", "agent": "director 子会话", "spawned_at": "06:29:23", "ended_at": "06:35:23", "status": "terminal"},
+    {"stage": 5, "label": "demo stage5 writer", "agent": "director 子会话", "spawned_at": "06:30:04", "ended_at": "06:54:50", "status": "terminal"},
+    {"stage": 6, "label": "demo stage6 publication", "agent": "director 子会话", "spawned_at": "06:30:04", "ended_at": "06:34:50", "status": "terminal"}
+  ],
+  "spawn_topology_note": "6 次 spawn 的 agentDir/workspaceDir 均登记为 gewu-director（openclaw 的 subagent 机制：director 同 agent 子会话，childSessionKey=agent:gewu-director:subagent:*）；但各阶段产物由子会话实际写入对应角色工作目录（openclaw/workspace/agents/gewu-{ideation,reproduction,improver,writer,publication}/），副本 mtime（14:32–15:03）与各阶段结束时间逐一吻合——独立执行为真，登记拓扑如实记录",
+  "stage7_exception": {
+    "spawned": false,
+    "reason": "subagent_runs 仅 6 条；Stage 7 未派发 gewu-distillation，由 director 经 exec 直接产出（标注 director-recovered）",
+    "handoff_7_file_mtime": "2026-11-10T15:11:54+08:00",
+    "created_by_field": "gewu-distillation (director-recovered; stage 4 subagent had failed)",
+    "honesty_note": "宣传口径不得称『七阶段全部由独立子智能体会话产出』；实际为 6 次 spawn + director 恢复式产出 Stage 7"
+  },
+  "handoff_file_mtimes_local": {
+    "demo_handoff_1_direction.json": "15:13:56",
+    "demo_handoff_2_litreview.json": "15:16:49",
+    "demo_handoff_3_repro.json": "15:05:35",
+    "demo_handoff_4_improver.json": "15:05:35",
+    "demo_handoff_5_writer.json": "15:16:49",
+    "demo_handoff_6_publication.json": "15:16:49",
+    "demo_handoff_7_distillation.json": "15:11:54"
+  },
+  "handoff_provenance_note": "writer 子智能体 14:54:50 结束，但其 handoff 文件落盘时间为 15:16:49（director 收尾统一落盘）；mtime 真实、未经回填",
+  "verification_by_director": {
+    "command": "python -m gewu.demo.verify output/min_case",
+    "result": "73 checks, 0 failures",
+    "reported_at": "2026-11-10T15:24+08:00"
+  },
+  "correction_vs_handoff7": "handoff_7 称 stage4 的 failure_audit_log.json 未由子智能体落盘；实际 gewu-improver 在其工作目录落盘了 7/7 裁决的 failure_audit_log.json（仅 demo_handoff_4 确由 director 恢复写出）",
+  "recording": {
+    "round1": {"file": "output/scratch/demo_video/raw_2026-11-10T06-15-41.webm", "duration": "5:51", "size_bytes": 80217970, "note": "脚本 EXDEV 崩溃后抢救，演练内容完整"},
+    "round2": {"file": "output/scratch/demo_video/watch_2026-11-10T06-31-14.webm", "duration": "~63min", "size_bytes": 457000000, "exit_code": 2, "exit_note": "正常结束判据要求 spawn>=7，实际 6 条；等满 60min 上限按超时落盘（如实记录）"},
+    "composed": {"file": "output/scratch/demo_video/gewu_demo_full.mp4", "size_bytes": 5206803, "recipe": "seg1=round1 x4 速度；seg2=round2 前 3000s x16 速度；concat 后 H.264 crf23", "note": "不入库（output/** 在 .gitignore）"}
+  },
+  "gate_result": {
+    "failure_audit_gate": "PASS（5 份日志：openclaw/workspace 3 份 + docs/verification/demo_round2 2 份；7-mode 铁律首次从 SKIP 转 PASS）",
+    "verify_all": "5/5 PASS，0 跳过（2026-11-10 首次）",
+    "cost_audit": "台账重算更新：输入侧下界 cl100k 99924→101029、o200k 84437→85334（沉淀新增 skills/min-case-libs/SKILL.md 与 MEMORY.md 计入）"
+  },
+  "evidence_files": {
+    "handoffs": "docs/verification/demo_round2/demo_handoff_*.json（director 目录版）",
+    "subagent_copies": "docs/verification/demo_round2/subagent_copy_*.json（5 个子智能体工作目录的独立落盘副本）",
+    "audits": "docs/verification/demo_round2/stage4/failure_audit_log.json、stage7/failure_audit_log.json（原文件 openclaw/workspace/agents/gewu-director/failure_audit_log_stage{4,7}.json）",
+    "watch_log": "docs/verification/demo_round2/watch_console.log"
+  }
+}

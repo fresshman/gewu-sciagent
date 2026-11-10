@@ -1,0 +1,58 @@
+{
+  "stage": 6,
+  "stage_name": "发表追踪",
+  "status": "completed_with_caveat",
+  "title": "候选期刊匹配（等级来源显式标注）",
+  "created_by": "gewu-publication (min-case harness)",
+  "created_at": "2026-11-10T14:19:35+08:00",
+  "inputs": [
+    "handoff_5_writer.json"
+  ],
+  "outputs": [],
+  "run_mode": "deterministic_script",
+  "data_kind": "synthetic",
+  "journals": [
+    {
+      "name": "Spectrochimica Acta Part B",
+      "tier": "Tier1",
+      "scope": "LIBS 方法学主阵地",
+      "rank_source": "local_seed_unverified"
+    },
+    {
+      "name": "Journal of Analytical Atomic Spectrometry",
+      "tier": "Tier1",
+      "scope": "原子光谱/LIBS",
+      "rank_source": "local_seed_unverified"
+    },
+    {
+      "name": "Analytical Methods",
+      "tier": "Tier2",
+      "scope": "分析方法",
+      "rank_source": "local_seed_unverified"
+    },
+    {
+      "name": "Chemometrics and Intelligent Laboratory Systems",
+      "tier": "Tier2",
+      "scope": "化学计量学（PLS/MIL 方法）",
+      "rank_source": "local_seed_unverified"
+    },
+    {
+      "name": "Applied Sciences",
+      "tier": "Tier3",
+      "scope": "应用光谱与机器学习",
+      "rank_source": "local_seed_unverified"
+    }
+  ],
+  "rank_query": {
+    "status": "not_run",
+    "reason": "未配置凭据"
+  },
+  "integrity_note": "仅 0/5 条等级来自可核验接口；其余为本地种子，标记 local_seed_unverified，不得表述为已核验分区",
+  "recommendation": {
+    "primary": "Spectrochimica Acta Part B",
+    "reason": "LIBS 方法学主阵地，且阶段②文献即发表于该刊；但本课题为合成数据演示，不构成投稿成熟度判断",
+    "not_ready": "本报告为链路验证稿，缺真实数据与组件级消融，尚不具备投稿条件"
+  },
+  "next": "gewu-distillation",
+  "next_input": "handoff_6_publication.json"
+}

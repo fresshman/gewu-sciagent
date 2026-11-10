@@ -1,0 +1,77 @@
+{
+  "stage": 6,
+  "stage_name": "发表追踪",
+  "status": "completed_with_caveat",
+  "title": "MIL+LIBS 大颗粒原煤热值预测 · 候选期刊匹配（等级来源全为本地种子，未核验）",
+  "created_by": "gewu-publication (synthetic min case)",
+  "created_at": "2026-11-10T14:30:00+08:00",
+  "inputs": [
+    "handoff_5_writer.json",
+    "gewu/demo/pipeline.py::_journal_seed() 种子名单"
+  ],
+  "outputs": [
+    "demo_handoff_6_publication.json"
+  ],
+  "journals": [
+    {
+      "name": "Spectrochimica Acta Part B",
+      "tier": "Tier1",
+      "scope": "LIBS 方法学主阵地",
+      "rank_source": "local_seed_unverified"
+    },
+    {
+      "name": "Journal of Analytical Atomic Spectrometry",
+      "tier": "Tier1",
+      "scope": "原子光谱/LIBS",
+      "rank_source": "local_seed_unverified"
+    },
+    {
+      "name": "Analytical Methods",
+      "tier": "Tier2",
+      "scope": "分析方法",
+      "rank_source": "local_seed_unverified"
+    },
+    {
+      "name": "Chemometrics and Intelligent Laboratory Systems",
+      "tier": "Tier2",
+      "scope": "化学计量学（PLS/MIL 方法）",
+      "rank_source": "local_seed_unverified"
+    },
+    {
+      "name": "Applied Sciences",
+      "tier": "Tier3",
+      "scope": "应用光谱与机器学习",
+      "rank_source": "local_seed_unverified"
+    }
+  ],
+  "rank_query": {
+    "status": "not_run",
+    "reason": "环境变量 EASYSCHOLAR_SECRET_KEY 在进程级别未设置（经 $env:EASYSCHOLAR_SECRET_KEY 与 [Environment]::GetEnvironmentVariable 双重确认），按指令不触发 journal_rank 查询。补充说明：网络层面到 easyscholar.cc 是可达的（实测返回 {\"code\":40002,\"msg\":\"Key 错误\"}，即 API 正常响应了无效密钥），且仓库内 gitignored 的 gewu/mcp/.easyscholar_key 存在一个 33 字符本地密钥；但本次判定只以环境变量为开关，故二者均不作为查询凭据。"
+  },
+  "integrity_note": "0/5 条期刊等级来自可核验接口；全部 5 条为本地种子，rank_source 一律标为 local_seed_unverified。本档不对任何中科院分区、JCR 分区、影响因子、CSCD/北大核心状态做断言——所有 tier 字段仅复述管道种子名单的自述，未经任何 live 接口核验。不得将本档的 tier 当作已核验分区对外表述。",
+  "recommendation": {
+    "primary": "Spectrochimica Acta Part B",
+    "reason": "种子名单中该刊列为 Tier1，定位「LIBS 方法学主阵地」；且手稿参考文献 p1（谱线标准化 + 主导因子 PLSR，doi 10.1016/j.sab.2014.06.017）即发表于该刊，说明本文方法与该刊审稿语境高度贴合。在仅依赖本地种子的前提下，它仍是领域贴合度最高的候选。",
+    "not_ready": "本报告为合成最小课题的链路验证稿，尚不具备投稿条件：①数据为合成数据，非真实 LIBS 原煤测量（场景真实性不足）；②只做了 5 折 CV + 与 PLSR 基线对比，缺与 SOTA 方法（1D-CNN、Transformer 端到端等）的横向对比，Q1 刊很可能要求补该实验；③手稿为 LaTeX 源码就绪，本机无 TeX Live 故未编译出 PDF；④作者信息、单位、基金致谢、目标刊格式模板均未准备。当前结论仅限「候选刊排序的链路验证」，不构成投稿成熟度判断。"
+  },
+  "manuscript_profile": {
+    "title": "MIL + LIBS 大颗粒原煤热值预测 · 5 折交叉验证复现与消融分析",
+    "discipline": "分析化学 / 光谱学 / 机器学习",
+    "source": "output/documents/coal_report/main.tex",
+    "tables": 3,
+    "figures": 2,
+    "citations": 6,
+    "pdf_compiled": false,
+    "tex_available": false
+  },
+  "known_deviations": [
+    {
+      "item": "journal 等级字段",
+      "actual": "5 条全部 local_seed_unverified，无 easyscholar_rank 字段",
+      "reason": "EASYSCHOLAR_SECRET_KEY 未设置，按指令走 Otherwise 分支；未降级使用仓库本地 .easyscholar_key 文件"
+    }
+  ],
+  "next": "distillation",
+  "next_input": "demo_handoff_6_publication.json",
+  "notes": "本档如实降级：分区核验未跑通，但候选刊名单与 tier 排序仍按管道种子名单原样落盘，供 stage-7 做知识沉淀。若后续配置 EASYSCHOLAR_SECRET_KEY 并重跑 stage6，rank_source 才会升级为 easyscholar。"
+}

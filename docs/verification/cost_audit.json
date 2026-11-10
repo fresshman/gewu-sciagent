@@ -1,17 +1,17 @@
 {
   "schema_version": "1.0",
   "method": "tiktoken 对真实落盘产物分词；输出侧实测，输入侧为重构下界（不含系统提示/工具 schema/重试/会话历史）",
-  "measured_at_local": "2026-11-10 13:54:50",
-  "gewu_commit": "7bb363876b9886d58c71b6c574b1e3862777e056",
+  "measured_at_local": "2026-11-10 15:45:32",
+  "gewu_commit": "9cc1a335846fa31588e9b69ec4ca495d6e2f3320",
   "stages": [
     {
       "stage": 1,
       "agent": "gewu-director",
       "label": "方向立项",
-      "instruction_files": 4,
+      "instruction_files": 5,
       "instruction_tokens": {
-        "o200k_base": 5806,
-        "cl100k_base": 7174
+        "o200k_base": 6703,
+        "cl100k_base": 8279
       },
       "context_tokens": {
         "o200k_base": 0,
@@ -171,8 +171,8 @@
       "cl100k_base": 19340
     },
     "input_tokens_lower_bound": {
-      "o200k_base": 84437,
-      "cl100k_base": 99924
+      "o200k_base": 85334,
+      "cl100k_base": 101029
     },
     "deliverable_tokens": {
       "o200k_base": 13008,
@@ -218,21 +218,21 @@
       "model": "DeepSeek-V4-Flash（空闲时段）",
       "currency": "CNY",
       "cost_range": [
-        0.2625,
-        0.3023
+        0.2638,
+        0.304
       ],
       "sensitivity_by_retry_multiplier": {
         "1": [
-          0.2625,
-          0.3023
+          0.2638,
+          0.304
         ],
         "3": [
-          0.7874,
-          0.907
+          0.7915,
+          0.9119
         ],
         "10": [
-          2.6248,
-          3.0232
+          2.6382,
+          3.0398
         ]
       },
       "source": "腾讯网转央视财经《DeepSeek调价，今日生效》(2026-08-17)：空闲 V4-Flash 输入 1.5 元、输出 4.5 元/百万 tokens",
@@ -242,21 +242,21 @@
       "model": "DeepSeek-V4-Flash（高峰时段）",
       "currency": "CNY",
       "cost_range": [
-        0.525,
-        0.6046
+        0.5276,
+        0.608
       ],
       "sensitivity_by_retry_multiplier": {
         "1": [
-          0.525,
-          0.6046
+          0.5276,
+          0.608
         ],
         "3": [
-          1.5749,
-          1.8139
+          1.5829,
+          1.8239
         ],
         "10": [
-          5.2496,
-          6.0464
+          5.2765,
+          6.0795
         ]
       },
       "source": "同上（高峰为闲时两倍）",
@@ -266,21 +266,21 @@
       "model": "DeepSeek-V4-Pro（空闲时段）",
       "currency": "CNY",
       "cost_range": [
-        0.7874,
-        0.907
+        0.7915,
+        0.9119
       ],
       "sensitivity_by_retry_multiplier": {
         "1": [
-          0.7874,
-          0.907
+          0.7915,
+          0.9119
         ],
         "3": [
-          2.3623,
-          2.7209
+          2.3744,
+          2.7358
         ],
         "10": [
-          7.8744,
-          9.0696
+          7.9147,
+          9.1193
         ]
       },
       "source": "同上：空闲 V4-Pro 输入 4.5 元、输出 13.5 元/百万 tokens",

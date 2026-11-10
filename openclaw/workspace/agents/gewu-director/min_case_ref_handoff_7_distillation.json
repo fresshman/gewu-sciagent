@@ -1,0 +1,39 @@
+{
+  "stage": 7,
+  "stage_name": "沉淀",
+  "status": "completed",
+  "title": "沉淀：技能、记忆、注册表条目与复现说明",
+  "created_by": "gewu-distillation (min-case harness)",
+  "created_at": "2026-11-10T14:19:35+08:00",
+  "inputs": [
+    "handoff_6_publication.json"
+  ],
+  "outputs": [
+    "output/min_case/skills/min-case-libs/SKILL.md",
+    "output/min_case/MEMORY.md",
+    "output/min_case/REPRODUCE.md",
+    "output/min_case/registry/demo_synth.json"
+  ],
+  "run_mode": "deterministic_script",
+  "data_kind": "synthetic",
+  "artifacts": {
+    "skill": "output/min_case/skills/min-case-libs/SKILL.md",
+    "memory": "output/min_case/MEMORY.md",
+    "reproduce": "output/min_case/REPRODUCE.md",
+    "registry": "output/min_case/registry/demo_synth.json",
+    "registry_committed": false
+  },
+  "reproducibility_statement": {
+    "from_scratch": true,
+    "external_data_required": false,
+    "rerun_command": "python scripts/run_min_case.py --json",
+    "deterministic": true,
+    "verified_by": "python -m gewu.demo.verify"
+  },
+  "lessons": [
+    "逐谱归一化会连颗粒尺度一起抹掉，定标顺序决定 MIL 是否还有意义",
+    "按 bag 切折是 MIL 的底线，按实例切会泄漏",
+    "per-fold 均值与 pooled OOF 必须分开报，混用会让文档互相矛盾",
+    "β=0 是有效结论，不是失败；不得为叙事强行取 β>0"
+  ]
+}

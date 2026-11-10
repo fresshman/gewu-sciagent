@@ -1,0 +1,59 @@
+{
+  "stage": 4,
+  "stage_name": "改进",
+  "run_at": "2026-11-10T14:58:00+08:00",
+  "verdicts": [
+    {
+      "mode": 1,
+      "name": "Implementation bug passes review",
+      "state": "CLEAR",
+      "evidence": "所有数值来自 output/min_case/model/summary.json 与 model/fold{0..4}/predictions.json，已由 pipeline 的 verify 层（73 项检查、0 失败）与独立重算脚本双重核对：15 个 per-fold RMSE 逐位吻合（最大偏差 4.75e-05），improvement_pct=51.4562 与 t=-22.4798 复现。无异常取整、误差棒随条件变化而非相同。",
+      "action_required": "无"
+    },
+    {
+      "mode": 2,
+      "name": "Hallucinated citation",
+      "state": "CLEAR",
+      "evidence": "3 条引用（li2014pls / ilse2018mil / yan2023coal）在 Stage② 已通过 D1 存在性核验（refs_verified.json，verdict PASS，hallucination_rate 0.0），Stage⑤ 的 citation lint 确认 3 cite ↔ 3 bibitem 一一对应、无悬空。本阶段未新增引用。",
+      "action_required": "无"
+    },
+    {
+      "mode": 3,
+      "name": "Hallucinated experimental result",
+      "state": "CLEAR",
+      "evidence": "全部指标可回溯到逐袋 predictions.json（70 行，含 y_true 与三 arm 预测）；n_bags=70、n_instances=611 与 data_card.json 一致；split.json 5 折各 14 bag、互斥、覆盖全部 70 个 bag_id。随机种子 20261109 已记录，pipeline 支持确定性重跑。",
+      "action_required": "无"
+    },
+    {
+      "mode": 4,
+      "name": "Shortcut reliance",
+      "state": "CLEAR",
+      "evidence": "三臂共享同一折划分与同一批 64-bin 特征，仅改变定标/池化/残差策略；残差特征刻意排除与 MIL 输出共线的均值/极差（实测 7 维优于 12 维），避免残差模型重复基线已见信息。指标口径按 per-fold 均值 + pooled 双轨报告，未混用。",
+      "action_required": "无；但组件级消融（逐特征移除）未做，已在 not_covered 中披露"
+    },
+    {
+      "mode": 5,
+      "name": "Bug reframed as insight",
+      "state": "CLEAR",
+      "evidence": "β=[0, 0.25, 0.25, 0.25, 0.25] 与 fold 0 的 β=0 被如实报告为否定性结论（增益不归因于 LSE 高阶池化），未使用 'surprisingly/unexpectedly' 叙事包装。已知混淆因子（增益主要来自残差）在 hypothesis_verdict.caveat 中显式披露，未按有利方向隐藏。",
+      "action_required": "无"
+    },
+    {
+      "mode": 6,
+      "name": "Methodology fabrication",
+      "state": "CLEAR",
+      "evidence": "方法节每个数字（n_components=6、BETA_GRID、RIDGE_ALPHAS、INNER_FOLDS=4、64-bin、n_train=56）均可在 mil_lite.py 与 summary.json 中找到；5 折 CV、bag 级切分、内层折外选参均在 pipeline.run 中真实执行，非描述性回溯。",
+      "action_required": "无"
+    },
+    {
+      "mode": 7,
+      "name": "Frame-lock at early stage",
+      "state": "CLEAR",
+      "evidence": "H1 的预注册判据（p<0.05 且五折同向）在 Stage① 写入 hypothesis_demo.json，Stage④ 按同一判据裁决（supported=true，p=2.3e-05，同向=true），未因残差贡献占大头而修改判据。hypothesis_source 已原样嵌入 handoff_3 与 handoff_4，可交叉比对无漂移。",
+      "action_required": "无"
+    }
+  ],
+  "gate": "PASS",
+  "block_reasons": [],
+  "next": "Stage 5（写论文）可凭 demo_handoff_4_improver.json 续跑；注意本课题为合成数据，绝对精度不可外推，且子智能体未能产出 handoff 已由 director 恢复。"
+}
