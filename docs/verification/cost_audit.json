@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "method": "tiktoken 对真实落盘产物分词；输出侧实测，输入侧为重构下界（不含系统提示/工具 schema/重试/会话历史）",
-  "measured_at_local": "2026-11-10 09:25:17",
-  "gewu_commit": "491c9982bb174ab13c08359401dc4d61c84b8ddb",
+  "measured_at_local": "2026-11-10 13:54:50",
+  "gewu_commit": "7bb363876b9886d58c71b6c574b1e3862777e056",
   "stages": [
     {
       "stage": 1,
@@ -18,8 +18,8 @@
         "cl100k_base": 0
       },
       "output_tokens": {
-        "o200k_base": 1051,
-        "cl100k_base": 1255
+        "o200k_base": 1059,
+        "cl100k_base": 1264
       },
       "output_path": "openclaw/workspace/agents/gewu-director/handoff_1_direction.json",
       "output_exists": true
@@ -34,12 +34,12 @@
         "cl100k_base": 12036
       },
       "context_tokens": {
-        "o200k_base": 1051,
-        "cl100k_base": 1255
+        "o200k_base": 1059,
+        "cl100k_base": 1264
       },
       "output_tokens": {
-        "o200k_base": 1456,
-        "cl100k_base": 1631
+        "o200k_base": 1464,
+        "cl100k_base": 1640
       },
       "output_path": "openclaw/workspace/agents/gewu-ideation/handoff_2_litreview.json",
       "output_exists": true
@@ -54,12 +54,12 @@
         "cl100k_base": 10842
       },
       "context_tokens": {
-        "o200k_base": 1456,
-        "cl100k_base": 1631
+        "o200k_base": 1464,
+        "cl100k_base": 1640
       },
       "output_tokens": {
-        "o200k_base": 783,
-        "cl100k_base": 807
+        "o200k_base": 791,
+        "cl100k_base": 816
       },
       "output_path": "openclaw/workspace/agents/gewu-reproduction/handoff_3_repro.json",
       "output_exists": true
@@ -74,12 +74,12 @@
         "cl100k_base": 11770
       },
       "context_tokens": {
-        "o200k_base": 783,
-        "cl100k_base": 807
+        "o200k_base": 791,
+        "cl100k_base": 816
       },
       "output_tokens": {
-        "o200k_base": 5825,
-        "cl100k_base": 6444
+        "o200k_base": 5898,
+        "cl100k_base": 6543
       },
       "output_path": "openclaw/workspace/agents/gewu-improver/handoff_4_improver.json",
       "output_exists": true
@@ -94,12 +94,12 @@
         "cl100k_base": 11366
       },
       "context_tokens": {
-        "o200k_base": 5825,
-        "cl100k_base": 6444
+        "o200k_base": 5898,
+        "cl100k_base": 6543
       },
       "output_tokens": {
-        "o200k_base": 2294,
-        "cl100k_base": 2548
+        "o200k_base": 2387,
+        "cl100k_base": 2665
       },
       "output_path": "openclaw/workspace/agents/gewu-writer/handoff_5_writer.json",
       "output_exists": true
@@ -114,12 +114,12 @@
         "cl100k_base": 20157
       },
       "context_tokens": {
-        "o200k_base": 2294,
-        "cl100k_base": 2548
+        "o200k_base": 2387,
+        "cl100k_base": 2665
       },
       "output_tokens": {
-        "o200k_base": 2762,
-        "cl100k_base": 3188
+        "o200k_base": 2873,
+        "cl100k_base": 3319
       },
       "output_path": "openclaw/workspace/agents/gewu-publication/handoff_6_publication.json",
       "output_exists": true
@@ -134,12 +134,12 @@
         "cl100k_base": 10332
       },
       "context_tokens": {
-        "o200k_base": 2762,
-        "cl100k_base": 3188
+        "o200k_base": 2873,
+        "cl100k_base": 3319
       },
       "output_tokens": {
-        "o200k_base": 2628,
-        "cl100k_base": 3000
+        "o200k_base": 2703,
+        "cl100k_base": 3093
       },
       "output_path": "openclaw/workspace/agents/gewu-distillation/handoff_7_distillation.json",
       "output_exists": true
@@ -167,12 +167,12 @@
   ],
   "totals": {
     "output_tokens": {
-      "o200k_base": 16799,
-      "cl100k_base": 18873
+      "o200k_base": 17175,
+      "cl100k_base": 19340
     },
     "input_tokens_lower_bound": {
-      "o200k_base": 84136,
-      "cl100k_base": 99550
+      "o200k_base": 84437,
+      "cl100k_base": 99924
     },
     "deliverable_tokens": {
       "o200k_base": 13008,
@@ -180,8 +180,8 @@
     },
     "deliverable_count": 2,
     "output_tokens_counted_for_cost": {
-      "o200k_base": 29807,
-      "cl100k_base": 33407
+      "o200k_base": 30183,
+      "cl100k_base": 33874
     },
     "cost_counting_rule": "输出侧计入 handoff 与论文正文等文本交付物；导出的 *.py 代码为人机混合产出，无法归因，不计入",
     "local_compute_cost_cny": 0.0,
@@ -218,21 +218,21 @@
       "model": "DeepSeek-V4-Flash（空闲时段）",
       "currency": "CNY",
       "cost_range": [
-        0.2603,
-        0.2997
+        0.2625,
+        0.3023
       ],
       "sensitivity_by_retry_multiplier": {
         "1": [
-          0.2603,
-          0.2997
+          0.2625,
+          0.3023
         ],
         "3": [
-          0.781,
-          0.899
+          0.7874,
+          0.907
         ],
         "10": [
-          2.6034,
-          2.9966
+          2.6248,
+          3.0232
         ]
       },
       "source": "腾讯网转央视财经《DeepSeek调价，今日生效》(2026-08-17)：空闲 V4-Flash 输入 1.5 元、输出 4.5 元/百万 tokens",
@@ -242,21 +242,21 @@
       "model": "DeepSeek-V4-Flash（高峰时段）",
       "currency": "CNY",
       "cost_range": [
-        0.5207,
-        0.5993
+        0.525,
+        0.6046
       ],
       "sensitivity_by_retry_multiplier": {
         "1": [
-          0.5207,
-          0.5993
+          0.525,
+          0.6046
         ],
         "3": [
-          1.562,
-          1.7979
+          1.5749,
+          1.8139
         ],
         "10": [
-          5.2067,
-          5.9931
+          5.2496,
+          6.0464
         ]
       },
       "source": "同上（高峰为闲时两倍）",
@@ -266,21 +266,21 @@
       "model": "DeepSeek-V4-Pro（空闲时段）",
       "currency": "CNY",
       "cost_range": [
-        0.781,
-        0.899
+        0.7874,
+        0.907
       ],
       "sensitivity_by_retry_multiplier": {
         "1": [
-          0.781,
-          0.899
+          0.7874,
+          0.907
         ],
         "3": [
-          2.343,
-          2.6969
+          2.3623,
+          2.7209
         ],
         "10": [
-          7.8101,
-          8.9897
+          7.8744,
+          9.0696
         ]
       },
       "source": "同上：空闲 V4-Pro 输入 4.5 元、输出 13.5 元/百万 tokens",

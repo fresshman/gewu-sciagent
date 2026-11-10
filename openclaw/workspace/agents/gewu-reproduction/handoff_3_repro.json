@@ -4,6 +4,7 @@
   "status": "completed_with_caveat",
   "created_by": "gewu-reproduction (handoff assembled from verified real cv_summary run)",
   "created_at": "2026-10-26T16:02:00+08:00",
+  "assembled_by": "agent",
   "inputs": [
     "handoff_2_litreview.json",
     "handoff_1_direction.json"

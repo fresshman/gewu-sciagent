@@ -5,6 +5,7 @@
   "title": "MIL+LIBS 大颗粒原煤热值预测 · 研究立项书",
   "created_by": "gewu-director",
   "created_at": "2026-10-26T14:46:00+08:00",
+  "assembled_by": "agent",
   "research_question": "在激光诱导击穿光谱（LIBS）大颗粒原煤场景下，能否用一个端到端的多示例学习（MIL）框架，把「一张 bag = 多张局部 LIBS 谱」这一结构显式建模，从而比「先袋均谱、再 PLSR」的经典两阶段基线更准地预测煤的发热量（热值）？",
   "hypothesis": "大颗粒原煤的 LIBS 谱存在强 intra-bag 异质性（不同颗粒/不同击打位点的光谱差异携带了煤岩组分非均匀分布信息）。把 bag 当作多示例集合、用注意力机制聚合，可以学到对局部异常谱的鲁棒表示，并用残差方式修正 PLSR 的系统偏差，最终降低 RMSE。",
   "technical_route": {

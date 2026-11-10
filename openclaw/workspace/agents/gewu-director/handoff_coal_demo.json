@@ -1,6 +1,7 @@
 {
   "stage": "coal-demo",
   "status": "partial",
+  "assembled_by": "agent",
   "inputs": ["命题: 基于本地 MIL+LIBS 大颗粒原煤热值预测模型复现 5 折交叉验证并产出研究报告"],
   "outputs": [
     "output/documents/coal_report/main.tex",

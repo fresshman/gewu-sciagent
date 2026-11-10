@@ -5,6 +5,7 @@
   "title": "MIL+LIBS 大颗粒原煤热值预测 · 文献调研与 gap 分析",
   "created_by": "gewu-ideation",
   "created_at": "2026-10-26T15:17:00+08:00",
+  "assembled_by": "agent",
   "inputs": [
     "handoff_1_direction.json"
   ],

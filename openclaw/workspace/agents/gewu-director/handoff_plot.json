@@ -1,5 +1,6 @@
 {
   "status": "completed",
+  "assembled_by": "agent",
   "agent": "gewu-reproduction",
   "round": 2,
   "task": "绘图 (fold0 预测-真实散点图 + 5 折 RMSE 柱状图)",

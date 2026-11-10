@@ -4,8 +4,10 @@
   "status": "completed",
   "title": "MIL+LIBS 大颗粒原煤热值预测 · 改进分析（基线对比 + 消融 + 统计检验）",
   "created_by": "gewu-improver",
-  "created_at": "2026-10-28T16:00:00+08:00",
-  "updated_at": "2026-11-09T15:30:00+08:00",
+  "created_at": "2026-11-09T15:46:00+08:00",
+  "updated_at": "2026-11-09T15:46:00+08:00",
+  "assembled_by": "human",
+  "assembled_note": "本档为人工整理落盘：依据外部项目消融脚本硬编码值（已逐字核实并标注配置差异）与工作日志，2026-11-09 15:46 首次成档；created_at 为真实落盘时间。",
   "inputs": [
     "handoff_3_repro.json",
     "handoff_plot.json",

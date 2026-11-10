@@ -4,8 +4,10 @@
   "status": "completed",
   "title": "MIL+LIBS 大颗粒原煤热值预测 · 复现与消融分析（LaTeX 成稿）",
   "created_by": "gewu-writer",
-  "created_at": "2026-10-28T16:30:00+08:00",
-  "updated_at": "2026-11-09T10:55:00+08:00",
+  "created_at": "2026-10-29T09:43:00+08:00",
+  "updated_at": "2026-11-09T10:15:00+08:00",
+  "assembled_by": "human",
+  "assembled_note": "本档为人工整理落盘：依据 2026-10-28 gewu-writer 真实会话工作（openclaw state DB subagent_runs 有对应 spawn 记录）与工作日志，2026-10-29 09:43 首次成档；created_at 为真实落盘时间，2026-11-09 复核修正。",
   "inputs": [
     "handoff_4_improver.json",
     "handoff_3_repro.json",

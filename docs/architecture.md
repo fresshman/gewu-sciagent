@@ -9,7 +9,10 @@
 - ✅ 书生模型 provider `sheng` 已配置 4 个模型：`intern-s2`（397B/256K，`model.primary` 默认选它）、
   `intern-s1-pro`、`intern-s1`、`internvl`。**已跑通真实推理**：多模态原页理解实测见
   [`docs/verification/2026-10-23-english-papers.md`](verification/2026-10-23-english-papers.md)（3 篇英文期刊论文，
-  含一次误读暴露与纪律化），七阶段 handoff 均由真实 agent 会话产出。
+  含一次误读暴露与纪律化）。handoff 落盘的真实性如实标注：阶段 1/2/3 的 handoff
+  由真实 agent 会话直接产出（openclaw state DB 有对应 spawn 记录）；阶段 4/5/6/7
+  的 handoff 为人工依据 2026-10-26~10-28 真实会话记录与工作产物整理补档，
+  各档以 `assembled_by: agent|human` 字段区分，时间戳为文件真实落盘时间。
 - ✅ 10 个 MCP server 经 `openclaw mcp add` 注册到 `mcp.servers`，`mcp probe` 实测全部拉起并暴露工具：
   7 个自研 Python server（49 个业务工具）+ 1 个 Node 包装 `chart-cloud` + 2 个外部包
   （`paper-search`、`office-word`）。
