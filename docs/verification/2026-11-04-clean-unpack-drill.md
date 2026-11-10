@@ -8,6 +8,7 @@
 > 此后发生的变化：自研 MCP 工具 **48 → 49**（`report` 新增 `compile_latex`）、
 > Python 用例数 **68 → 224**（新增 PDF 编译、引擎获取、消融落库、全量门禁等）。
 > **最新口径以 `README.md` 与 `python scripts/verify_all.py` 的当次输出为准。**
+> 例外：**§11 是 2026-11-10 的追加复测**（真 `git clone` + 新建 venv），该节数字是当天实测，与上文旧快照并存不冲突。
 
 ## 0. 结论先说
 
@@ -198,3 +199,35 @@ git ls-files -z | xargs -0 grep -IlE "sk-[A-Za-z0-9]{16,}|api[_-]?key\s*[:=]\s*[
 结论：**Key 必须注入到 MCP 服务自己的 env 块**，只在 shell 里 export 到不了子进程；
 而 env 块里留一个未解析的 `${VAR}` 会让整个 server 静默不启动（probe 无输出、退出码 0）。
 两条都已写进 README §3 与 `.env.example`。
+
+## 11. 2026-11-10 复测：真正的 `git clone` + 新建 venv
+
+与 §10 的「干净解包目录」不同，这次是**从 Gitee 克隆已推送的提交**，验证「别人拿到公开仓库能不能跑」。
+命令与环境全记录如下，数字均为本次实测。
+
+```bash
+git clone git@gitee.com:FreeBlank/gewu-sciagent.git /tmp/gw_clone2   # HEAD = 1eaeffd
+cd /tmp/gw_clone2
+python -m venv .venv && ./.venv/Scripts/python.exe -m pip install -r requirements.txt   # 4m21s
+./.venv/Scripts/python.exe -m pytest -q -rs
+./.venv/Scripts/python.exe scripts/verify_all.py
+./.venv/Scripts/python.exe scripts/e2e_smoke_test.py ; echo $?
+```
+
+| 项 | 实测结果 |
+|---|---|
+| 依赖安装 | `pip install -r requirements.txt` 一次成功，`mcp` / `openai` / `numpy` / `scikit-learn` 全部可导入；**torch 没装也不需要**（外部煤项目才需要，见 `requirements-coal.txt`） |
+| Python 套件 · clone | **217 passed / 7 skipped / 0 failed**（29.30s；复跑 31.38s）。跳过 7 条 = `test_e2e_chain` 3 + `test_ablation_ingest` 2 + `test_mcp_timeout_hierarchy` 1 + `test_fetch_tectonic` 1 |
+| Python 套件 · 仓库内 | 223 passed / 1 skipped / 0 failed。**223+1 = 217+7 = 224**，总数对得上，差值全部来自「本机缺未入库数据」 |
+| Web 套件 · clone | `node --test` **48 pass / 0 fail** |
+| `verify_all.py` · clone | **3 PASS + 1 SKIP，exit 0**；SKIP 项为真实课题 e2e |
+| `e2e_smoke_test.py` · clone | 打印「缺少 output/documents/coal_report … 在 clone 出的仓库里不适用」，**exit=2** |
+
+**本次复测抓到两个「说了但没做到」**（都在 README，已当场修）：
+
+1. README 的克隆快照位置留着一行 `CLONE_MEASURED_PLACEHOLDER` —— 占位符被当成实测值提交了。
+2. README 写「上面这条命令是等价的本地门禁，**干净 clone 里可直接复现同一结论**」—— 不成立。
+   clone 里必然是 3 PASS + 1 SKIP，因为 e2e 依赖按设计不入库的存档。原文把「0 失败」说成了「4 项全 PASS」。
+
+修正后的口径：**clone 里是「0 失败 + 1 项 SKIP」，不是全绿**；只有本机有存档时才是 4 项全 PASS。
+

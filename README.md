@@ -329,25 +329,30 @@ python scripts/verify_all.py --json   # 机器可读，便于接任何 CI
 
 - 退出码 **0 = 没有硬失败**；缺 node、缺真实课题存档、本机无 TeX 引擎时，对应项标 `SKIP`
   并写明缺哪个外部条件，**不计为通过**。
-- 2026-11-09 实测：**4 项全 PASS，37–44 s**（差异来自磁盘缓存与是否需要重编 PDF）。
+- 2026-11-09 实测两处，**结论不同，都如实写**：
+  - 仓库内（本机有存档、有 node、有 TeX）：**4 项全 PASS，37–44 s**（差异来自磁盘缓存与是否需要重编 PDF）；
+  - 干净 clone（只有代码，无 `output/documents`）：**3 PASS + 1 SKIP，exit 0**，SKIP 的是真实课题 e2e
+    （`exit=2` 不适用）。所以「克隆下来一条命令就全绿」是**假**的，正确说法是「0 失败、有 1 项因缺
+    未入库数据而跳过」。
 - **本仓库没有接入托管 CI**：仅在 Gitee 托管，未开启 Gitee Go，所以不存在「每次 push 自动跑」的证据。
-  上面这条命令是等价的本地门禁，干净 clone 里可直接复现同一结论；作者不把「提供一个配置文件」
-  说成「已接 CI」。
+  上面这条命令是等价的本地门禁；作者不把「提供一个配置文件」说成「已接 CI」。
 
 分项说明如下。
 
 ```bash
 # Python 侧：反幻觉链 / 结果瘦身层 / MCP 超时层级 / stdin 守护
-python -m pytest tests -q              # 共 224 用例（223 跑通 + 1 条联网用例默认跳过）
-#   硬指标是 0 failed。passed/skipped 的具体条数会随四个外部条件浮动（跳过 1–5 条），
-#   所以这里只给带日期的一次实测快照，不承诺固定数字：
+python -m pytest tests -q              # 共 224 用例。硬指标是 0 failed。passed/skipped 的具体条数会随四个外部条件浮动，
+#   所以这里只给带日期的实测快照，不承诺固定数字：
 #   ① test_verify_papers_fallback —— CrossRef 限流或断网时返回 verify_pending 而跳过；
 #   ② test_mcp_timeout_hierarchy —— 解包目录里没有 gitignore 的 .coal_project_root 时跳过；
 #   ③ test_e2e_chain 的 3 条 —— 真实课题存档（output/documents）按设计不入库，无存档时跳过；
-#   ④ test_fetch_tectonic 的联网安装 —— 要下载 20 MB，仅 GEWU_TEST_FETCH=1 时运行。
-#   用 `-rs` 可以看到每条跳过的原因。实测（2026-11-09）：
-#     仓库内（本机有存档）：223 passed / 1 skipped / 0 failed（34.02s）
-#     干净 clone：CLONE_MEASURED_PLACEHOLDER
+#   ④ test_ablation_ingest 的 2 条 —— 外部煤项目按设计不入库，找不到时跳过；
+#   ⑤ test_fetch_tectonic 的联网安装 —— 要下载 20 MB，仅 GEWU_TEST_FETCH=1 时运行。
+#   用 `-rs` 可以看到每条跳过的原因。实测（2026-11-09 / 11-10）：
+#     仓库内（本机有存档）：223 passed / 1 skipped / 0 failed（11-09 34.02s，11-10 复跑 30.04s）
+#     干净 clone（新建 venv，仅 pip install -r requirements.txt）：217 passed / 7 skipped /
+#       0 failed（29.30–31.38s，两次）。223+1 = 217+7 = 224，总数对得上，差值全来自
+#       上面 ③④ 的 5 条「本机缺未入库数据」——不是失败。
 #   跳过全是「本机没有某个外部条件」，不是失败；若看到 failed 才是真问题。
 # 完整开箱演练记录见 docs/verification/2026-11-04-clean-unpack-drill.md。
 
