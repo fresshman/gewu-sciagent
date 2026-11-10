@@ -1,0 +1,69 @@
+#!/bin/sh
+# 提交前门禁（版本化在仓库里，靠 `git config core.hooksPath .githooks` 生效）。
+#
+# 为什么不用 husky：本仓库根目录没有 package.json，husky 要额外拉一层 npm 依赖，
+# 而我们要跑的东西一半在 Python 侧。一个 sh 脚本 + core.hooksPath 就够，
+# 换机器只要一条 git config，不需要 npm install 才能提交。
+#
+# 为什么只跑「快」的那层：全量 verify_all 带端到端要 1–3 分钟。提交时等不起的东西，
+# 最后一定会被 `--no-verify` 绕过 —— 那还不如一开始就只放秒级检查进来，
+# 把慢的留给手动/发版。
+#
+# 判断依据是**暂存区**，不是工作区：没 stage 的改动不该拦你提交。
+
+ROOT="$(git rev-parse --show-toplevel)" || exit 0
+cd "$ROOT" || exit 0
+
+changed="$(git diff --cached --name-only --diff-filter=ACM)"
+if [ -z "$changed" ]; then
+  exit 0
+fi
+
+need_web=0
+need_py=0
+
+if echo "$changed" | grep -qE '^web/(src|tests|proxy|shared)/|^web/(index\.html|package\.json|tsconfig.*\.json|vite\.config)'; then
+  need_web=1
+fi
+if echo "$changed" | grep -qE '\.py$|^tests/|^pytest\.ini$'; then
+  need_py=1
+fi
+
+fail=0
+
+if [ "$need_web" = 1 ]; then
+  if [ -d web/node_modules ] && command -v npm >/dev/null 2>&1; then
+    echo "[pre-commit] 前端类型检查：tsc --noEmit"
+    ( cd web && npx tsc --noEmit ) || fail=1
+    echo "[pre-commit] 前端单测：npm test"
+    ( cd web && npm test ) || fail=1
+  else
+    # 不静默跳过：明说跳了什么、为什么跳，否则「本地全绿」是假的
+    echo "[pre-commit] 已跳过前端检查：web/node_modules 不存在或 npm 不可用（先在 web/ 下 npm install）"
+  fi
+fi
+
+if [ "$need_py" = 1 ]; then
+  PY=""
+  for cand in "$ROOT/.venv/Scripts/python.exe" "$ROOT/.venv/bin/python" python3 python; do
+    if command -v "$cand" >/dev/null 2>&1 && "$cand" -c "import pytest" >/dev/null 2>&1; then
+      PY="$cand"
+      break
+    fi
+  done
+  if [ -n "$PY" ]; then
+    echo "[pre-commit] Python 门禁：verify_all --fast（解释器 $PY）"
+    "$PY" scripts/verify_all.py --fast || fail=1
+  else
+    echo "[pre-commit] 已跳过 Python 检查：找不到装了 pytest 的解释器（本仓库用 .venv）"
+  fi
+fi
+
+if [ "$fail" != 0 ]; then
+  echo ""
+  echo "提交被拦下：上面有硬失败。修好再提交。"
+  echo "确需绕过请用 git commit --no-verify，并在 PR 里说明为什么。"
+  exit 1
+fi
+
+exit 0

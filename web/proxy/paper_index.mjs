@@ -408,8 +408,12 @@ export function buildLibrary({ bib = [], pdfs = [], refs = null, notes = [], rep
       tags: [],
       pdf: null,
       check: own.claimsCount
-        ? { t: "已核", cls: "b-ok", sub: `${own.claimsCount} 条声明 · 均带来源指针` }
-        : { t: "未核", cls: "b-mut", sub: "无 claims.json" },
+        // 这里曾经写「已核」，依据只是 claims.json 里每条都有 source 字段。
+        // 实测那 12 条一条都溯源不了（source 语法不符合引擎契约），于是列表页挂着
+        // 一个绿色「已核」，点进去才发现全是未核验的。列表页不许替引擎下结论：
+        // 只报「有 N 条等着核」，真正的判定在核查台（/api/writing/claims）。
+        ? { t: "待核", cls: "b-warn", sub: `${own.claimsCount} 条声明 · 未跑溯源引擎` }
+        : { t: "无声明", cls: "b-mut", sub: "没有 claims.json" },
       rel: { note: 0, repro: 0, cite: own.refsCount || 0 },
       prog: 0,
       lines: [],
@@ -433,7 +437,7 @@ export function buildLibrary({ bib = [], pdfs = [], refs = null, notes = [], rep
     if (it.kind === "own") {
       lines.push(
         it.tex ? `源 ${it.tex}` : "未找到 main.tex",
-        it.claimsCount ? `核查声明 ${it.claimsCount} 条` : "无 claims.json",
+        it.claimsCount ? `声明 ${it.claimsCount} 条 · 待溯源` : "无 claims.json",
         `参考文献 ${it.rel.cite} 条`,
       );
     } else {
@@ -447,9 +451,11 @@ export function buildLibrary({ bib = [], pdfs = [], refs = null, notes = [], rep
 
   const summary = {
     total: items.length,
-    // 核验只统计外部文献；自己稿子的「已核」是声明核查，口径不同，单列
+    // 核验只统计外部文献。自己稿子的声明不在列表页判定——这里只数「有几条等着核」，
+    // 判定权归 D2 引擎（核查台 /api/writing/claims）。
     verified: items.filter((x) => x.kind === "ext" && x.check.cls === "b-ok").length,
-    ownChecked: items.filter((x) => x.kind === "own" && x.check.cls === "b-ok").length,
+    ownWithClaims: items.filter((x) => x.kind === "own" && (x.claimsCount || 0) > 0).length,
+    ownClaimCount: items.reduce((n, x) => n + (x.kind === "own" ? x.claimsCount || 0 : 0), 0),
     withNotes: items.filter((x) => x.rel.note > 0).length,
     withRepro: items.filter((x) => x.rel.repro > 0).length,
     missingPdf: items.filter((x) => x.kind === "ext" && !x.pdf).length,

@@ -1,11 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { FigureItem, WritingLeaf, WritingNode, WritingResponse } from "../../types";
+import type { ClaimReport, FigureItem, WritingLeaf, WritingNode, WritingResponse } from "../../types";
+import { ST_LABEL, TONE, VERDICT } from "./ClaimCard";
 import { FigureCard } from "./FigureCard";
 
 type Sel =
   | { kind: "sec"; index: number }
   | { kind: "leaf"; index: number; leaf: number }
   | { kind: "asset"; key: "figures" | "claims" | "equations" | "refs" };
+
+const ASSET_KEYS = ["figures", "claims", "equations", "refs"] as const;
+
+/** `#writing?asset=claims` 直接落到某个资产组；不然只能靠手点，链接也没法分享 */
+function initialSel(): Sel {
+  if (typeof location === "undefined") return { kind: "sec", index: 0 };
+  const i = location.hash.indexOf("?");
+  if (i < 0) return { kind: "sec", index: 0 };
+  const a = new URLSearchParams(location.hash.slice(i + 1)).get("asset");
+  const hit = ASSET_KEYS.find((k) => k === a);
+  return hit ? { kind: "asset", key: hit } : { kind: "sec", index: 0 };
+}
 
 /** \includegraphics{xxx.pdf} 与图纸台账的 base 同名对齐（去掉扩展名比） */
 function figForLeaf(leaf: WritingLeaf, figures: FigureItem[]): FigureItem | null {
@@ -22,14 +35,17 @@ const ICON: Record<WritingLeaf["kind"], string> = { tbl: "▦", fig: "◨", cite
 export function WritingDesk({
   data,
   figures = [],
+  claims = null,
   onToast,
 }: {
   data: WritingResponse | null;
   /** 图纸台账；图 N 的详情靠它把「这张图怎么画出来的」接上去 */
   figures?: FigureItem[];
+  /** 声明核查结果（D2 引擎）；null = 还没拉到，不等于「全部通过」 */
+  claims?: ClaimReport | null;
   onToast: (m: string) => void;
 }) {
-  const [sel, setSel] = useState<Sel>({ kind: "sec", index: 0 });
+  const [sel, setSel] = useState<Sel>(initialSel);
   const lineRefs = useRef(new Map<number, HTMLDivElement>());
   const srcRef = useRef<HTMLDivElement>(null);
 
@@ -137,10 +153,11 @@ export function WritingDesk({
           className="pw-node s1"
           aria-selected={sel.kind === "asset" && sel.key === "claims"}
           onClick={() => setSel({ kind: "asset", key: "claims" })}
+          title={`核查声明 ${a.claims.n} 条，其中 ${claims?.n_grounded ?? "?"} 条数值对得上`}
         >
           <span className="ic">#</span>
           <span className="tx">核查声明 {a.claims.n}</span>
-          <span className="ln">{a.claims.withSource}</span>
+          <span className="ln">{claims?.n_grounded ?? a.claims.withSource}</span>
         </button>
         <button
           className="pw-node s1"
@@ -207,7 +224,7 @@ export function WritingDesk({
             onToast={onToast}
           />
         )}
-        {sel.kind === "asset" && <AssetDetail data={data} which={sel.key} figures={figures} onToast={onToast} />}
+        {sel.kind === "asset" && <AssetDetail data={data} which={sel.key} figures={figures} claims={claims} onToast={onToast} />}
       </aside>
     </div>
   );
@@ -373,11 +390,13 @@ function AssetDetail({
   data,
   which,
   figures,
+  claims,
   onToast,
 }: {
   data: WritingResponse;
   which: "figures" | "claims" | "equations" | "refs";
   figures: FigureItem[];
+  claims: ClaimReport | null;
   onToast: (m: string) => void;
 }) {
   const a = data.assets!;
@@ -416,15 +435,70 @@ function AssetDetail({
   }
 
   if (which === "claims") {
+    const a2 = a.claims;
+    if (!claims) {
+      return (
+        <>
+          <h3>核查声明 {a2.n}</h3>
+          <div className="d-kind">{a2.path || "未找到 claims.json"}</div>
+          <div className="pw-warnbox">正在把每条声明送回注册表比对…</div>
+        </>
+      );
+    }
+    if (!claims.available) {
+      return (
+        <>
+          <h3>核查声明 {a2.n}</h3>
+          <div className="d-kind">{a2.path || "未找到 claims.json"}</div>
+          <div className="pw-warnbox pw-warnbox--err">
+            {claims.reason || "溯源引擎没有返回结果"}
+            {claims.hint && <div className="mono" style={{ marginTop: 6 }}>{claims.hint}</div>}
+          </div>
+        </>
+      );
+    }
+    const rows = claims.claims || [];
+    const nOk = claims.n_grounded ?? 0;
     return (
       <>
-        <h3>核查声明 {a.claims.n}</h3>
-        <div className="d-kind">{a.claims.path || "未找到 claims.json"}</div>
-        <div className="pw-kv"><span className="k">带来源</span><span className="v">{a.claims.withSource} / {a.claims.n}</span></div>
-        <div className="pw-kv"><span className="k">格式</span><span className="v">text · metric · value · source</span></div>
+        <h3>核查声明 {rows.length}</h3>
+        <div className="d-kind">{claims.path || a2.path}</div>
+        <div className="pw-kv"><span className="k">支持</span><span className="v">{nOk} / {rows.length}</span></div>
+        <div className="pw-kv"><span className="k">矛盾</span><span className="v">{claims.n_drift ?? 0}</span></div>
+        <div className="pw-kv"><span className="k">证据不足</span><span className="v">{claims.n_unverifiable ?? 0}</span></div>
+        <div className="pw-kv">
+          <span className="k">指针写法</span>
+          <span className="v">
+            {claims.n_legacy_source ? `${claims.n_legacy_source} 条非规范` : "全部规范"}
+          </span>
+        </div>
+        <div className="pw-sec">
+          <div className="pw-sec-h">逐条（点击在核查台定位）</div>
+          {rows.map((r, i) => {
+            const tone = TONE[r.status] || "warn";
+            return (
+              <button
+                className="pw-refrow cl-rowbtn"
+                key={`${i}-${r.source}`}
+                title={`${ST_LABEL[r.status] || r.status}${r.reason ? ` · ${r.reason}` : ""}`}
+                onClick={() => {
+                  const q = r.experiment_id || r.metric || r.source.slice(0, 24);
+                  location.hash = `#claims?q=${encodeURIComponent(q)}`;
+                }}
+              >
+                <span className={`cl-dot cl-dot--${tone}`} />
+                <span className="rtx">{r.text}</span>
+                <span className={`pw-badge ${tone === "ok" ? "b-ok" : tone === "err" ? "b-warn" : "b-mut"}`}>
+                  {VERDICT[tone]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
         <div className="pw-warnbox">
-          本页只统计「有没有来源指针」，不判定失效。要判失效得拿每条 source 回 registry
-          重算并比对数值——那一步尚未接进这个视图，所以这里不写「0 条失效」。
+          判定来自 <code>claim_provenance.py</code>：把写出来的数字与注册表 source_of_truth
+          逐条比对（1% 相对 + 0.01 绝对）。「证据不足」里多数不是算错，而是指针写错——
+          点开核查台能看到每条的具体改法。
         </div>
       </>
     );

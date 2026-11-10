@@ -1,28 +1,35 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getFigures, getLibrary, getWriting } from "../../api/client";
-import type { FigureIndexResponse, LibraryResponse, WritingResponse } from "../../types";
+import { getClaims, getFigures, getLibrary, getWriting } from "../../api/client";
+import type { ClaimReport, FigureIndexResponse, LibraryResponse, WritingResponse } from "../../types";
+import { ClaimBoard } from "./ClaimBoard";
 import { FigureBoard } from "./FigureBoard";
 import { PaperLibrary } from "./PaperLibrary";
 import { WritingDesk } from "./WritingDesk";
 
-type Tab = "lib" | "write" | "fig";
+type Tab = "lib" | "write" | "fig" | "claim";
 
-// hash ↔ tab。写作台与图纸都挂在 #writing 之外单独给个锚，刷新不丢位置。
-const HASH: Record<Tab, string> = { lib: "#library", write: "#writing", fig: "#figures" };
+// hash ↔ tab。写作台、图纸、核查台各自给锚点，刷新不丢位置。
+const HASH: Record<Tab, string> = { lib: "#library", write: "#writing", fig: "#figures", claim: "#claims" };
+
 function tabFromHash(): Tab {
-  const h = typeof location !== "undefined" ? location.hash : "";
+  // 引用指针跳过来时 hash 是 `#claims?q=our_hybrid`，问号后面是给核查台的参数
+  const h = (typeof location !== "undefined" ? location.hash : "").split("?")[0];
   if (h === "#writing") return "write";
   if (h === "#figures") return "fig";
+  if (h === "#claims") return "claim";
   return "lib";
 }
 
-// 论文视图容器：一次拉两份只读投影，tab 之间切换不重复请求。
+// 论文视图容器：一次拉三份只读投影，tab 之间切换不重复请求。
 // 两条横幅都只在「真有问题」时出现，不写常驻装饰文案。
 export function PaperWorkspace({ onOpenPaper }: { onOpenPaper?: (paperId: string) => void }) {
   const [tab, setTab] = useState<Tab>(tabFromHash);
   const [lib, setLib] = useState<LibraryResponse | null>(null);
   const [wri, setWri] = useState<WritingResponse | null>(null);
   const [fig, setFig] = useState<FigureIndexResponse | null>(null);
+  // 声明核查要起一个 Python 子进程跑 D2 引擎，比读磁盘索引贵得多，
+  // 所以只在真要用到它的 tab 上懒加载，进论文库列表时不陪着等。
+  const [claims, setClaims] = useState<ClaimReport | null>(null);
   const [err, setErr] = useState("");
   const [toast, setToast] = useState("");
   const toastTimer = useRef<number | undefined>(undefined);
@@ -40,6 +47,7 @@ export function PaperWorkspace({ onOpenPaper }: { onOpenPaper?: (paperId: string
 
   const load = useCallback(() => {
     setErr("");
+    setClaims(null);
     Promise.all([getLibrary(), getWriting(), getFigures()])
       .then(([a, b, c]) => {
         setLib(a);
@@ -49,10 +57,21 @@ export function PaperWorkspace({ onOpenPaper }: { onOpenPaper?: (paperId: string
       .catch((e) => setErr(String(e?.message || e)));
   }, []);
 
+  const loadClaims = useCallback(() => {
+    getClaims()
+      .then(setClaims)
+      .catch((e) => setClaims({ available: false, reason: String(e?.message || e) }));
+  }, []);
+
   useEffect(() => {
     load();
     return () => window.clearTimeout(toastTimer.current);
   }, [load]);
+
+  // 写作台的「核查声明」资产也要真实判定，所以 write 和 claim 两个 tab 都触发
+  useEffect(() => {
+    if ((tab === "claim" || tab === "write") && !claims) loadClaims();
+  }, [tab, claims, loadClaims]);
 
   // hash 是唯一真相源：刷新、手改地址、浏览器后退都走这里，不再各存一份 tab 状态
   useEffect(() => {
@@ -100,6 +119,20 @@ export function PaperWorkspace({ onOpenPaper }: { onOpenPaper?: (paperId: string
           >
             图纸{fig?.summary ? ` ${fig.summary.total}` : ""}
           </button>
+          <button
+            className="pw-tab"
+            role="tab"
+            aria-selected={tab === "claim"}
+            onClick={() => go("claim")}
+            title="声明核查：把稿子里每个数字送回注册表比对，看它到底立不立得住"
+          >
+            核查
+            {claims?.n_claims != null && (
+              <span className={claims.n_grounded === claims.n_claims ? "cl-tab-ok" : "cl-tab-warn"}>
+                {" "}{claims.n_grounded ?? 0}/{claims.n_claims}
+              </span>
+            )}
+          </button>
         </div>
         <div className="pw-spacer" />
         <button className="pw-ghost" onClick={load} title="重新读取磁盘上的索引">
@@ -130,8 +163,11 @@ export function PaperWorkspace({ onOpenPaper }: { onOpenPaper?: (paperId: string
       {tab === "lib" && (
         <PaperLibrary data={lib} onToast={notify} onOpenPaper={onOpenPaper} onRetry={load} />
       )}
-      {tab === "write" && <WritingDesk data={wri} figures={fig?.figures || []} onToast={notify} />}
+      {tab === "write" && (
+        <WritingDesk data={wri} figures={fig?.figures || []} claims={claims} onToast={notify} />
+      )}
       {tab === "fig" && <FigureBoard data={fig} onToast={notify} />}
+      {tab === "claim" && <ClaimBoard data={claims} />}
 
       <div className={`pw-toast ${toast ? "on" : ""}`}>{toast}</div>
     </div>

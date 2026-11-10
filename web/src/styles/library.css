@@ -815,3 +815,198 @@
   .fx-chips { flex-wrap: wrap; justify-content: flex-end; }
   .fx-grid { grid-template-columns: 1fr; }
 }
+
+/* ============ 声明核查（ClaimBoard / ClaimCard） ============
+   一张卡回答三个问题：断言了什么数 → 和真值差多少 → 差在哪、怎么修。
+   三态色只用 --pw-ok/--pw-err/--pw-warn，和论文库其它徽章同一套语义。 */
+
+/* .pw-view 默认是 row（写作台要左右三栏）。核查台是上下结构：
+   页头条 + 横幅 + 卡片网格，必须显式改 column，否则整块被塞进左侧窄列。
+   滚动交给这一层（和图纸页一致），网格自己不再滚，避免双层滚动。 */
+.pw-view--claims {
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.cl-grid {
+  display: grid;
+  /* 360px 起：卡片里有四联数字和来源行，再窄就得换行到看不清 */
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  align-content: start;
+  flex: 0 0 auto;
+}
+
+.cl-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  font-size: var(--fs-micro);
+}
+.cl-card--ok { border-left-color: var(--pw-ok); }
+.cl-card--err { border-left-color: var(--pw-err); }
+.cl-card--warn { border-left-color: var(--pw-warn); }
+/* 从聊天里的引用指针跳过来时高亮：高亮但不隐藏，否则用户以为只剩这一条 */
+.cl-card.is-hit {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 45%, transparent);
+  border-color: var(--brand);
+}
+
+.cl-head { display: flex; align-items: center; gap: 6px; }
+.cl-verdict {
+  font-size: var(--fs-micro); font-weight: 600;
+  padding: 1px 8px; border-radius: var(--radius-pill);
+}
+.cl-verdict--ok { background: var(--pw-ok-bg); color: var(--pw-ok); }
+.cl-verdict--err { background: var(--pw-err-bg); color: var(--pw-err); }
+.cl-verdict--warn { background: var(--pw-warn-bg); color: var(--pw-warn); }
+.cl-status { color: var(--text-tertiary); font-size: 11px; }
+.cl-flag {
+  font-size: 10px; font-family: var(--font-mono);
+  padding: 0 5px; border-radius: 4px;
+  color: var(--pw-warn);
+  background: var(--pw-warn-bg);
+  cursor: help;
+}
+.cl-idx { margin-left: auto; font-family: var(--font-mono); color: var(--text-tertiary); font-size: 11px; }
+
+.cl-text {
+  margin: 0;
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.cl-nums {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--bg-sunken);
+  border-radius: var(--radius-sm);
+}
+.cl-num { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.cl-num i {
+  font-style: normal; font-size: 10px; color: var(--text-tertiary);
+  letter-spacing: 0.02em;
+}
+.cl-num b {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cl-num--wide { grid-column: span 3; }
+.cl-num b.is-mut { color: var(--text-tertiary); font-weight: 400; }
+.cl-num b.is-bad { color: var(--pw-err); }
+
+.cl-src {
+  display: flex; align-items: baseline; gap: 5px; min-width: 0;
+  font-size: 11px;
+}
+.cl-kind {
+  flex: none;
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 1px 6px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+.cl-kind.is-reg { color: var(--accent-teal); border-color: color-mix(in srgb, var(--accent-teal) 40%, transparent); }
+.cl-kind.is-paper { color: var(--accent-violet); border-color: color-mix(in srgb, var(--accent-violet) 40%, transparent); }
+.cl-kind.is-raw { color: var(--pw-warn); border-color: color-mix(in srgb, #ef9f27 40%, transparent); }
+.cl-srcbody {
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.cl-srctail {
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.cl-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.cl-kv { display: inline-flex; align-items: baseline; gap: 4px; font-size: 11px; }
+.cl-kv i { font-style: normal; color: var(--text-tertiary); }
+.cl-kv b { font-weight: 500; color: var(--text-secondary); }
+.cl-kv b.mono { font-family: var(--font-mono); }
+.cl-kv--warn b { color: var(--pw-warn); }
+.cl-kv--warn em { font-style: normal; font-size: 10px; color: var(--text-tertiary); }
+
+.cl-note {
+  font-size: 11px; line-height: 1.55;
+  color: var(--text-secondary);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+}
+.cl-note--warn {
+  color: var(--pw-warn);
+  background: var(--pw-warn-bg);
+}
+.cl-note--quiet { color: var(--text-tertiary); }
+.cl-note code {
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 0 3px; border-radius: 3px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.cl-avail {
+  margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px;
+  color: var(--text-tertiary); font-size: 10px;
+}
+.cl-avail code {
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 0 4px; border-radius: 3px; background: var(--bg-card);
+}
+
+/* 「怎么修」是这张卡的核心增量：只报失败不报改法，用户还得回去猜 */
+.cl-fix {
+  font-size: 11px; line-height: 1.6;
+  color: var(--text-secondary);
+  border-top: 1px dashed var(--pw-line-soft);
+  padding-top: 7px;
+}
+.cl-fix b {
+  display: inline-block; margin-right: 6px;
+  font-size: 10px; font-weight: 600;
+  color: var(--brand);
+}
+
+/* 写作台右栏的逐条行：外观同 .pw-refrow，但整行是按钮 */
+.cl-rowbtn {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--pw-line-soft);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.cl-rowbtn:hover { background: var(--bg-hover); }
+.cl-rowbtn:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+
+.cl-dot {
+  flex: 0 0 6px; width: 6px; height: 6px; border-radius: 50%;
+  align-self: center;
+}
+.cl-dot--ok { background: var(--pw-ok); }
+.cl-dot--err { background: var(--pw-err); }
+.cl-dot--warn { background: var(--pw-warn); }
+
+.cl-ok { color: var(--pw-ok); }
+.cl-tab-ok { color: var(--pw-ok); font-size: 11px; }
+.cl-tab-warn { color: var(--pw-warn); font-size: 11px; }
+
+@media (max-width: 900px) {
+  .cl-grid { grid-template-columns: 1fr; padding: var(--space-3); }
+  .cl-nums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* 网格只剩 2 列，span 3 会撑出隐式列导致横向溢出 */
+  .cl-num--wide { grid-column: span 2; }
+}

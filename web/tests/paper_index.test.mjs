@@ -155,11 +155,17 @@ test("buildLibrary：推进度按五段等分，核验口径只算外部文献",
   assert.equal(g("c").prog, 60, "入库+笔记+复现");
   assert.equal(g("a").check.cls, "b-ok");
   assert.equal(g("b").check.cls, "b-mut", "不在核验清单");
-  assert.equal(g("mine").check.t, "已核");
+  // 这里原先是 assert.equal(g("mine").check.t, "已核")。那条断言把「claims.json 里
+  // 每条都有 source 字段」锁成了「已核」——实测那 12 条一条都溯源不了。
+  // 列表页只能报「待核」，判定权归 D2 引擎（核查台）。
+  assert.equal(g("mine").check.t, "待核");
+  assert.equal(g("mine").check.cls, "b-warn", "自己稿子的声明没跑过引擎，不能标绿");
 
-  // 自己稿子的「已核」不能混进「几篇文献已核验」
+  // 自己稿子的「已核」不能混进「几篇文献已核验」；
+  // 而且列表页根本不该给结论 —— 只数「有几条待核」，判定归核查台。
   assert.equal(summary.verified, 1);
-  assert.equal(summary.ownChecked, 1);
+  assert.equal(summary.ownWithClaims, 1);
+  assert.equal(summary.ownClaimCount, 5);
   assert.equal(summary.total, 4);
   assert.equal(summary.missingPdf, 2);
   assert.equal(summary.withNotes, 1);
@@ -224,7 +230,7 @@ test("collectLibrary：仓库参考文献 + 本机 PDF + 笔记 + 复现请求�
 
   const own = lib.items[0];
   assert.equal(own.kind, "own");
-  assert.equal(own.check.sub, "2 条声明 · 均带来源指针");
+  assert.equal(own.check.sub, "2 条声明 · 未跑溯源引擎");
   assert.equal(own.rel.cite, 3, "正文引用 3 条参考文献");
   assert.equal(own.identifier, "—", "自己的稿子没有 DOI，不该编一个");
 

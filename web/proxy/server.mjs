@@ -11,7 +11,7 @@
 import http from "node:http";
 import { spawn, execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
-import { existsSync, mkdirSync, writeFileSync, readdirSync, readFileSync, unlinkSync, openSync, closeSync, fstatSync, readSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, readdirSync, readFileSync, unlinkSync, openSync, closeSync, fstatSync, readSync, statSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -29,6 +29,20 @@ import { collectFigures, isFigId } from "./figure_index.mjs";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const DIST = join(ROOT, "dist");
+const REPO_ROOT = join(ROOT, "..");
+
+// D2 引擎（gewu/mcp）顶部 import 了 mcp.server.fastmcp，只有项目 .venv 里齐；
+// 系统 python 会在 import 阶段就失败。所以优先 .venv，找不到也不猜——直接报错，
+// 因为「跑不起来」和「0 条声明」在界面上长得一样，绝不能混。
+function resolvePython() {
+  if (process.env.GEWU_PYTHON) return process.env.GEWU_PYTHON;
+  const cands = [
+    join(REPO_ROOT, ".venv", "Scripts", "python.exe"),
+    join(REPO_ROOT, ".venv", "bin", "python"),
+  ];
+  for (const c of cands) if (existsSync(c)) return c;
+  return "python";
+}
 
 const PORT = Number(process.env.PORT) || 3000;
 const GATEWAY = process.env.GATEWAY_URL || "http://127.0.0.1:18789";
@@ -900,7 +914,6 @@ const server = http.createServer(async (req, res) => {
   // 两个视图都不新建数据：论文库 = 仓库参考文献 × 本机 PDF × 笔记 × 复现请求的合并，
   // 写作台 = main.tex 的语法结构（章节/图表/公式/引用）+ 核查产物计数。
   // 解析不出来的字段留空；缺源文件时 available:false + reason + hint，不返回空壳冒充有数据。
-  const REPO_ROOT = join(ROOT, "..");
 
   async function loadActiveProject() {
     try {
@@ -922,7 +935,7 @@ const server = http.createServer(async (req, res) => {
         reason: "无活跃项目",
         hint: "在左上角选择一个课题",
         items: [],
-        summary: { total: 0, verified: 0, ownChecked: 0, withNotes: 0, withRepro: 0, missingPdf: 0 },
+        summary: { total: 0, verified: 0, ownWithClaims: 0, ownClaimCount: 0, withNotes: 0, withRepro: 0, missingPdf: 0 },
         progressSteps: [],
       });
     }
@@ -939,7 +952,7 @@ const server = http.createServer(async (req, res) => {
         reason: `索引失败：${e.message}`,
         hint: "",
         items: [],
-        summary: { total: 0, verified: 0, ownChecked: 0, withNotes: 0, withRepro: 0, missingPdf: 0 },
+        summary: { total: 0, verified: 0, ownWithClaims: 0, ownClaimCount: 0, withNotes: 0, withRepro: 0, missingPdf: 0 },
         progressSteps: [],
       });
     }
@@ -1003,6 +1016,73 @@ const server = http.createServer(async (req, res) => {
         figures: [],
         summary: null,
       });
+    }
+  }
+
+  // 声明核查：claims.json → D2 引擎（gewu/mcp/claim_provenance.py）→ 逐条状态。
+  //
+  // 为什么要把 Python 拉进来而不是在 Node 里再写一遍比对：
+  // 之前论文库用「source 字段非空」当「已核」，于是 12 条实测 0 条可核的声明在
+  // 列表里挂着绿色徽章。判定权必须只有一处，否则两套实现必然漂移。
+  //
+  // 缓存键带 mtime：改完 claims.json 刷新即生效，又不会每次点开都起一次进程。
+  let claimCache = { key: "", at: 0, data: null };
+
+  function claimsReport(claimsAbs, relPath) {
+    let stamp = 0;
+    try { stamp = statSync(claimsAbs).mtimeMs; } catch { /* 文件不存在交给引擎报 */ }
+    const key = `${claimsAbs}|${stamp}`;
+    const now = Date.now();
+    if (claimCache.key === key && now - claimCache.at < 5000 && claimCache.data) return claimCache.data;
+
+    const script = join(REPO_ROOT, "scripts", "claims_report.py");
+    let data;
+    if (!existsSync(script)) {
+      data = { available: false, reason: `缺少 ${script}`, hint: "仓库里应有 scripts/claims_report.py" };
+    } else {
+      try {
+        const out = execFileSync(resolvePython(), [script, claimsAbs], {
+          encoding: "utf8",
+          timeout: 20000,
+          maxBuffer: 4 * 1024 * 1024,
+          windowsHide: true,
+        });
+        data = JSON.parse(out);
+        data.path = relPath || data.path;
+      } catch (e) {
+        // 引擎跑不起来就把原因原样给出来：既不假装 0 条声明，也不假装全部通过
+        const tail = String(e?.stderr || e?.message || e).trim().split(/\r?\n/).slice(-3).join(" ");
+        data = {
+          available: false,
+          reason: `溯源引擎执行失败：${tail.slice(0, 400)}`,
+          hint: "确认 .venv 已装依赖（mcp），或设 GEWU_PYTHON 指向可用解释器",
+        };
+      }
+    }
+    claimCache = { key, at: now, data };
+    return data;
+  }
+
+  if (p === "/api/writing/claims" && req.method === "GET") {
+    const cur = await loadActiveProject();
+    if (!cur) {
+      return sendJSON(res, 200, { available: false, reason: "无活跃项目", hint: "在左上角选择一个课题" });
+    }
+    try {
+      const w = collectWriting({ projectPath: cur.project.path, repoRoot: REPO_ROOT, projectName: cur.name });
+      const rel = w?.assets?.claims?.path || "";
+      if (!rel) {
+        return sendJSON(res, 200, {
+          available: false,
+          project: cur.name,
+          reason: "这份稿子没有 claims.json",
+          hint: "数值声明没有登记就无从核验——不是「都对了」",
+        });
+      }
+      const abs = join(REPO_ROOT, rel);
+      return sendJSON(res, 200, { project: cur.name, ...claimsReport(abs, rel) });
+    } catch (e) {
+      return sendJSON(res, 200, { available: false, project: cur.name, reason: `核查失败：${e.message}` });
     }
   }
 

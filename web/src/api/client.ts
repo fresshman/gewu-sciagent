@@ -1,4 +1,4 @@
-import type { Agent, Stage, ModelOption, ChatMessage, CaseBundle, RunRecord, RunListEntry, RunStep, RunStatus, LibraryResponse, WritingResponse, FigureIndexResponse } from "../types";
+import type { Agent, Stage, ModelOption, ChatMessage, CaseBundle, RunRecord, RunListEntry, RunStep, RunStatus, LibraryResponse, WritingResponse, FigureIndexResponse, ClaimReport } from "../types";
 
 async function getJSON<T>(url: string): Promise<T> {
   const r = await fetch(url);
@@ -251,4 +251,13 @@ export function askPaperAi(
 // 划词/段落翻译：选中文本 → /api/translate → SSE 流式回传译文
 export function translateText(text: string, cb: PaperAiCallbacks): Promise<void> {
   return postSse("/api/translate", { text }, cb);
+}
+
+/**
+ * 声明核查：把 claims.json 送进 D2 引擎逐条判定。
+ * 判定发生在 Python 侧（claim_provenance.py），这里只取结果——
+ * 前端不重新实现比对逻辑，否则两套实现漂移的方向总是更宽松。
+ */
+export function getClaims(): Promise<ClaimReport> {
+  return getJSON("/api/writing/claims");
 }

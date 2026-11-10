@@ -30,6 +30,9 @@ export interface ChatMessage {
   streaming?: boolean;
   error?: boolean;
   runKey?: string;
+  /** 这条回复自己的执行记录（按消息归属，而不是全局一份 runSteps） */
+  steps?: RunStep[];
+  runStatus?: RunStatus;
 }
 
 // ── A3: 中间结果落盘 / 执行进度 ──
@@ -237,9 +240,12 @@ export interface LibraryResponse {
   items: LibraryItem[];
   summary: {
     total: number;
-    /** 只统计外部文献；本人稿子的核查口径不同，见 ownChecked */
+    /** 只统计外部文献 */
     verified: number;
-    ownChecked: number;
+    /** 有 claims.json 的自己稿子数；列表页不判定，只报「有东西待核」 */
+    ownWithClaims: number;
+    /** 这些稿子加起来多少条声明（核查台才会给结论） */
+    ownClaimCount: number;
     withNotes: number;
     withRepro: number;
     missingPdf: number;
@@ -381,4 +387,69 @@ export interface FigureIndexResponse {
     multiCopy: number;
     rowsBeforeMerge: number;
   } | null;
+}
+
+/* ============ 声明核查（/api/writing/claims，D2 引擎投影） ============ */
+
+/**
+ * 引擎给的状态。不要在前端「合并」成两三种：
+ * 「数字漂移」和「指针写错」是两种完全不同的毛病，改法也不一样。
+ */
+export type ClaimStatus =
+  | "grounded"
+  | "drift"
+  | "paper_grounded"
+  | "paper_unverified"
+  | "unknown_experiment"
+  | "metric_required"
+  | "metric_not_in_registry"
+  | "metric_not_scalar"
+  | "metric_not_list"
+  | "metric_index_out_of_range"
+  | "metric_not_numeric"
+  | "bad_value"
+  | "bad_source";
+
+export interface ClaimRow {
+  status: ClaimStatus;
+  text: string;
+  source: string;
+  metric?: string;
+  /** claim.metric 没命中、改用 source 锚点时的原值 */
+  claim_metric?: string;
+  experiment_id?: string;
+  domain?: string;
+  value?: number | string;
+  truth?: number;
+  abs_diff?: number;
+  tolerance?: number;
+  reproducibility?: string;
+  /** legacy-anchor = 用了 `#` 锚点写法（能解析但不是规范写法） */
+  source_style?: "canonical" | "legacy-anchor";
+  reason?: string;
+  note?: string;
+  /** 列表型 metric 的长度 / 越界时的实际长度 */
+  length?: number;
+  available_metrics?: string[];
+  failed_experiments?: string[];
+  tried?: string[];
+}
+
+export interface ClaimReport {
+  available: boolean;
+  project?: string;
+  reason?: string;
+  hint?: string;
+  path?: string;
+  n_claims?: number;
+  n_grounded?: number;
+  n_drift?: number;
+  n_unverifiable?: number;
+  /** source 用了 `#` 锚点写法的条数 */
+  n_legacy_source?: number;
+  n_with_source?: number;
+  all_grounded?: boolean;
+  counts?: Record<string, number>;
+  verified_papers?: string[];
+  claims?: ClaimRow[];
 }

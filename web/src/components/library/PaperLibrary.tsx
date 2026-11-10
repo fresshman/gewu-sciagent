@@ -317,10 +317,11 @@ export function PaperLibrary({
           <span>{s.withRepro} 篇有复现请求</span>
           <span className="sep">·</span>
           <span>{s.missingPdf} 篇缺本机 PDF</span>
-          {s.ownChecked > 0 && (
+          {s.ownWithClaims > 0 && (
             <>
               <span className="sep">·</span>
-              <span>本稿声明已核 {s.ownChecked}</span>
+              {/* 不写「已核」：列表页没有跑引擎，说不清核没核过 */}
+              <span>本稿 {s.ownClaimCount} 条声明待核</span>
             </>
           )}
           <span className="hint">单击选中，双击任意单元格复制</span>

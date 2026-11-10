@@ -12,16 +12,19 @@ import { MobileTabBar, type MobileTab } from "./components/MobileTabBar";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { PaperReader } from "./components/PaperReader";
 import { PaperWorkspace } from "./components/library/PaperWorkspace";
+import { TaskOrb } from "./components/TaskOrb";
 
 let msgSeq = 0;
 const uid = () => `m${++msgSeq}`;
 
 // 视图落在 hash 上：刷新/收藏不丢位置，#writing 直接进写作台
 function viewFromHash(): ViewMode {
-  const h = (typeof location !== "undefined" ? location.hash : "").replace(/^#/, "");
+  // 去掉 `?q=…`：引用指针跳核查台时 hash 是 `#claims?q=our_hybrid`，
+  // 这里只关心落到哪个视图，query 由核查台自己读
+  const h = (typeof location !== "undefined" ? location.hash : "").replace(/^#/, "").split("?")[0];
   if (h === "papers") return "papers";
-  // writing / figures 都是论文库里的 tab，落到同一个视图，具体 tab 由 PaperWorkspace 按 hash 决定
-  if (h === "library" || h === "writing" || h === "figures") return "library";
+  // writing / figures / claims 都是论文库里的 tab，落到同一个视图，具体 tab 由 PaperWorkspace 按 hash 决定
+  if (h === "library" || h === "writing" || h === "figures" || h === "claims") return "library";
   return "chat";
 }
 
@@ -140,18 +143,36 @@ export default function App() {
       setCurrentRunKey(null);
       setRunStatus("running");
 
-      const finalize = () => {
+      const finalize = (st?: RunStatus) => {
         setMessages((prev) =>
-          prev.map((x) => (x.id === botId ? { ...x, streaming: false } : x))
+          prev.map((x) =>
+            x.id === botId ? { ...x, streaming: false, runStatus: st ?? x.runStatus } : x
+          )
         );
         setIsStreaming(false);
+      };
+
+      // 同一步既要进「当前任务」面板，也要进这条消息自己的记录：
+      // 前者只看此刻在跑什么，后者是这条回答的凭据，发下一条消息时不会被清掉。
+      const pushStep = (step: RunStep, st?: RunStatus) => {
+        setRunSteps((prev) => mergeStep(prev, step));
+        setMessages((prev) =>
+          prev.map((x) =>
+            x.id === botId
+              ? { ...x, steps: mergeStep(x.steps || [], step), runStatus: st ?? x.runStatus }
+              : x
+          )
+        );
       };
 
       sendChat(agentId, text, {
         onStart: (_agent, rk) => { liveRunKey = rk; setCurrentRunKey(rk); },
         onStep: (step) => {
-          if (step.kind === "ended" && step.disposition) setRunStatus(dispositionToStatus(step.disposition));
-          setRunSteps((prev) => mergeStep(prev, step));
+          const st = step.kind === "ended" && step.disposition
+            ? dispositionToStatus(step.disposition)
+            : undefined;
+          if (st) setRunStatus(st);
+          pushStep(step, st);
         },
         onDelta: (t) =>
           setMessages((prev) =>
@@ -161,20 +182,28 @@ export default function App() {
           setMessages((prev) =>
             prev.map((x) =>
               x.id === botId
-                ? { ...x, streaming: false, error: true, text: x.text + `\n\n⚠️ ${err}` }
+                ? { ...x, streaming: false, error: true, runStatus: "error", text: x.text + `\n\n⚠️ ${err}` }
                 : x
             )
           ),
         onDone: (status) => {
           if (status) setRunStatus(status);
-          finalize();
+          finalize(status);
           // 步骤已改由网关 transcript_events 轮询生成，实时可见；done 后仍回读一次 run 记录，
           // 把 finalize 时补发的尾部步骤对齐进来（服务端记录为权威）。
           if (liveRunKey) {
             setTimeout(async () => {
               try {
                 const rec = await getRun(liveRunKey);
-                setRunSteps((prev) => reconcileSteps(rec.steps ?? [], prev));
+                const serverSteps = rec.steps ?? [];
+                setRunSteps((prev) => reconcileSteps(serverSteps, prev));
+                setMessages((prev) =>
+                  prev.map((x) =>
+                    x.id === botId && x.steps
+                      ? { ...x, steps: reconcileSteps(serverSteps, x.steps) }
+                      : x
+                  )
+                );
               } catch {}
             }, 4000);
           }
@@ -184,7 +213,7 @@ export default function App() {
         setMessages((prev) =>
           prev.map((x) =>
             x.id === botId
-              ? { ...x, streaming: false, error: true, text: x.text + `\n\n⚠️ 网络错误：${String(e)}` }
+              ? { ...x, streaming: false, error: true, runStatus: "error", text: x.text + `\n\n⚠️ 网络错误：${String(e)}` }
               : x
           )
         );
@@ -205,7 +234,7 @@ export default function App() {
   // 这里不去覆盖，否则刷新后「写作台」会被重置回论文库。
   useEffect(() => {
     if (viewMode === "library") {
-      if (!["#library", "#writing", "#figures"].includes(location.hash)) {
+      if (!/^#(library|writing|figures|claims)(\?|$)/.test(location.hash)) {
         history.replaceState(null, "", "#library");
       }
       return;
@@ -338,6 +367,19 @@ export default function App() {
             </main>
             <MobileTabBar active={mobileTab} onChange={setMobileTab} />
           </>
+        )}
+
+        {/* 离开对话页时，顶部那排「执行进度」整块消失 —— 长任务就成了黑箱。
+            这里留一个常驻圆环，点一下即可回到对话页看完整记录。 */}
+        {viewMode !== "chat" && (
+          <TaskOrb
+            steps={runSteps}
+            status={runStatus}
+            onJump={() => {
+              setViewMode("chat");
+              setMobileTab("chat");
+            }}
+          />
         )}
       </div>
     </ThemeProvider>
