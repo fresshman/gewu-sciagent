@@ -267,3 +267,85 @@ python -m venv .venv && ./.venv/Scripts/python.exe -m pip install -r requirement
 已写进 `caveats`，且它只是审计脚本，不影响测试与主链路。
 
 
+
+---
+
+## §13 P2 之后的第三次复测（2026-11-10，按锁安装）
+
+### 环境与命令
+
+```bash
+cd $TEMP && git clone --depth 1 https://gitee.com/FreeBlank/gewu-sciagent.git gw_p2
+cd gw_p2 && git log --oneline -1      # 0744cc2
+python -m venv .venv
+./.venv/Scripts/python.exe -m pip install -r requirements.lock.txt   # 注意：按锁装，不是 requirements.txt
+```
+
+安装耗时 **1m27s，exit 0，73 个固定版本全部可解析**。这本身就是对锁的一次实测：
+锁里任何一个版本号在本平台拿不到 wheel，这一步就会失败。
+
+### 逐项实测
+
+| 项 | 干净 clone（按锁装） | 仓库内 |
+|---|---|---|
+| `pytest -q -rs` | **300 passed / 7 skipped / 0 failed**（34.72s） | **306 passed / 1 skipped / 0 failed**（44.03s） |
+| `verify_all.py` | **3 PASS + 2 SKIP，exit 0** | **4 PASS + 1 SKIP，exit 0** |
+| `lock_deps.py --check` | 通过：73 包精确钉住、顶层全覆盖、未过期 | 同上 |
+| `failure_audit_gate.py` | **SKIP，exit 2**（无审计日志） | 同上 |
+| `cost_audit.py` | **0.229–0.263 元/次**（×10 → 2.290–2.631） | **0.260–0.300 元/次**（×10 → 2.603–2.997） |
+
+总数自洽：`306+1 = 300+7 = 307`。差的 6 条是 `test_e2e_chain` 3 + `test_ablation_ingest` 2 +
+`test_mcp_timeout_hierarchy` 1，全部为「本机缺未入库数据」，不是失败。
+
+clone 里 `verify_all` 的第二项 SKIP 是 7-mode 门禁（`exit=2`）——**这不是通过**。
+仓库内第 5 项同样是 SKIP，原因相同：全仓没有一份 `failure_audit_log.json`。
+
+### 本轮复测暴露的问题
+
+1. **成本数字随文档改动而变**。给 9 份 `research_lifecycle/SKILL.md` 加规则后，
+   输入侧从 80,307 → **84,136 tokens**（o200k），一次成本从 0.25–0.29 抬到 **0.26–0.30 元**。
+   `tests/test_cost_audit.py::test_ledger_matches_script_output` 当场失败，逼着重新落库。
+   这是**正确行为**：成本口径里含指令文档，改了文档就该重算，不能保留旧数字。
+2. **锁文件装得上 ≠ 锁对了**。锁只保证版本组合可解析；它不锁 wheel 哈希与平台，
+   所以「复现论文数字」仍需同 OS/同 CPU 特性，这一点写在锁文件头里，不假装是可复现构建。
+
+---
+
+## §13 P2 之后的第三次复测（2026-11-10，按锁安装）
+
+### 环境与命令
+
+```bash
+cd $TEMP && git clone --depth 1 https://gitee.com/FreeBlank/gewu-sciagent.git gw_p2
+cd gw_p2 && git log --oneline -1      # 0744cc2
+python -m venv .venv
+./.venv/Scripts/python.exe -m pip install -r requirements.lock.txt   # 注意：按锁装，不是 requirements.txt
+```
+
+安装耗时 **1m27s，exit 0，73 个固定版本全部可解析**。这本身就是对锁的一次实测：
+锁里任何一个版本号在本平台拿不到 wheel，这一步就会失败。
+
+### 逐项实测
+
+| 项 | 干净 clone（按锁装） | 仓库内 |
+|---|---|---|
+| `pytest -q -rs` | **300 passed / 7 skipped / 0 failed**（34.72s） | **306 passed / 1 skipped / 0 failed**（44.03s） |
+| `verify_all.py` | **3 PASS + 2 SKIP，exit 0** | **4 PASS + 1 SKIP，exit 0** |
+| `lock_deps.py --check` | 通过：73 包精确钉住、顶层全覆盖、未过期 | 同上 |
+| `failure_audit_gate.py` | **SKIP，exit 2**（无审计日志） | 同上 |
+| `cost_audit.py` | **0.229–0.263 元/次**（×10 → 2.290–2.631） | **0.260–0.300 元/次**（×10 → 2.603–2.997） |
+
+总数自洽：`306+1 = 300+7 = 307`。差的 6 条是 `test_e2e_chain` 3 + `test_ablation_ingest` 2 +
+`test_mcp_timeout_hierarchy` 1，全部为「本机缺未入库数据」，不是失败。
+
+clone 里 `verify_all` 的第二项 SKIP 是 7-mode 门禁（`exit=2`）——**这不是通过**。
+仓库内第 5 项同样是 SKIP，原因相同：全仓没有一份 `failure_audit_log.json`。
+
+### 本轮复测暴露的问题
+
+1. **成本数字随文档改动而变**。给 9 份 `research_lifecycle/SKILL.md` 加规则后，
+   输入侧从 80,307 → **84,136 tokens**（o200k），一次成本从 0.25–0.29 抬到 **0.26–0.30 元**。
+   `tests/test_cost_audit.py::test_ledger_matches_script_output` 当场失败，逼着重新落库。
+   这是**正确行为**：成本口径里含指令文档，改了文档就该重算，不能保留旧数字。
+2. **锁文件装得上 ≠ 锁对了**。锁只保证版本组合可解析；它不锁 wheel 哈希与平台，
+   所以「复现论文数字」仍需同 OS/同 CPU 特性，这一点写在锁文件头里，不假装是可复现构建。

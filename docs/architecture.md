@@ -489,5 +489,14 @@ gewu-sciagent/
 7. **沉淀闭环 + 文档** ✓（部分）：`distillation` 已写盘 `handoff_7_distillation.json`（`status=completed`）、
    新增技能 `mil-libs-coal`、更新角色级长周期记忆 `agents/gewu-distillation/MEMORY.md`，
    并按其自身纪律更正了两条被证伪的旧结论；技术文档与论文 PDF 已入库。
-   **未完成**：演示视频、第二个领域包、`pending_distillation` 里两项
-   （`latex_to_word_conversion`、`ablation_study_protocol`）仍标 `待沉淀`。
+   **未完成**：`pending_distillation` 里两项（`latex_to_word_conversion`、`ablation_study_protocol`）仍标 `待沉淀`；
+   演示视频**没有**（不提供，也不再声称有）。
+8. **第二个真实领域** ✓（2026-11-10）：UCI Diabetes（442×10 临床表格回归）以「只加注册表 + 脚本、引擎零改动」
+   的方式接入，三条实验 `rerun_experiment` 全部 `reproduced`，并有打乱目标的负向对照。
+   边界：只验机制泛化，不验方法泛化，未跑 7 阶段，不是光谱迁移。
+   见 [`docs/verification/2026-11-10-domain-generality.md`](verification/2026-11-10-domain-generality.md)。
+9. **护栏分级与强制化** ✓（2026-11-10）：真值隔离（`truth_guard`）、外部文本注入标注（`untrusted`）、
+   7-mode 审计门禁（`failure_audit_gate`）、依赖版本锁（`lock_deps` + `requirements.lock.txt`）已落地，
+   逐条标明硬/软见 [`docs/guardrails.md`](guardrails.md)。
+   **仍未闭环**：仓库没有任何一份 `failure_audit_log.json`，所以 7-mode 在实践中仍是软约束——
+   `verify_all` 第 5 项记 SKIP 而非 PASS；注入检测是启发式，存在漏报；`labels.json` 若被手工改写无法自动识别。

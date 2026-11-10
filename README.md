@@ -71,7 +71,7 @@
 |---|---|---|
 | **谁会用？** | 三类：① 有未发表数据、缺工程时间的研究生（复现基线→消融→图→初稿）；② 需要审计学生交接产物的 PI/博后（`rerun_experiment` 现跑现比）；③ 数据不能出内网的企业研发（模型走路径引用，权重与原始谱留本机） | [`docs/value.md`](docs/value.md) §1 |
 | **比现在强在哪？** | 不是「更聪明」，是「**每个数字可当场重算**」：消融结论阴了就写阴性（p=0.294，不粉饰）、稿子与产物指纹不一致就报 drift、PDF 中文丢失会被抓出来。**明确不如**：不会自己提假说、真实领域只有 2 个、不接湿实验 | [`docs/value.md`](docs/value.md) §2 |
-| **一次多少钱？** | **0.25–2.93 元/次**（按公开牌价乘真实产物 token；本地算力 0 元）。干净 clone 无论文存档时是 0.22–2.56 元 —— 两个数都是实测，差异来自未入库的 `main.tex`。上下限含分词器差异与返工敏感性，输入侧为**下界**，明确标注不是账单 | [`docs/value.md`](docs/value.md) §3 · [`docs/verification/cost_audit.json`](docs/verification/cost_audit.json) |
+| **一次多少钱？** | **0.26–3.00 元/次**（按公开牌价乘真实产物 token；本地算力 0 元）。干净 clone 无论文存档时是 0.23–2.63 元 —— 两个数都是实测，差异来自未入库的 `main.tex`。上下限含分词器差异与返工敏感性，输入侧为**下界**，明确标注不是账单 | [`docs/value.md`](docs/value.md) §3 · [`docs/verification/cost_audit.json`](docs/verification/cost_audit.json) |
 
 > 与 AI Scientist v2 / Kosmos / Robin / PaperQA2 的逐维对照见 [`docs/comparison.md`](docs/comparison.md)。
 > 那份对照里**把我们落后的格子也列出来了**（自主提假说、湿实验、领域覆盖），不做「我们全面领先」的假对比。
@@ -598,7 +598,7 @@ A：替换 `gewu/domain_packs/` 下的领域包即可，通用内核与七阶段
 | 文档 | 内容 |
 |---|---|
 | [`docs/architecture.md`](docs/architecture.md) | 架构设计、配置要点与分阶段落地路线图 |
-| [`docs/value.md`](docs/value.md) | **价值 / 边界 / 成本**：谁会用（三类角色 + 触发场景）、比手工与通用 LLM 强在哪、**明确不如的地方**、一次 0.25–2.93 元的逐项算法与口径 |
+| [`docs/value.md`](docs/value.md) | **价值 / 边界 / 成本**：谁会用（三类角色 + 触发场景）、比手工与通用 LLM 强在哪、**明确不如的地方**、一次 0.26–3.00 元的逐项算法与口径 |
 | [`docs/comparison.md`](docs/comparison.md) | **横向对照**：与 AI Scientist v2 / Kosmos / Robin / PaperQA2 的逐维对照（含我们落后的格子），公开资料来源与检索日期，声明未实测 |
 | [`docs/guardrails.md`](docs/guardrails.md) | **护栏清单**：14 条硬约束（有代码/有失败路径/有可复跑命令）与 7 条软约束（提示词，模型可以不听）逐条分栏；含「7-mode 判据已可执行但至今无日志，故仍是软约束」的自曝，以及这套护栏**明确拦不住什么**（手工改 labels、启发式漏报、图内读数、选择偏差、无托管 CI） |
 | [`docs/paper/README.md`](docs/paper/README.md) | **论文成品**：两篇 `.tex` 源 + 编译好的 PDF（9 页 / 3 页）、内容指纹与页数，说明为何用文本指纹而非文件哈希、以及 `214.57` 与 `73.03` 禁止并列比较 |
