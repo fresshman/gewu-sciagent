@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "method": "tiktoken 对真实落盘产物分词；输出侧实测，输入侧为重构下界（不含系统提示/工具 schema/重试/会话历史）",
-  "measured_at_local": "2026-11-10 09:01:04",
-  "gewu_commit": "69a14947d3c68d4418010f350fde2aa78457bc28",
+  "measured_at_local": "2026-11-10 09:07:02",
+  "gewu_commit": "ad2c6317f7e2b4ff32d1da60960fd3ad2dc218a5",
   "stages": [
     {
       "stage": 1,
@@ -178,6 +178,7 @@
       "o200k_base": 13008,
       "cl100k_base": 14534
     },
+    "deliverable_count": 2,
     "output_tokens_counted_for_cost": {
       "o200k_base": 29807,
       "cl100k_base": 33407
@@ -291,6 +292,7 @@
     "未计重试与失败重跑；一次真跑通常有 1–3 次返工",
     "分词器非模型原生（o200k/cl100k 对中文密度与 Intern/DeepSeek 原生差 10%–20%），故给两个分词器的区间",
     "本机无 API key，无法给出账单级实测；上述为「按公开牌价 × 真实产物用量」的复算，不是账单",
-    "分词器编码表首次调用需联网拉取（约 1 MB），之后离线可用；完全断网且无缓存时本脚本不可用"
+    "分词器编码表首次调用需联网拉取（约 1 MB），之后离线可用；完全断网且无缓存时本脚本不可用",
+    "论文存档（output/documents/）按设计不入库：干净 clone 里 deliverable_count=0，输出侧少约 13k tokens，成本随之下移（实测 0.22–0.26 元 vs 仓库内 0.25–0.29 元）。两个数都对，差别是环境，不是口径"
   ]
 }

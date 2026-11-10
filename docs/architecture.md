@@ -478,7 +478,10 @@ gewu-sciagent/
 4. **写 7 个 Agent 角色** ✓：`agents.ownership="explicit"`，7 个 `agents.entries` 各指向独立工作区，角色写在工作区 `AGENTS.md`，技能从 `skills/` 自动发现；`config validate` 通过、Gateway 识别 7 个 Agent。
 5. **Skills 化** ✓：3 个通用技能源 `research_lifecycle` / `mil_calibration` / `spectrum_preprocess` 已就位并复制到各工作区；
    各角色另按需增补 `failure_mode_selfcheck` / `gewu-lit-review` / `gewu-review-loop` / `scientific_plotting` / `journal-match`，
-   沉淀阶段新增 `mil-libs-coal`。**全仓 9 个唯一技能**（`find . -name SKILL.md` 会数出 45 个文件，多出的是各 Agent 工作区的副本，属 OpenClaw 技能发现机制的必需冗余，不是重复内容）。
+   沉淀阶段新增 `mil-libs-coal`。**全仓 9 个唯一技能**（`find . -name SKILL.md | wc -l` 数出 **42** 个文件，
+   按父目录去重后是 9 个：research_lifecycle 9 / spectrum_preprocess 8 / mil_calibration 8 / scientific_plotting 5 /
+   failure_mode_selfcheck 5 / gewu-review-loop 3 / gewu-lit-review 2 / mil-libs-coal 1 / journal-match 1。
+   多出的是各 Agent 工作区的副本，属 OpenClaw 技能发现机制的必需冗余，不是重复内容）。
 6. **参考实现跑实** ✓：领域模型不再依赖 OpenVINO 导出，改为**按路径引用外部未发表项目**做真实推理
    （`coal_infer.py` 复用原项目 `src/` 的解析/预处理/模型结构，逐项对齐训练脚本）。
    `mil_model` 已能产出**真实热值预测**并逐 bag 复现 5 折交叉验证指标；

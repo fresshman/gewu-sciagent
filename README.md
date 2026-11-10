@@ -70,7 +70,7 @@
 |---|---|---|
 | **谁会用？** | 三类：① 有未发表数据、缺工程时间的研究生（复现基线→消融→图→初稿）；② 需要审计学生交接产物的 PI/博后（`rerun_experiment` 现跑现比）；③ 数据不能出内网的企业研发（模型走路径引用，权重与原始谱留本机） | [`docs/value.md`](docs/value.md) §1 |
 | **比现在强在哪？** | 不是「更聪明」，是「**每个数字可当场重算**」：消融结论阴了就写阴性（p=0.294，不粉饰）、稿子与产物指纹不一致就报 drift、PDF 中文丢失会被抓出来。**明确不如**：不会自己提假说、真实领域只有 2 个、不接湿实验 | [`docs/value.md`](docs/value.md) §2 |
-| **一次多少钱？** | **0.25–2.93 元/次**（按公开牌价乘真实产物 token；本地算力 0 元）。上下限含分词器差异与返工敏感性，输入侧为**下界**，明确标注不是账单 | [`docs/value.md`](docs/value.md) §3 · [`docs/verification/cost_audit.json`](docs/verification/cost_audit.json) |
+| **一次多少钱？** | **0.25–2.93 元/次**（按公开牌价乘真实产物 token；本地算力 0 元）。干净 clone 无论文存档时是 0.22–2.56 元 —— 两个数都是实测，差异来自未入库的 `main.tex`。上下限含分词器差异与返工敏感性，输入侧为**下界**，明确标注不是账单 | [`docs/value.md`](docs/value.md) §3 · [`docs/verification/cost_audit.json`](docs/verification/cost_audit.json) |
 
 > 与 AI Scientist v2 / Kosmos / Robin / PaperQA2 的逐维对照见 [`docs/comparison.md`](docs/comparison.md)。
 > 那份对照里**把我们落后的格子也列出来了**（自主提假说、湿实验、领域覆盖），不做「我们全面领先」的假对比。
@@ -366,9 +366,10 @@ python -m pytest tests -q              # 共 235 用例。硬指标是 0 failed�
 #   ④ test_ablation_ingest 的 2 条 —— 外部煤项目按设计不入库，找不到时跳过；
 #   ⑤ test_fetch_tectonic 的联网安装 —— 要下载 20 MB，仅 GEWU_TEST_FETCH=1 时运行。
 #   用 `-rs` 可以看到每条跳过的原因。实测（2026-11-09 / 11-10）：
-#     仓库内（本机有存档）：233 passed / 2 skipped / 0 failed（11-10 36.81s）
-#     干净 clone（新建 venv，仅 pip install -r requirements.txt）：217 passed / 7 skipped /
-#       0 failed（29.30–31.38s，两次）。223+1 = 217+7 = 224，总数对得上，差值全来自
+#     仓库内（本机有存档）：233 passed / 2 skipped / 0 failed（36.81s）；复跑 234 passed / 1 skipped（37.95s）
+#       —— 差的正是 test_verify_papers_fallback，它要联网核 CrossRef，随网络通断浮动，非代码随机
+#     干净 clone（新建 venv，仅 pip install -r requirements.txt）：228 passed / 7 skipped /
+#       0 failed（35.29s）。233+2 = 228+7 = 235，总数对得上，差值全来自
 #       上面 ③④ 的 5 条「本机缺未入库数据」——不是失败。
 #   跳过全是「本机没有某个外部条件」，不是失败；若看到 failed 才是真问题。
 # 完整开箱演练记录见 docs/verification/2026-11-04-clean-unpack-drill.md。

@@ -22,7 +22,7 @@
 | 工具层/推理层分离：`default` venv 故意不含 torch，`mil_model` 用 subprocess 拉起 torch 解释器（「需建合并 venv」旧结论已废止） | 同上 |
 | 编译退出码 0 **≠** 中文没丢：必须看 `parse_log` 的缺字计数，否则会静默产出只剩 ASCII 的 PDF | `docs/verification/2026-11-09-pdf-pipeline.md` |
 | 本机能跑 **≠** clone 能跑：每次推送后做真实 clone 验证，硬编码路径与未入库依赖只有这样才会暴露 | `docs/verification/2026-11-04-clean-unpack-drill.md` |
-| 已沉淀技能 **9 个唯一**（`find -name SKILL.md` 会数出 45 个文件，多出的是各 Agent 工作区副本，属 OpenClaw 技能发现机制的必需冗余） | `openclaw/workspace/skills/` |
+| 已沉淀技能 **9 个唯一**（`find . -name SKILL.md | wc -l` 数出 42 个文件，9 个唯一名；多出的是各 Agent 工作区副本，属 OpenClaw 技能发现机制的必需冗余） | `openclaw/workspace/skills/` |
 
 ## 领域速记
 - LIBS：激光诱导击穿光谱；大颗粒原煤热值预测为回归任务。

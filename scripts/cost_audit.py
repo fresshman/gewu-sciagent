@@ -187,6 +187,7 @@ def build():
             "output_tokens": out_tokens,
             "input_tokens_lower_bound": in_tokens,
             "deliverable_tokens": deliverable_tokens,
+            "deliverable_count": len(deliverables),
             "output_tokens_counted_for_cost": out_tokens_total,
             "cost_counting_rule": "输出侧计入 handoff 与论文正文等文本交付物；导出的 *.py 代码为人机混合产出，无法归因，不计入",
             "local_compute_cost_cny": 0.0,
@@ -200,6 +201,8 @@ def build():
             "分词器非模型原生（o200k/cl100k 对中文密度与 Intern/DeepSeek 原生差 10%–20%），故给两个分词器的区间",
             "本机无 API key，无法给出账单级实测；上述为「按公开牌价 × 真实产物用量」的复算，不是账单",
             "分词器编码表首次调用需联网拉取（约 1 MB），之后离线可用；完全断网且无缓存时本脚本不可用",
+            "论文存档（output/documents/）按设计不入库：干净 clone 里 deliverable_count=0，输出侧少约 13k tokens，"
+            "成本随之下移（实测 0.22–0.26 元 vs 仓库内 0.25–0.29 元）。两个数都对，差别是环境，不是口径",
         ],
     }
 

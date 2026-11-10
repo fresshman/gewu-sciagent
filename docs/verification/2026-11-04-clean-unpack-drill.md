@@ -231,3 +231,39 @@ python -m venv .venv && ./.venv/Scripts/python.exe -m pip install -r requirement
 
 修正后的口径：**clone 里是「0 失败 + 1 项 SKIP」，不是全绿**；只有本机有存档时才是 4 项全 PASS。
 
+## 12. 2026-11-10 第二次复测（P1 改动后，httpx clone 到 ad2c631）
+
+补完价值论证、第二真实领域、竞品对照、成本核算后再克隆一次，确认新加的东西在干净环境里真的能跑。
+
+```bash
+git clone --depth 1 https://gitee.com/FreeBlank/gewu-sciagent.git   # HEAD = ad2c631
+python -m venv .venv && ./.venv/Scripts/python.exe -m pip install -r requirements.txt   # 1m17s
+./.venv/Scripts/python.exe -m pytest -q -rs
+./.venv/Scripts/python.exe scripts/verify_all.py
+./.venv/Scripts/python.exe scripts/run_domain_diabetes.py
+./.venv/Scripts/python.exe scripts/cost_audit.py
+```
+
+| 项 | 实测结果 |
+|---|---|
+| 依赖安装 | 1m17s；`tiktoken` / `sklearn` / `mcp` 全部可导入 |
+| pytest · clone | **228 passed / 7 skipped / 0 failed**（35.29s） |
+| pytest · 仓库内 | 233 passed / 2 skipped / 0 failed。**233+2 = 228+7 = 235**，总数自洽 |
+| `verify_all.py` · clone | **3 PASS + 1 SKIP，exit 0**（SKIP 为真实课题 e2e） |
+| `run_domain_diabetes.py` · clone | 三臂 + 负向对照全部跑出，数据指纹 `7fc0ded5…8009` 与本机一致 |
+| `cost_audit.py` · clone | **0.22–0.26 元/次**（Flash 空闲），比仓库内 0.25–0.29 元低 |
+| node --test · clone | 48 pass / 0 fail |
+
+**本轮抓到的两个真问题**（都已修）：
+
+1. **`tiktoken` 没写进 `requirements.txt`**。新增的 `scripts/cost_audit.py` import 了它，
+   而依赖清单的口径是「只列实际 import 的包」——漏了意味着干净 clone 里 `tests/test_cost_audit.py`
+   会整片失败。**这正是「clone 一遍」才能发现的问题**，本机永远发现不了。
+2. **成本数字依赖未入库的论文存档**。仓库内有 `main.tex`（13,008 tokens）→ 0.25–0.29 元；
+   干净 clone 没有 → 0.22–0.26 元。两个都对，但如果只写一个，评审一跑就会认为数字造假。
+   已在 `docs/value.md` §3 并列，并在脚本 `caveats` 里写明「差别是环境，不是口径」。
+
+另：`scripts/cost_audit.py` 的分词器编码表首次调用需联网（约 1 MB），断网且无缓存时该脚本不可用 ——
+已写进 `caveats`，且它只是审计脚本，不影响测试与主链路。
+
+
