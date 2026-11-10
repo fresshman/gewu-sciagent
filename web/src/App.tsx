@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { useIsDesktop } from "./hooks/useMediaQuery";
-import { getAgents, getStages, getModels, getHealth, sendChat, getRun } from "./api/client";
+import { getAgents, getStages, getModels, getHealth, sendChat, getRun, type Health } from "./api/client";
 import type { Agent, Stage, ModelOption, ChatMessage, RunStep, RunStatus, ViewMode } from "./types";
 import { TopBar } from "./components/TopBar";
 import { PipelinePanel } from "./components/PipelinePanel";
@@ -13,6 +13,24 @@ import { SettingsPanel } from "./components/SettingsPanel";
 import { PaperReader } from "./components/PaperReader";
 import { PaperWorkspace } from "./components/library/PaperWorkspace";
 import { TaskOrb } from "./components/TaskOrb";
+
+// 未就绪时到底缺什么：三态分开讲，别让用户对着「重启网关」徒劳。
+// ① 启动闸门没过（Node 版本/入口）→ 重启网关没用，要换 Node 重启代理；
+// ② 闸门过了但网关没起 → 这才是「去启动网关」；
+// ③ 代理本身连不上 → 在初始化 catch 里给。
+function healthIssueText(h: Health): string {
+  const l = h.launch;
+  if (l && !l.ok) {
+    if (!l.entry) {
+      return "系统未就绪：找不到 openclaw 入口（openclaw.mjs）。用合规 Node 重启代理，或运行 bash start-gewu.sh。";
+    }
+    return `系统未就绪：当前 Node ${l.node ?? "未知"}，OpenClaw 要求 ${l.requirement}。换合规 Node 后重启代理即可。`;
+  }
+  if (!h.gateway.reachable) {
+    return "未连接到 OpenClaw Gateway，请先启动（openclaw gateway run --force）。";
+  }
+  return "";
+}
 
 let msgSeq = 0;
 const uid = () => `m${++msgSeq}`;
@@ -86,6 +104,8 @@ export default function App() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>("chat");
   const [gatewayReachable, setGatewayReachable] = useState<boolean | null>(null);
+  // 未就绪原因：区分「网关没起」与「Node/入口不合规」——后者重启网关也没用。
+  const [healthIssue, setHealthIssue] = useState<string>("");
   // A3: 中间结果落盘 —— 实时步骤、当前运行 key、状态、续跑 key
   const [runSteps, setRunSteps] = useState<RunStep[]>([]);
   const [currentRunKey, setCurrentRunKey] = useState<string | null>(null);
@@ -109,9 +129,11 @@ export default function App() {
         setModels(m.models);
         if (a.agents[0]) setSelectedAgent(a.agents[0]);
         setGatewayReachable(h.gateway.reachable);
+        setHealthIssue(healthIssueText(h));
       } catch (e) {
         console.error("初始化失败", e);
         setGatewayReachable(false);
+        setHealthIssue("连不上本地代理（/api/health 无响应），请确认代理进程仍在运行。");
       }
     })();
   }, []);
@@ -265,13 +287,14 @@ export default function App() {
   );
 
   const gatewayHint =
-    gatewayReachable === false
-      ? "⚠️ 未连接到 OpenClaw Gateway，请先启动（openclaw gateway run --force）。"
-      : "";
+    healthIssue ||
+    (gatewayReachable === false
+      ? "未连接到 OpenClaw Gateway，请先启动（openclaw gateway run --force）。"
+      : "");
 
   return (
     <ThemeProvider>
-      <div className="app">
+      <div className={`app${gatewayHint ? " app--alert" : ""}`}>
         <TopBar
           topic={topic}
           agents={agents}
@@ -283,6 +306,18 @@ export default function App() {
           viewMode={viewMode}
           onViewModeChange={setViewMode}
         />
+
+        {/* 未就绪一律红条置顶，桌面/移动/论文库都看得见：
+            之前只在移动端 chat 页渲染一行灰字，桌面端网关死了毫无提示。 */}
+        {gatewayHint && (
+          <div className="gw-banner" role="alert">
+            <span className="gw-banner__ic" aria-hidden="true">⚠</span>
+            <span className="gw-banner__tx">{gatewayHint}</span>
+            <button type="button" className="gw-banner__retry" onClick={() => window.location.reload()}>
+              重试
+            </button>
+          </div>
+        )}
 
         {viewMode === "papers" ? (
           <div className="paper-reader-full">
@@ -328,11 +363,6 @@ export default function App() {
         ) : (
           <>
             <main className="col-main">
-              {gatewayHint && (
-                <div className="composer__hint" style={{ padding: "var(--space-3) var(--space-4)" }}>
-                  {gatewayHint}
-                </div>
-              )}
               {mobileTab === "chat" && (
                 <>
                   <RunPanel

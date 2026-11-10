@@ -23,6 +23,14 @@ import { canonicalSessionKey } from "../shared/session_key.mjs";
 import { BudgetGate, budgetFromEnv } from "../shared/run_budget.mjs";
 import { TraceReader, agentStateDb } from "../shared/trace_source.mjs";
 import { isCurrentRoundLine } from "../shared/tail_time.mjs";
+import {
+  pickRuntime,
+  parseNpmRootG,
+  openclawEntryFromRoot,
+  formatRefusal,
+  formatDegradedWarning,
+  NODE_GATE_TEXT,
+} from "../shared/launch_guard.mjs";
 import { collectLibrary, collectWriting, findRepoPaperTex } from "./paper_index.mjs";
 import { collectFigures, isFigId } from "./figure_index.mjs";
 
@@ -46,34 +54,124 @@ function resolvePython() {
 
 const PORT = Number(process.env.PORT) || 3000;
 const GATEWAY = process.env.GATEWAY_URL || "http://127.0.0.1:18789";
-// OpenClaw CLI：优先用环境变量 OPENCLAW_BIN，否则假定已在 PATH（跨平台）。
-// 本机开发时若不在 PATH，可设 OPENCLAW_BIN 指向 openclaw.cmd 的绝对路径。
+// 仅用于日志/健康检查的"人给的入口名"，**不再作为启动路径**：
+// 用 `openclaw` 这个 shell 垫片会被系统里更老的 Node 接走并 code 1 退出。
 const OPENCLAW_BIN = process.env.OPENCLAW_BIN || "openclaw";
 
-// OpenClaw 要求 Node ≥24.16/<25 或 ≥26.1。若直接用 `openclaw` 这个 shell shim，
-// 它会被解析到系统里更老的 Node 上并以 code 1 退出（实测：对话一发就失败）。
-// 因此优先用**当前运行代理的这个 Node** 直跑 openclaw.mjs（路径由 `npm root -g` 动态解析）。
-function resolveOpenclawLaunch() {
-  const explicit = process.env.OPENCLAW_MJS;
-  if (explicit && existsSync(explicit))
-    return { cmd: process.execPath, prefix: [explicit], shell: false };
-  // Windows 上 npm 是 npm.cmd，必须经 shell 才能解析（否则 execFileSync 直接抛错）
-  const npmBin = process.platform === "win32" ? "npm.cmd" : "npm";
+// 取某个 node 可执行文件的版本（"v24.16.0"→"v24.16.0"；取不到→null，绝不猜）。
+function probeNodeVersion(bin) {
   try {
-    const root = execFileSync(npmBin, ["root", "-g"], {
+    const out = execFileSync(bin, ["-v"], {
       encoding: "utf8",
       windowsHide: true,
-      shell: true,
-      timeout: 15000,
+      timeout: 8000,
     }).trim();
-    const cand = join(root, "openclaw", "openclaw.mjs");
-    if (existsSync(cand)) return { cmd: process.execPath, prefix: [cand], shell: false };
+    return out.startsWith("v") ? out : null;
   } catch {
-    /* 回落到 PATH 里的 openclaw */
+    return null;
   }
-  return { cmd: OPENCLAW_BIN, prefix: [], shell: true };
 }
-const OPENCLAW = resolveOpenclawLaunch();
+
+// 候选入口：显式 > npm root -g > 常见全局目录。只收真实存在的 .mjs，
+// 不收 shim/cmd/目录——垫片会绕过版本检查，这正是之前"每句话都失败"的来源。
+function findOpenclawEntry() {
+  const cands = [];
+  const explicit = process.env.OPENCLAW_MJS;
+  if (explicit) cands.push(explicit);
+
+  const npmBin = process.platform === "win32" ? "npm.cmd" : "npm";
+  try {
+    const root = parseNpmRootG(
+      execFileSync(npmBin, ["root", "-g"], {
+        encoding: "utf8",
+        windowsHide: true,
+        shell: true,
+        timeout: 15000,
+      })
+    );
+    const fromNpm = openclawEntryFromRoot(root);
+    if (fromNpm) cands.push(fromNpm);
+  } catch {
+    /* npm 不可用就走静态候选 */
+  }
+
+  const home = process.env.USERPROFILE || process.env.HOME || "";
+  const appData = process.env.APPDATA || "";
+  for (const root of [
+    home && join(home, ".npm-global", "node_modules"),
+    appData && join(appData, "npm", "node_modules"),
+    join(dirname(process.execPath), "node_modules"),
+    join(dirname(process.execPath), "..", "lib", "node_modules"),
+  ]) {
+    const p = openclawEntryFromRoot(root);
+    if (p) cands.push(p);
+  }
+
+  for (const p of cands) {
+    if (p && p.endsWith(".mjs") && existsSync(p)) return { entryPath: p, tried: cands };
+  }
+  return { entryPath: null, tried: cands };
+}
+
+// 候选运行时：显式 env > 当前进程的 node > PATH 上的其它 node。
+// **当前 Node 不满足闸门时不能被当成默认值**——这是原实现最致命的假设。
+function findRuntime() {
+  const cands = [];
+  for (const envKey of ["GEWU_NODE", "OPENCLAW_NODE"]) {
+    const v = process.env[envKey];
+    if (v) cands.push({ path: v, from: envKey });
+  }
+  cands.push({ path: process.execPath, from: "当前进程" });
+  for (const dir of (process.env.PATH || "").split(path.delimiter)) {
+    if (!dir) continue;
+    for (const exe of process.platform === "win32" ? ["node.exe"] : ["node"]) {
+      const p = join(dir, exe);
+      if (existsSync(p) && !cands.some((c) => c.path.toLowerCase() === p.toLowerCase())) {
+        cands.push({ path: p, from: "PATH" });
+      }
+    }
+  }
+  const probed = cands.map((c) => ({ ...c, version: probeNodeVersion(c.path) }));
+  return pickRuntime(probed);
+}
+
+function resolveOpenclawLaunch() {
+  const { entryPath, tried } = findOpenclawEntry();
+  const { picked, rejected } = findRuntime();
+  const nodeVersion = picked?.version || probeNodeVersion(process.execPath);
+  const ok = Boolean(entryPath) && Boolean(picked);
+  return {
+    ok,
+    // cmd/prefix 保持既有形状，spawn 调用点无需改动
+    cmd: ok ? picked.path : "",
+    prefix: ok ? [entryPath] : [],
+    shell: false,
+    nodePath: picked?.path || null,
+    nodeFrom: picked?.from || null,
+    nodeVersion,
+    entryPath,
+    entryTried: tried,
+    rejected,
+  };
+}
+
+const LAUNCH = resolveOpenclawLaunch();
+const ALLOW_DEGRADED = process.env.GEWU_ALLOW_DEGRADED_PROXY === "1";
+
+// 起不来就明确拒绝：带着中文修法退出 1，而不是"起来了但每句话都失败"。
+if (!LAUNCH.ok) {
+  console.error(
+    formatRefusal({
+      nodeVersion: LAUNCH.nodeVersion,
+      entryPath: LAUNCH.entryPath,
+      port: PORT,
+      rejected: LAUNCH.rejected,
+    })
+  );
+  if (!ALLOW_DEGRADED) process.exit(1);
+  console.error(formatDegradedWarning({ nodeVersion: LAUNCH.nodeVersion, entryPath: LAUNCH.entryPath }));
+}
+const OPENCLAW = { cmd: LAUNCH.cmd, prefix: LAUNCH.prefix, shell: LAUNCH.shell };
 
 // ── A3: 中间结果落盘 ──────────────────────────────────────────────
 // 长任务（多步工具调用）可能跑十几分钟；此前 agent stdout 只在结束才吐最终回复，
@@ -706,7 +804,25 @@ const server = http.createServer(async (req, res) => {
 
   if (p === "/api/health") {
     const gw = await gatewayHealth();
-    return sendJSON(res, 200, { ok: true, proxy: "live", gateway: gw, openclawBin: OPENCLAW_BIN });
+    // ok 不再是恒真值：网关连不上 / 启动闸门没过时它就是 false。
+    // 之前恒 true，前端拿不到"不能用"的信号，用户只看到一句每句话都失败的对话。
+    const ready = LAUNCH.ok && gw.reachable === true;
+    return sendJSON(res, 200, {
+      ok: ready,
+      proxy: "live",
+      ready,
+      gateway: gw,
+      openclawBin: OPENCLAW_BIN,
+      launch: {
+        ok: LAUNCH.ok,
+        node: LAUNCH.nodeVersion,
+        nodePath: LAUNCH.nodePath,
+        nodeFrom: LAUNCH.nodeFrom,
+        entry: LAUNCH.entryPath,
+        requirement: NODE_GATE_TEXT,
+        degraded: ALLOW_DEGRADED && !LAUNCH.ok,
+      },
+    });
   }
   if (p === "/api/agents") return sendJSON(res, 200, { agents: AGENTS });
   if (p === "/api/stages") return sendJSON(res, 200, { stages: STAGES });
@@ -1528,6 +1644,27 @@ const server = http.createServer(async (req, res) => {
     const message = String(payload.message || "");
     if (!message.trim()) return sendJSON(res, 400, { error: "empty message" });
 
+    // 降级启动（显式忽略了闸门）时不再假装能跑：一句话讲清缺什么、怎么修。
+    if (!LAUNCH.ok) {
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive",
+      });
+      const why = !LAUNCH.entryPath
+        ? "找不到 openclaw 入口（openclaw.mjs）"
+        : `当前 Node ${LAUNCH.nodeVersion || "未知"} 不满足要求（${NODE_GATE_TEXT}）`;
+      res.write(
+        `data: ${JSON.stringify({
+          type: "error",
+          text: `系统未就绪：${why}。请用合规 Node 重启代理，或运行 bash start-gewu.sh（详见终端提示）。`,
+          ts: Date.now(),
+        })}\n\n`
+      );
+      res.write(`data: ${JSON.stringify({ type: "done", status: "error", ts: Date.now() })}\n\n`);
+      return res.end();
+    }
+
     // 会话 key：续跑时复用前端传来的 sessionKey，否则新生成。
     const runKey = String(payload.sessionKey || `agent:${agent}:${randomUUID()}`);
 
@@ -1620,6 +1757,9 @@ server.listen(PORT, () => {
     }
   } catch {}
   console.log(`[gewu-proxy] listening on http://localhost:${PORT}`);
-  console.log(`[gewu-proxy] gateway=${GATEWAY}  openclaw=${OPENCLAW.cmd} ${OPENCLAW.prefix.join(" ")}`);
+  console.log(`[gewu-proxy] gateway=${GATEWAY}  openclaw=${LAUNCH.entryPath || "未找到"}`);
+  console.log(
+    `[gewu-proxy] 运行时 node ${LAUNCH.nodeVersion || "未知"} @ ${LAUNCH.nodePath || "无"}（来自 ${LAUNCH.nodeFrom || "-"}；要求 ${NODE_GATE_TEXT}）`
+  );
   console.log(`[gewu-proxy] agent CLI wait timeout=${process.env.GEWU_AGENT_TIMEOUT || 3600}s | budget: tools ${BUDGET.warnTools}/${BUDGET.hardTools} | wall ${(BUDGET.warnMs / 60000).toFixed(1)}/${(BUDGET.hardMs / 60000).toFixed(1)} min | slow gap ${BUDGET.slowGapMs / 1000}s | 在飞计数：网关 transcript_events 表轮询 ${TRACE_POLL_MS / 1000}s（OPENCLAW_HOME=${process.env.OPENCLAW_HOME || "~/.openclaw"}）`);
 });

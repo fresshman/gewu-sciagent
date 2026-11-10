@@ -9,5 +9,6 @@
 | [2026-11-10-claim-status-false-green.md](2026-11-10-claim-status-false-green.md) | 要显示「已核 / 通过 / 有效」这类判断状态时 |
 | [2026-11-10-provenance-parser.md](2026-11-10-provenance-parser.md) | 改 `claim_provenance.py` 的 source 解析或 metric 取值时 |
 | [2026-11-10-frontend-render-traps.md](2026-11-10-frontend-render-traps.md) | 新增论文视图 / 写带 `/g` 的正则 / 显示数值时 |
+| [2026-11-10-launch-gate.md](2026-11-10-launch-gate.md) | 改代理启动、子进程解析、`/api/health` 语义时 |
 
 每条都带「怎么验证」——没有验证手段的约束等于没有。

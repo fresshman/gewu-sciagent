@@ -533,11 +533,19 @@ npm run build && npm start   # 生产：单端口 :3000 同时提供前端与 AP
 ```
 
 > 🚀 **一键启动（推荐）**：仓库根目录的 `start-gewu.sh` 已把「后端网关 + 前端 Web」合并为一个命令，
-> 且所有路径写死为本机 Node 26 绝对路径（绕过 Git Bash 默认 Node 22 的 openclaw shim）。在 Git Bash 中执行：
+> 按 `$GEWU_NODE` → PATH → 便携目录的顺序自己找合规 Node（不再写死本机绝对路径）。在 Git Bash 中执行：
 > ```bash
 > bash start-gewu.sh     # 同时拉起网关(:18789) 与前端(:5173/:3000)，Ctrl+C 一并停止
 > ```
 > 日志写入 `.aris/logs/`（已在 .gitignore，不入库）。
+>
+> ⚠️ **代理有启动硬闸**：单独跑 `node web/proxy/server.mjs` 时，若当前 Node 不满足 OpenClaw 的
+> `≥24.16 且 <25 / ≥26.1`，代理会**拒绝启动并打印中文修法**（而不是起来之后每句话都失败）。
+> 换 Node 不必改 PATH，直接指给它即可：
+> ```bash
+> GEWU_NODE=/path/to/node-v26/bin/node node web/proxy/server.mjs
+> ```
+> 只想看静态前端可加 `GEWU_ALLOW_DEGRADED_PROXY=1` 降级启动，此时 `/api/health` 与页面红条都会标记「未就绪」。
 
 **截图怎么来的**（`docs/images/ui-workbench*.png` 可自行复现，不需要装 Playwright/Puppeteer）：
 

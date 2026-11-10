@@ -15,7 +15,24 @@ export function getStages(): Promise<{ stages: Stage[] }> {
 export function getModels(): Promise<{ models: ModelOption[] }> {
   return getJSON("/api/models");
 }
-export function getHealth(): Promise<{ ok: boolean; gateway: { reachable: boolean; status: string } }> {
+export type Health = {
+  ok: boolean;
+  ready?: boolean;
+  proxy: string;
+  gateway: { reachable: boolean; status: string };
+  openclawBin?: string;
+  launch?: {
+    ok: boolean;
+    node: string | null;
+    nodePath: string | null;
+    nodeFrom: string | null;
+    entry: string | null;
+    requirement: string;
+    degraded: boolean;
+  };
+};
+
+export function getHealth(): Promise<Health> {
   return getJSON("/api/health");
 }
 
