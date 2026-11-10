@@ -577,3 +577,241 @@
   /* 不再用 display:none 隐藏某一列 —— colgroup 仍按 7 列定位，隐藏后整行会错位；
      窄屏统一靠 .pw-tablewrap 的横向滚动看完整列 */
 }
+
+/* ═══════ 图纸台账 ═══════ */
+/* 这一页的存在理由是页头那行换算式：16 个文件 → 3 张图。
+   卡片按「长得什么样 → 被哪节引用 → 还剩几处副本 → 怎么画出来的」排，
+   顺序就是写论文时真正会问的顺序。 */
+.pw-view--figures {
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.fx-bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 9px var(--space-4);
+  border-bottom: 1px solid var(--pw-line-soft);
+  background: var(--bg-surface);
+}
+.fx-sum {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+.fx-sum b { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.fx-arrow { color: var(--text-tertiary); }
+.fx-chips { margin-left: auto; display: flex; gap: 4px; flex: 0 0 auto; }
+.fx-chip {
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.fx-chip:hover { background: var(--bg-hover); color: var(--text-primary); }
+.fx-chip[aria-selected="true"] {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.fx-grid {
+  display: grid;
+  /* 400px 起：1600 视口下是 3 列（约 510px/张）。再窄就变 4 列，
+     出处那块会被挤成每行 6 个字，反而看不清——出处是这个页面的主角。 */
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  align-content: start;
+}
+.fx-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  overflow: hidden;
+  min-width: 0;
+}
+.fx-thumb {
+  position: relative;
+  /* 图多为接近正方（1649×1658 实测），框太扁会被左右留白挤小；200px 是折中 */
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 底色用纸白而不是主题底色：图表本身是白底，contain 留出的空隙若填深色，
+     窄屏单列时会出现两条大黑边（实测 760px 下每侧 265px）。这里不留边。 */
+  background: #fff;
+  border-bottom: 1px solid var(--pw-line-soft);
+}
+.fx-thumb img {
+  /* 用 100%×100% + contain 撑满预览框，而不是 max-*（后者小图会缩成原尺寸，
+     卡片里留一大片空底色，看着像图没加载出来） */
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  padding: 6px;
+  box-sizing: border-box;
+}
+.fx-thumb-none { font-size: 11.5px; color: var(--text-tertiary); }
+.fx-num {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 10.5px;
+}
+.fx-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 11px 10px;
+  min-width: 0;
+}
+.fx-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.fx-id {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  background: var(--bg-sunken);
+  padding: 0 5px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+.fx-title {
+  font-size: 12.5px;
+  color: var(--text-primary);
+  line-height: 1.45;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.fx-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  min-width: 0;
+}
+.fx-dot { opacity: 0.6; }
+
+/* 出处块：有就摊开，没有就换成一条警告，两者视觉上必须能一眼区分 */
+.fx-prov {
+  border: 1px solid var(--pw-line-soft);
+  border-radius: 5px;
+  padding: 6px 8px;
+  background: var(--bg-sunken);
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.fx-prov-h { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.fx-ok { color: var(--pw-ok); font-weight: 500; }
+.fx-prov code, .fx-noprov code, .fx-prov-foot code {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  background: var(--bg-card);
+  padding: 0 4px;
+  border-radius: 3px;
+}
+.fx-serie { margin-right: 8px; white-space: nowrap; }
+.fx-serie em { font-style: normal; color: var(--text-tertiary); }
+.fx-prov-foot { color: var(--text-tertiary); }
+.fx-warn { color: var(--pw-warn); }
+.fx-noprov {
+  border: 1px dashed color-mix(in srgb, var(--pw-warn) 55%, transparent);
+  border-radius: 5px;
+  padding: 6px 8px;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--pw-warn);
+  background: var(--pw-warn-bg);
+}
+.fx-copies-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  text-align: left;
+}
+.fx-copies-btn:hover { color: var(--brand); }
+.fx-copies-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0 0 0 12px;
+  font-size: 10.5px;
+  color: var(--text-secondary);
+}
+.fx-copies-list li {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  padding: 1px 0;
+  min-width: 0;
+}
+.fx-copies-list code {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fx-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.pw-btn--sm {
+  flex: 0 0 auto;
+  padding: 3px 9px;
+  font-size: 11px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.fx-concerns {
+  margin: 0;
+  padding-left: 14px;
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  line-height: 1.6;
+}
+.fx-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px var(--space-4);
+  border-top: 1px solid var(--pw-line-soft);
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+}
+.fx-dir { display: inline-flex; gap: 5px; align-items: baseline; }
+.fx-dir code { font-family: var(--font-mono); font-size: 10px; }
+
+/* 详情面板里的紧凑版（宽 300 上下） */
+.fx-card.is-compact .fx-thumb { height: 118px; }
+.fx-card.is-compact .fx-body { padding: 8px; gap: 5px; }
+.fx-card.is-compact .fx-title { font-size: 12px; }
+
+@media (max-width: 900px) {
+  .fx-chips { flex-wrap: wrap; justify-content: flex-end; }
+  .fx-grid { grid-template-columns: 1fr; }
+}

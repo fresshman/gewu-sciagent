@@ -1,4 +1,4 @@
-import type { Agent, Stage, ModelOption, ChatMessage, CaseBundle, RunRecord, RunListEntry, RunStep, RunStatus, LibraryResponse, WritingResponse } from "../types";
+import type { Agent, Stage, ModelOption, ChatMessage, CaseBundle, RunRecord, RunListEntry, RunStep, RunStatus, LibraryResponse, WritingResponse, FigureIndexResponse } from "../types";
 
 async function getJSON<T>(url: string): Promise<T> {
   const r = await fetch(url);
@@ -51,6 +51,21 @@ export function getLibrary(): Promise<LibraryResponse> {
 // 写作台：main.tex 的结构（章节行号 / 表图 / 引用）+ 核查资产计数（只读）
 export function getWriting(): Promise<WritingResponse> {
   return getJSON("/api/writing");
+}
+
+/** 图纸台账：一张图一条（按内容 sha256 合并散落各目录的副本）+ 出处旁文件 */
+export function getFigures(): Promise<FigureIndexResponse> {
+  return getJSON("/api/writing/figures");
+}
+
+/** 图纸位图预览。id 是内容寻址的，文件不会变，浏览器可以长缓存。 */
+export function figurePreviewUrl(figId: string): string {
+  return `/api/writing/figures/${encodeURIComponent(figId)}/preview.png`;
+}
+
+/** 矢量版 PDF（浏览器内置阅读器打开） */
+export function figurePdfUrl(figId: string): string {
+  return `/api/writing/figures/${encodeURIComponent(figId)}/file.pdf`;
 }
 
 export async function uploadPaper(pdfBase64: string, filename: string): Promise<any> {

@@ -263,6 +263,12 @@ export interface WritingLeaf {
   label: string;
   text: string;
   line: number;
+  /** 环境起始行（\begin{figure} 那行）；表/图才有 */
+  envLine?: number;
+  /** \includegraphics 里的文件名，用来和图纸台账对上 */
+  file?: string;
+  /** tex 里的 \label{fig:*}；没有就是空串（本稿全部为空） */
+  texLabel?: string;
 }
 
 export interface WritingResponse {
@@ -305,3 +311,74 @@ export interface WritingResponse {
 
 /** 顶层视图：对话工作台 / 单篇 PDF 阅读器 / 论文库与写作台 */
 export type ViewMode = "chat" | "papers" | "library";
+
+/* ============ 图纸台账（/api/writing/figures） ============ */
+
+/** 一张图 = 一条。副本按内容 sha256 合并，id 是内容寻址的 fig-<sha8>。 */
+export interface FigureItem {
+  fig_id: string;
+  /** 文件名去掉扩展名，正文 \includegraphics 按它对齐 */
+  base: string;
+  sha256: string;
+  masterFormat: "pdf" | "png";
+  bytes: number;
+  formats: Partial<Record<"pdf" | "png", { rel: string; bytes: number; sha256: string }>>;
+  /** 逐个文件的副本（同一目录可能 pdf + png 各一份） */
+  copies: { rel: string; format: string; bytes: number; dir: string }[];
+  /** 按目录归并后的位置 */
+  locations: { dir: string; formats: string[]; bytes: number }[];
+  copyCount: number;
+  dirCount: number;
+  /** 出图时写的 .meta.json；没有就是 null，不编造 */
+  provenance: FigureProvenance | null;
+  provenancePath: string;
+  refs: {
+    num: number;
+    caption: string;
+    line: number;
+    sectionNum: string;
+    sectionTitle: string;
+    texLabel: string;
+  }[];
+  referenced: boolean;
+  concerns: { level: "warn" | "info"; code: string; text: string }[];
+}
+
+export interface FigureProvenance {
+  schema: number;
+  created_at: string;
+  stem: string;
+  /** 画它的工具函数名，如 plot_bar */
+  tool: string;
+  fig_id: string;
+  args: Record<string, { kind: string; value?: unknown; shape?: number[]; n?: number; sha256?: string; min?: unknown; max?: unknown; values?: string[] }>;
+  draw: {
+    axes: number | null;
+    series: { kind: string; n?: number; sha256?: string; min?: unknown; max?: unknown; axis?: number; shape?: number[] }[];
+    labels?: { titles?: string[]; x?: string[]; y?: string[] };
+    digest: string | null;
+  };
+  files: Record<string, { name: string; bytes: number; sha256: string }>;
+  dpi: number;
+  gewu: { version: string | null; git: string | null };
+  errors?: string[];
+}
+
+export interface FigureIndexResponse {
+  available: boolean;
+  project?: string;
+  reason?: string;
+  hint?: string;
+  texPath?: string;
+  dirs?: { dir: string; label: string; exists: boolean; files: number }[];
+  figures: FigureItem[];
+  summary: {
+    total: number;
+    files: number;
+    referenced: number;
+    unreferenced: number;
+    withProvenance: number;
+    multiCopy: number;
+    rowsBeforeMerge: number;
+  } | null;
+}

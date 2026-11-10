@@ -74,7 +74,10 @@ export function parseTexStructure(tex) {
   let sec = 0;
   let sub = 0;
   let cur = null;
-  let pending = null; // 正在等待 \caption 的浮动体 {kind, index}
+  let pending = null; // 正在等待 \caption 的浮动体 {kind, index, envLine}
+  // figure 环境要额外记住「插的是哪个文件、有没有 \label」——图纸要按文件名和
+  // 正文对起来，只靠「图 1 / 图 2」的顺序对不上（图表目录一改就错位）。
+  let figOpen = null; // {file, texLabel, envLine, leaf}
 
   const pushLeaf = (node, leaf) => {
     if (node) node.leaves.push(leaf);
@@ -128,22 +131,46 @@ export function parseTexStructure(tex) {
     const bt = line.match(/\\begin\{(table|figure)\*?\}/);
     if (bt) {
       const kind = bt[1] === "table" ? "tbl" : "fig";
-      if (kind === "tbl") assets.tables += 1; else assets.figures += 1;
-      pending = { kind, index: kind === "tbl" ? assets.tables : assets.figures };
+      if (kind === "tbl") assets.tables += 1;
+      else {
+        assets.figures += 1;
+        figOpen = { file: null, texLabel: null, envLine: ln, leaf: null };
+      }
+      pending = { kind, index: kind === "tbl" ? assets.tables : assets.figures, envLine: ln };
+    }
+
+    // figure 环境内部：\includegraphics 给文件名，\label{fig:*} 给交叉引用键
+    if (figOpen) {
+      const ig = line.match(/\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/);
+      if (ig && !figOpen.file) figOpen.file = ig[1].trim();
+      const lb = line.match(/\\label\{([^}]+)\}/);
+      if (lb && /^fig[:\-]/.test(lb[1].trim())) figOpen.texLabel = lb[1].trim();
     }
 
     if (line.includes("\\caption") && pending) {
       const cap = cmdArg(line, "caption");
       if (cap != null) {
-        pushLeaf(cur, {
+        const leaf = {
           kind: pending.kind,
           num: pending.index,
           label: `${pending.kind === "tbl" ? "表" : "图"} ${pending.index}`,
           text: cleanTex(cap),
           line: ln,
-        });
+          envLine: pending.envLine,
+        };
+        pushLeaf(cur, leaf);
+        if (figOpen && pending.kind === "fig") figOpen.leaf = leaf;
       }
       pending = null;
+    }
+
+    if (/\\end\{figure\}/.test(line) && figOpen) {
+      // caption 之后才出现的 \label 也算这张图的
+      if (figOpen.leaf) {
+        figOpen.leaf.file = figOpen.file;
+        figOpen.leaf.texLabel = figOpen.texLabel;
+      }
+      figOpen = null;
     }
 
     // 引用：收集到当前章节，最后折成一个「引用」叶节点
@@ -448,7 +475,7 @@ function readJsonSafe(p) {
 }
 
 // 在 docs/paper/*/ 下找 main.tex（取最新修改的一份）
-function findRepoPaperTex(repoRoot) {
+export function findRepoPaperTex(repoRoot) {
   const dir = join(repoRoot, "docs", "paper");
   if (!existsSync(dir)) return null;
   const cands = readdirSync(dir)

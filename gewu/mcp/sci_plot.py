@@ -40,9 +40,19 @@
 from __future__ import annotations
 
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
+
+# fig_meta 与出图工具放在同一目录。openclaw 是按脚本路径直接起这个文件的
+# （python .../gewu/mcp/sci_plot.py），此时没有包上下文，相对导入会失败，
+# 所以退回到「把本目录加进 sys.path」。
+try:  # pragma: no cover - 取决于启动方式
+    from . import fig_meta
+except ImportError:  # pragma: no cover
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import fig_meta
 
 import matplotlib
 
@@ -88,15 +98,56 @@ def _arr(values: Sequence, name: str = "数据") -> np.ndarray:
 
 
 def _save(fig, stem: str) -> dict:
-    """保存为 PDF(矢量) + PNG(300dpi)，返回绝对路径。"""
+    """保存为 PDF(矢量) + PNG(300dpi)，并在旁边写一份出处旁文件。
+
+    旁文件 `<base>.meta.json` 记的是：哪个工具画的、传进来什么（数值只留指纹）、
+    画出来的每个 series 长什么样、两个文件的 sha256。这样「这张图是不是用
+    当前数据画的」事后可以核对，而不是只看文件名猜。
+
+    旁文件写失败不影响出图——返回值里 `provenance` 会是 false，
+    调用方要据此知道「这张图没有出处」，而不是以为有。
+    """
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     base = FIG_DIR / f"{stem}_{ts}"
+    # 时间戳只到秒。同一秒连画两张（批量出图、并列对比很常见）会撞名，
+    # 后一张直接把前一张覆盖掉——既丢图，也让旁文件对不上。撞了就加序号。
+    n = 2
+    while base.with_suffix(".pdf").exists() or base.with_suffix(".png").exists():
+        base = FIG_DIR / f"{stem}_{ts}-{n}"
+        n += 1
     pdf, png = base.with_suffix(".pdf"), base.with_suffix(".png")
-    fig.savefig(pdf, format="pdf", bbox_inches="tight")
+    # 去掉 PDF 内嵌的 CreationDate：默认会写入秒级时间戳，同样的数据重画两次
+    # 字节不同，内容寻址的 fig_id 就会变，台账里平白多出一条「新图」。
+    # 实测（2026-11-10）：带时间戳 sha 不同；strip 后两次渲染字节完全一致。
+    fig.savefig(pdf, format="pdf", bbox_inches="tight", metadata={"CreationDate": None})
     fig.savefig(png, format="png", dpi=300, bbox_inches="tight")
+
+    # 必须在 plt.close 之前读，关掉之后 Figure 上的数据就没了
+    meta_path = None
+    try:
+        caller = sys._getframe(1)
+        meta_path = fig_meta.write_sidecar(
+            base,
+            stem=stem,
+            tool=caller.f_code.co_name,
+            fig=fig,
+            paths={"pdf": pdf, "png": png},
+            args=fig_meta.caller_args(caller),
+            dpi=300,
+        )
+    except Exception:  # noqa: BLE001 - 出处记录失败不能连累出图
+        meta_path = None
+
     plt.close(fig)
-    return {"ok": True, "stem": stem, "pdf": str(pdf.resolve()), "png": str(png.resolve())}
+    return {
+        "ok": True,
+        "stem": stem,
+        "pdf": str(pdf.resolve()),
+        "png": str(png.resolve()),
+        "meta": str(meta_path.resolve()) if meta_path else None,
+        "provenance": meta_path is not None,
+    }
 
 
 def _metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
@@ -662,13 +713,46 @@ def plot_waterfall(
 
 @mcp.tool()
 def list_figures() -> dict:
-    """列出已生成的图片文件（PDF 矢量 + PNG 预览），便于写报告时取用。"""
+    """列出已生成的图片文件（PDF 矢量 + PNG 预览），并标明有没有出处旁文件。
+
+    按 stem+时间戳归组：一张图 = 一条，附 pdf/png/meta 三个文件。
+    `provenance:false` 说明这张图没有 meta.json（老工具画的，或旁文件写失败），
+    拿它去写论文时要自己确认数据来源。
+    """
     if not FIG_DIR.exists():
-        return {"ok": True, "dir": str(FIG_DIR.resolve()), "count": 0, "files": []}
+        return {"ok": True, "dir": str(FIG_DIR.resolve()), "count": 0, "files": [], "figures": []}
     files = sorted(
         (str(p.resolve()) for p in FIG_DIR.iterdir() if p.suffix.lower() in {".pdf", ".png"}),
     )
-    return {"ok": True, "dir": str(FIG_DIR.resolve()), "count": len(files), "files": files}
+
+    grouped: Dict[str, dict] = {}
+    for p in sorted(FIG_DIR.iterdir()):
+        # 注意用 name.endswith：Path.suffix 只认最后一段，`.meta.json` 会被当成 .json 漏掉
+        if p.name.endswith(".meta.json"):
+            grouped.setdefault(p.name[: -len(".meta.json")], {})["meta"] = str(p.resolve())
+        elif p.suffix.lower() in {".pdf", ".png"}:
+            grouped.setdefault(p.stem, {})[p.suffix.lower().lstrip(".")] = str(p.resolve())
+
+    figs = []
+    for base, g in sorted(grouped.items()):
+        meta = fig_meta.read_sidecar(g["meta"]) if g.get("meta") else None
+        figs.append(
+            {
+                "base": base,
+                **g,
+                "provenance": meta is not None,
+                "fig_id": (meta or {}).get("fig_id"),
+                "tool": (meta or {}).get("tool"),
+            }
+        )
+    return {
+        "ok": True,
+        "dir": str(FIG_DIR.resolve()),
+        "count": len(files),
+        "figures": figs,
+        "with_provenance": sum(1 for f in figs if f["provenance"]),
+        "files": files,
+    }
 
 
 if __name__ == "__main__":

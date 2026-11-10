@@ -1,16 +1,34 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { WritingLeaf, WritingNode, WritingResponse } from "../../types";
+import type { FigureItem, WritingLeaf, WritingNode, WritingResponse } from "../../types";
+import { FigureCard } from "./FigureCard";
 
 type Sel =
   | { kind: "sec"; index: number }
   | { kind: "leaf"; index: number; leaf: number }
-  | { kind: "asset"; key: "claims" | "equations" | "refs" };
+  | { kind: "asset"; key: "figures" | "claims" | "equations" | "refs" };
+
+/** \includegraphics{xxx.pdf} 与图纸台账的 base 同名对齐（去掉扩展名比） */
+function figForLeaf(leaf: WritingLeaf, figures: FigureItem[]): FigureItem | null {
+  const f = String(leaf.file || "");
+  if (!f || leaf.kind !== "fig") return null;
+  const base = f.split(/[\\/]/).pop()!.replace(/\.[a-z0-9]+$/i, "");
+  return figures.find((x) => x.base === base) || null;
+}
 
 const ICON: Record<WritingLeaf["kind"], string> = { tbl: "▦", fig: "◨", cite: "❝" };
 
 // 写作台：左大纲（行号可核对）、中源码（就是磁盘上那份 tex）、右详情。
 // 中间不放 PDF 骨架页 —— 那只能看个形状；放源码才能验证「大纲 L78」确实指向表 1。
-export function WritingDesk({ data, onToast }: { data: WritingResponse | null; onToast: (m: string) => void }) {
+export function WritingDesk({
+  data,
+  figures = [],
+  onToast,
+}: {
+  data: WritingResponse | null;
+  /** 图纸台账；图 N 的详情靠它把「这张图怎么画出来的」接上去 */
+  figures?: FigureItem[];
+  onToast: (m: string) => void;
+}) {
   const [sel, setSel] = useState<Sel>({ kind: "sec", index: 0 });
   const lineRefs = useRef(new Map<number, HTMLDivElement>());
   const srcRef = useRef<HTMLDivElement>(null);
@@ -107,6 +125,16 @@ export function WritingDesk({ data, onToast }: { data: WritingResponse | null; o
         <div className="pw-olh">资产</div>
         <button
           className="pw-node s1"
+          aria-selected={sel.kind === "asset" && sel.key === "figures"}
+          onClick={() => setSel({ kind: "asset", key: "figures" })}
+          title="按内容合并后的图纸：一张图一个 id"
+        >
+          <span className="ic">#</span>
+          <span className="tx">图纸 {figures.length}</span>
+          <span className="ln">{figures.filter((f) => f.provenance).length}</span>
+        </button>
+        <button
+          className="pw-node s1"
           aria-selected={sel.kind === "asset" && sel.key === "claims"}
           onClick={() => setSel({ kind: "asset", key: "claims" })}
         >
@@ -175,10 +203,11 @@ export function WritingDesk({ data, onToast }: { data: WritingResponse | null; o
             leaf={selNode.leaves[sel.leaf]}
             texPath={data.tex.path}
             refItems={a.refs.items}
+            figure={figForLeaf(selNode.leaves[sel.leaf], figures)}
             onToast={onToast}
           />
         )}
-        {sel.kind === "asset" && <AssetDetail data={data} which={sel.key} />}
+        {sel.kind === "asset" && <AssetDetail data={data} which={sel.key} figures={figures} onToast={onToast} />}
       </aside>
     </div>
   );
@@ -240,12 +269,15 @@ function LeafDetail({
   leaf,
   texPath,
   refItems,
+  figure,
   onToast,
 }: {
   node: WritingNode;
   leaf: WritingLeaf;
   texPath: string;
   refItems: { id: string; title: string; identifier: string; status: string; method: string }[];
+  /** 按 \includegraphics 文件名对上的图纸；对不上就是 null（正文插了张不存在的图，也是真问题） */
+  figure: FigureItem | null;
   onToast: (m: string) => void;
 }) {
   if (leaf.kind === "cite") {
@@ -279,16 +311,48 @@ function LeafDetail({
   }
 
   const isTable = leaf.kind === "tbl";
+
+  // 图：能对上图纸台账就把出处摊开（这才是「这张图从哪来」的答案），
+  // 对不上就明说对不上——而不是笼统写一句「未登记」。
+  if (!isTable) {
+    return (
+      <>
+        <h3>{leaf.label}</h3>
+        <div className="d-kind">图环境 · {texPath} 第 {leaf.line} 行</div>
+        <div className="pw-kv"><span className="k">题注</span><span className="v">{leaf.text || "（无题注）"}</span></div>
+        <div className="pw-kv"><span className="k">所属</span><span className="v">{node.num ? `${node.num}　${node.title}` : node.title}</span></div>
+        <div className="pw-kv">
+          <span className="k">插图</span>
+          <span className="v mono">{leaf.file || "（没有 \includegraphics）"}</span>
+        </div>
+        <div className="pw-kv">
+          <span className="k">\label</span>
+          <span className="v mono">{leaf.texLabel || "无（不能交叉引用）"}</span>
+        </div>
+        {figure ? (
+          <div style={{ marginTop: 8 }}>
+            <FigureCard fig={figure} compact onToast={onToast} />
+          </div>
+        ) : (
+          <div className="pw-warnbox pw-warnbox--err">
+            正文插了 <code>{leaf.file || "一个没写文件名的图"}</code>，但在出图目录里找不到同名文件。
+            要么图被删了，要么名字改过——两种都会让编译出来的 PDF 少一张图。
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       <h3>{leaf.label}</h3>
-      <div className="d-kind">{isTable ? "表" : "图"}环境 · {texPath} 第 {leaf.line} 行</div>
+      <div className="d-kind">表环境 · {texPath} 第 {leaf.line} 行</div>
       <div className="pw-kv"><span className="k">题注</span><span className="v">{leaf.text || "（无题注）"}</span></div>
       <div className="pw-kv"><span className="k">所属</span><span className="v">{node.num ? `${node.num}　${node.title}` : node.title}</span></div>
       <div className="pw-kv"><span className="k">数据源</span><span className="v">未登记</span></div>
       <div className="pw-warnbox">
-        tex 里这个{isTable ? "表" : "图"}没有 \label，也没有指向 registry / predictions.json 的指针，
-        所以「这一{isTable ? "行" : "点"}数字从哪来」目前只能靠题注和文件名推断。
+        tex 里这个表没有 \label，也没有指向 registry / predictions.json 的指针，
+        所以「这一行数字从哪来」目前只能靠题注和题注里的数值推断。
         要变成可核资产，得给它一个 \label 并在 claims 里挂来源。
       </div>
       <button
@@ -305,8 +369,52 @@ function LeafDetail({
   );
 }
 
-function AssetDetail({ data, which }: { data: WritingResponse; which: "claims" | "equations" | "refs" }) {
+function AssetDetail({
+  data,
+  which,
+  figures,
+  onToast,
+}: {
+  data: WritingResponse;
+  which: "figures" | "claims" | "equations" | "refs";
+  figures: FigureItem[];
+  onToast: (m: string) => void;
+}) {
   const a = data.assets!;
+
+  if (which === "figures") {
+    const withProv = figures.filter((f) => f.provenance).length;
+    const unref = figures.filter((f) => !f.referenced).length;
+    return (
+      <>
+        <h3>图纸 {figures.length}</h3>
+        <div className="d-kind">按内容 sha256 合并后的台账</div>
+        <div className="pw-kv"><span className="k">有出处</span><span className="v">{withProv} / {figures.length}</span></div>
+        <div className="pw-kv"><span className="k">被引用</span><span className="v">{figures.length - unref} / {figures.length}</span></div>
+        <div className="pw-kv"><span className="k">散落多处</span><span className="v">{figures.filter((f) => f.dirCount > 1).length} 张</span></div>
+        {figures.length === 0 && <div className="pw-warnbox">出图目录里没有图片。</div>}
+        <div className="pw-sec">
+          <div className="pw-sec-h">逐张</div>
+          {figures.map((f) => (
+            <div className="pw-refrow" key={f.fig_id}>
+              <span className="rid">{f.referenced ? `图 ${f.refs[0].num}` : "—"}</span>
+              <span className="rtx" title={f.refs[0]?.caption || f.base}>
+                {f.refs[0]?.caption || f.base}
+              </span>
+              <span className={`pw-badge ${f.provenance ? "b-ok" : "b-mut"}`}>
+                {f.provenance ? "有出处" : "无出处"}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="pw-warnbox">
+          这里只做「合并 + 挂出处」，不判定图里的数据对不对。要判数据，得拿旁文件里的
+          数据指纹回 registry 重画一遍比对——那一步还没做。
+        </div>
+      </>
+    );
+  }
+
   if (which === "claims") {
     return (
       <>

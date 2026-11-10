@@ -20,7 +20,8 @@ const uid = () => `m${++msgSeq}`;
 function viewFromHash(): ViewMode {
   const h = (typeof location !== "undefined" ? location.hash : "").replace(/^#/, "");
   if (h === "papers") return "papers";
-  if (h === "library" || h === "writing") return "library";
+  // writing / figures 都是论文库里的 tab，落到同一个视图，具体 tab 由 PaperWorkspace 按 hash 决定
+  if (h === "library" || h === "writing" || h === "figures") return "library";
   return "chat";
 }
 
@@ -204,7 +205,7 @@ export default function App() {
   // 这里不去覆盖，否则刷新后「写作台」会被重置回论文库。
   useEffect(() => {
     if (viewMode === "library") {
-      if (location.hash !== "#library" && location.hash !== "#writing") {
+      if (!["#library", "#writing", "#figures"].includes(location.hash)) {
         history.replaceState(null, "", "#library");
       }
       return;

@@ -23,7 +23,8 @@ import { canonicalSessionKey } from "../shared/session_key.mjs";
 import { BudgetGate, budgetFromEnv } from "../shared/run_budget.mjs";
 import { TraceReader, agentStateDb } from "../shared/trace_source.mjs";
 import { isCurrentRoundLine } from "../shared/tail_time.mjs";
-import { collectLibrary, collectWriting } from "./paper_index.mjs";
+import { collectLibrary, collectWriting, findRepoPaperTex } from "./paper_index.mjs";
+import { collectFigures, isFigId } from "./figure_index.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -958,6 +959,85 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       return sendJSON(res, 200, { available: false, project: cur.name, reason: `解析失败：${e.message}`, hint: "" });
     }
+  }
+
+  // 图纸台账：一张图 = 一条（按内容 sha256 合并散落各目录的副本），
+  // 挂正文引用位置与出图时写的旁文件。id 是内容寻址的 fig-<sha8>。
+  //
+  // 索引要遍历目录 + 算 sha，页面一次会取十几张预览图，不缓存就会重复扫盘。
+  // 5 秒 TTL：改完图顺手刷新页面就能看到，又不会每次点击都重扫。
+  let figCache = { key: "", at: 0, data: null };
+  async function figureIndexFor(cur) {
+    const key = cur.project.path;
+    const now = Date.now();
+    if (figCache.key === key && now - figCache.at < 5000 && figCache.data) return figCache.data;
+    const data = collectFigures({
+      projectPath: cur.project.path,
+      repoRoot: REPO_ROOT,
+      projectName: cur.name,
+      texPath: findRepoPaperTex(REPO_ROOT),
+    });
+    figCache = { key, at: now, data };
+    return data;
+  }
+
+  if (p === "/api/writing/figures" && req.method === "GET") {
+    const cur = await loadActiveProject();
+    if (!cur) {
+      return sendJSON(res, 200, {
+        available: false,
+        reason: "无活跃项目",
+        hint: "在左上角选择一个课题",
+        figures: [],
+        summary: null,
+      });
+    }
+    try {
+      return sendJSON(res, 200, await figureIndexFor(cur));
+    } catch (e) {
+      return sendJSON(res, 200, {
+        available: false,
+        project: cur.name,
+        reason: `索引失败：${e.message}`,
+        hint: "",
+        figures: [],
+        summary: null,
+      });
+    }
+  }
+
+  // 取图纸文件：/api/writing/figures/<fig-xxxxxxxx>/preview.png | file.pdf
+  // id 是内容寻址的，内容不会变，可以放心长缓存；非法 id 一律 400，不做任何路径拼接。
+  if (p.startsWith("/api/writing/figures/") && (p.endsWith("/preview.png") || p.endsWith("/file.pdf"))) {
+    const parts = p.split("/");
+    const id = parts[4];
+    const want = p.endsWith("/preview.png") ? "png" : "pdf";
+    if (!isFigId(id)) return sendJSON(res, 400, { error: "invalid fig id" });
+
+    const cur = await loadActiveProject();
+    if (!cur) return sendJSON(res, 404, { error: "无活跃项目" });
+    const idx = await figureIndexFor(cur);
+    const fig = (idx.figures || []).find((f) => f.fig_id === id);
+    if (!fig) return sendJSON(res, 404, { error: "图纸不存在（索引可能刚变化，刷新重试）" });
+
+    const copy = fig.copies.find((c) => c.format === want);
+    if (!copy) {
+      // 只有 pdf 没有 png 时，预览退到 pdf 没意义（浏览器会开阅读器），如实说没有
+      return sendJSON(res, 404, { error: `这张图没有 ${want}` });
+    }
+    const abs = join(cur.project.path, copy.rel);
+    const base = join(cur.project.path) + path.sep;
+    if (!abs.startsWith(base)) return sendJSON(res, 403, { error: "path out of project" });
+    if (!existsSync(abs)) return sendJSON(res, 404, { error: "文件已不在磁盘上" });
+
+    const buf = readFileSync(abs);
+    res.writeHead(200, {
+      "Content-Type": want === "png" ? "image/png" : "application/pdf",
+      "Content-Length": buf.length,
+      "Cache-Control": "public, max-age=86400, immutable",
+    });
+    res.end(buf);
+    return;
   }
 
   // 上传 PDF
