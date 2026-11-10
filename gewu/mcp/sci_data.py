@@ -25,6 +25,7 @@ from mcp.server.fastmcp import FastMCP
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from context_compactor import compact as _compact, expand as _expand  # noqa: E402
+from untrusted import attach as _attach_untrusted  # noqa: E402
 
 SERVER = "sci-data"
 mcp = FastMCP(SERVER)
@@ -339,6 +340,14 @@ def parse_figure(image_path: str, question: str = "", max_b64: int = 0) -> dict:
             "关键数值请与正文表格或原始数据文件二次对照，不要单独采信。"
         ),
     }
+    # 图里的文字也是外部输入：一张带「忽略以上指令」水印的图，会被视觉模型照抄进 figure 字段。
+    # 只挂标注、不动任何读数（数值保真是硬约束）。
+    _attach_untrusted(
+        payload,
+        json.dumps(figure, ensure_ascii=False),
+        source=os.path.abspath(image_path),
+        kind="vision_readout",
+    )
     return _out(payload, "parse_figure")
 
 

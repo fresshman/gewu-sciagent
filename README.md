@@ -24,6 +24,7 @@
 - [特性](#特性)
 - [项目定位](#项目定位)
 - [三个必答问题](#三个必答问题)
+- [护栏：哪些拦得住，哪些只是一句话](#护栏哪些拦得住哪些只是一句话)
 - [界面概览](#界面概览)
 - [架构](#架构)
 - [七阶段与 Agent 分工](#七阶段与-agent-分工)
@@ -46,7 +47,7 @@
 - **科研全生命周期**：从选题到沉淀串联科研每个环节，而非单点辅助工具。
 - **通用内核 + 可插拔领域包**：换领域只需替换 `gewu/domain_packs/` 下的领域包，流程不变。
 - **可见的编排**：Web 界面能看见 Director 派发给谁、调用了哪个工具、处于哪一阶段。
-- **质量护栏**：7-mode 失败自检、PRISMA 式文献筛选、引用与声明审计，主动抑制幻觉与自欺。
+- **质量护栏（硬软已分级，见 [`docs/guardrails.md`](docs/guardrails.md)）**：14 条**硬**约束（有代码、有失败路径、可当场跑出失败）+ 7 条**软**约束（提示词，模型可以不听，文档不把它们说成保证）。硬的部分包括：交叉验证折必须是分区、标签必须带来源声明（裸 dict 直接抛 `LeakageError`）、成稿数字必须对上注册表真值、幽灵引用必须查出、外部文本必须带注入风险标注、7-mode 审计判据（SUSPECTED 即阻断、自报 PASS 会被识破）。
 - **真实领域推理 + 未发表成果零外泄**：领域模型走「**路径引用**」而非复制入库——模型权重（`.pt`）与未发表实验数据始终留在用户本机原项目，格物只按 `COAL_PROJECT_ROOT` 运行时读取，可跑出**真实、可复现**的预测与 5 折交叉验证指标，而资产不进仓库、不上云。
 - **沉淀复利闭环**：第 ⑦ 阶段把方法与踩坑固化为 OpenClaw Skill + 长周期记忆。
 - **科研阅读闭环（最大化书生多模态）**：反幻觉校验（arXiv/CrossRef/S2/CrossRef 标题回退四层）→ **原页多模态理解**（`sheng/intern-s2` 直接读 PDF 原页的图/表/公式做跨模态联合推理，而非先经视觉模型转文本）→ 本机书生对抗评审循环。书生在格物里同时是「长程科研智能体调度器」「通专融合内核」与「科学多模态原页理解承载者」，三项能力均被功能化使用。**原页理解已用真实论文两轮实测**：中文 LIBS 论文一輪读出图内标注 `RMSEp=1.097`、PCA 方差解释率 `PC1 47.9%/43.2%` 等**纯文本抽取拿不到的数值**，并通过「结果页+方法页」联合推理发现跨页归因缺口；三篇英文正式期刊论文一輪（Talanta 2025 / Spectrochim. Acta B 2024 / JAAS，DOI 均已核验，见 [`docs/verification/2026-10-23-english-papers.md`](docs/verification/2026-10-23-english-papers.md)）在文本层仅剩图注的页面上完整读出流程图步骤与方法示意图符号，且能识别「图中未标注」而不把正文表格数字冒充为图内读数。实测同时暴露两类风险（数字末位/位序误读、长输出前后矛盾），已固化为技能纪律：关键数字二次复读并与正文表格对照、结构化表格一次性输出。
@@ -60,7 +61,7 @@
 | **通用内核 + 可插拔领域包** | 「大颗粒原煤 LIBS 光谱热值预测」只是首个**参考实现**；换领域只需替换 `gewu/domain_packs/` 下的领域包。**已用第二个真实领域验证引擎零改动**：442×10 的临床表格回归（UCI Diabetes）只加注册表与脚本即可被 `rerun_experiment` 重算复现，见 [`docs/verification/2026-11-10-domain-generality.md`](docs/verification/2026-11-10-domain-generality.md) |
 | **沉淀复利闭环** | 第 ⑦ 阶段把方法与踩坑固化为 OpenClaw Skill + 长周期记忆，系统随使用不断变强 |
 | **可见的编排** | Web 界面能看见 Director 派发给谁、调用了哪个工具、当前处于哪一阶段 |
-| **质量护栏** | 7-mode 失败自检、PRISMA 式文献筛选、引用与声明审计，主动抑制幻觉与自欺 |
+| **质量护栏** | 分**硬**与**软**两栏如实列出，不混为一谈：硬约束有代码、有失败路径（`LeakageError`、`drift`、`phantom`、`exit 1`），软约束只是提示词、明确标注「不保证」。详见 [`docs/guardrails.md`](docs/guardrails.md) |
 
 ## 三个必答问题
 
@@ -74,6 +75,25 @@
 
 > 与 AI Scientist v2 / Kosmos / Robin / PaperQA2 的逐维对照见 [`docs/comparison.md`](docs/comparison.md)。
 > 那份对照里**把我们落后的格子也列出来了**（自主提假说、湿实验、领域覆盖），不做「我们全面领先」的假对比。
+
+## 护栏：哪些拦得住，哪些只是一句话
+
+科研 Agent 最容易糊弄人的地方是「我加了护栏」。所以这里先分栏，再谈覆盖。
+
+| 类别 | 数量 | 判据 | 例子 |
+|---|---|---|---|
+| **硬约束** | 14 | 有代码、有失败路径、**能让命令以非零码退出** | 折必须分区、标签必须带来源（裸 dict 抛错）、幽灵引用判 `phantom`、成稿数字对不上注册表判 `drift`、注入风险必标注、门禁任一项失败即 `exit 1` |
+| **软约束** | 7 | 只是提示词/技能文档里的一句话，**模型可以不听** | 「关键数值请二次对照」、「不得宣称 LSE 有优势」、「中文文献须人工核验」 |
+
+三条值得单独说的硬约束（都是本轮补的，之前只有文档口径）：
+
+- **真值隔离**：`run_cv` 只接受 `TruthLabels`（由 `truth_from_measured(values, source=...)` 构造）。传裸 `dict`、折里有重复 bag、轨迹里多出不在任何折中的特征，都会抛 `LeakageError` —— 而且**在拟合之前**抛，不会先跑完再告诉你结果作废。
+- **注入缓解**：PDF 文字层与视觉读数返回时带 `untrusted` / `page_text_untrusted` 与风险评级（`high` 命中指令覆盖/角色劫持/提示词外泄/凭据探测）。**标注不改变事实判定**：注入页里真实存在的数字仍判 `grounded`，不让攻击者用一句话否定数据。检测是正则启发式，**一定存在漏报**，`risk=none` 不等于安全。
+- **7-mode 门禁**：判据可执行（`python scripts/failure_audit_gate.py --self-test` 六条全过），且**自己重算 gate 而不采信日志里写的 gate**、`CLEAR` 但没写证据算失败、`{"verdict":"PASS_WITH_NOTES"}` 这种自由文本总评会被判成「不是 7-mode 日志」。
+
+**必须写明的一条短板**：7-mode 的判据虽硬，但**至今没有任何一份 `failure_audit_log.json`**（实测 `find . -name failure_audit_log.json` 为空，`handoff_4` 里那个字段是自由文本总评）。所以它在实践中仍是软约束——`verify_all` 第 5 项记 **SKIP 而不是 PASS**，「没有日志」和「审计通过」不是同一件事。
+
+完整清单（含每条的可复跑命令、以及这套护栏**明确拦不住什么**）见 [`docs/guardrails.md`](docs/guardrails.md)。
 
 ## 界面概览
 
@@ -155,6 +175,7 @@ gewu-sciagent/
 ├── LICENSE                    # Apache-2.0
 ├── NOTICE                     # 第三方方法论借鉴署名
 ├── requirements.txt           # Python MCP 工具层依赖（只含本仓代码实际导入的包）
+├── requirements.lock.txt      # 精确版本锁（73 包，含顶层 9 个；由 scripts/lock_deps.py 生成）
 ├── requirements-coal.txt      # 可选：跑 MIL 真实推理才需要的 torch
 ├── .env.example               # 环境变量示例（真实值填 .env，已被 Git 忽略）
 ├── .gitignore
@@ -162,15 +183,19 @@ gewu-sciagent/
 │   ├── architecture.md        # 架构设计与落地路线图
 │   ├── value.md               # 谁会用 / 比现状强在哪 / 一次多少钱（含明确不如的地方）
 │   ├── comparison.md          # 与 AI Scientist v2 / Kosmos / Robin / PaperQA2 的逐维对照
+│   ├── guardrails.md          # 护栏清单：14 条硬约束 / 7 条软约束，以及「明确拦不住什么」
 │   ├── verification/          # 端到端实测记录（含反幻觉链、第二领域、成本台账与缺口清单）
 │   └── images/                # ui-workbench.png（真实运行截图）/ ui-workbench-full.png / ui-overview.svg（架构示意）
-├── tests/                     # Python 侧 20 个测试文件 / 235 条用例（反幻觉、瘦身层、最小课题链路、PDF 编译、引擎获取、全量门禁等）
-├── scripts/                   # verify_all（一键全量门禁）/ bootstrap_openclaw_config（生成网关配置）/
+├── tests/                     # Python 侧 24 个测试文件 / 307 条用例（反幻觉、瘦身层、最小课题链路、
+│                              #   真值隔离、注入缓解、7-mode 门禁、依赖锁、全量门禁等）
+├── scripts/                   # verify_all（一键全量门禁）/ failure_audit_gate（7-mode 门禁）/
+│                              #   lock_deps（生成依赖锁）/ bootstrap_openclaw_config（生成网关配置）/
 │                              #   create_project / export_case_bundle / e2e_smoke_test / run_min_case /
 │                              #   fetch_tectonic（下载并校验 tectonic）/ ablation_ingest（消融落库）/
 │                              #   run_domain_diabetes（第二真实领域）/ cost_audit（token 与成本审计）
 ├── gewu/latex_build.py        # TeX 编译引擎（探测/编译/日志解析/缺字与 overfull 检测/内容指纹）
 ├── gewu/demo/                 # 最小课题（合成数据七阶段，零外部依赖）+ 十层校验器
+│   ├── truth_guard.py         #   真值隔离强制层（TruthLabels / 折分区 / 训练验证不相交）
 │   ├── synth.py               #   合成 LIBS 数据集（已知机制，可验证 MIL 假设）
 │   ├── mil_lite.py            #   三臂 MIL（numpy/sklearn，无需 torch）
 │   ├── pipeline.py            #   七阶段编排 + 注册表条目 + 快照
@@ -238,6 +263,12 @@ python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt  # 只含本仓代码实际导入的包，注意需 mcp 1.x
 ```
+
+**要复现论文里的数字，请按锁装**（`requirements.txt` 是区间，锁是 2026-11-10 跑出那些数字的
+具体版本组合；`pip install -r requirements.lock.txt`）。锁的边界写在文件头里：
+只锁版本，**不锁 wheel 哈希、不锁平台**，所以它不是可复现构建定义，只是「当时那一套」。
+改了 `requirements.txt` 必须重跑 `python scripts/lock_deps.py`，否则
+`tests/test_deps_lock.py::test_lock_is_not_stale` 会失败——锁过期是最常见的「假锁定」。
 
 `requirements.txt` 覆盖 7 个自研 **Python** MCP 服务（sci-compute / sci-data / sci-exp /
 sci-plot / mil-model / report / sci-verify）。剩下 3 个不在这一份依赖里：
@@ -334,43 +365,40 @@ openclaw config validate         # 校验配置
 openclaw mcp probe               # 验证 10 个 MCP 服务（8 个本机 + 2 个外部包）
 ```
 
-### 5. 跑测试与全量门禁（两套件 283 用例 + 端到端）
+### 5. 跑测试与全量门禁（两套件 355 用例 + 端到端 + 7-mode 门禁）
 
 **只想知道「这仓库能不能用」，跑这一条就够**（评审/验收用）：
 
 ```bash
-python scripts/verify_all.py          # 四项：pytest + node --test + 最小课题十层 + 真实课题 e2e
+python scripts/verify_all.py          # 五项：pytest + node --test + 最小课题十层 + 真实课题 e2e + 7-mode 门禁
 python scripts/verify_all.py --fast   # 只跑两套单测，秒级
 python scripts/verify_all.py --json   # 机器可读，便于接任何 CI
 ```
 
-- 退出码 **0 = 没有硬失败**；缺 node、缺真实课题存档、本机无 TeX 引擎时，对应项标 `SKIP`
-  并写明缺哪个外部条件，**不计为通过**。
-- 2026-11-09 实测两处，**结论不同，都如实写**：
-  - 仓库内（本机有存档、有 node、有 TeX）：**4 项全 PASS，37–44 s**（差异来自磁盘缓存与是否需要重编 PDF）；
-  - 干净 clone（只有代码，无 `output/documents`）：**3 PASS + 1 SKIP，exit 0**，SKIP 的是真实课题 e2e
-    （`exit=2` 不适用）。所以「克隆下来一条命令就全绿」是**假**的，正确说法是「0 失败、有 1 项因缺
-    未入库数据而跳过」。
+- 退出码 **0 = 没有硬失败**；缺 node、缺真实课题存档、本机无 TeX 引擎、**无 7-mode 审计日志**时，
+  对应项标 `SKIP` 并写明缺哪个外部条件，**不计为通过**。
+- 2026-11-10 实测：仓库内（本机有存档、有 node、有 TeX）**4 PASS + 1 SKIP，exit 0**，
+  SKIP 的是第 5 项 7-mode 门禁（`exit=2`）——因为仓库里一份审计日志都没有。
+  这一项不是「跑失败了」，是「没有输入」；把它记成 PASS 才是真的骗人。
+- 干净 clone 的数字见 [`docs/verification/2026-11-04-clean-unpack-drill.md`](docs/verification/2026-11-04-clean-unpack-drill.md) §13，
+  里面同时写明「克隆下来一条命令就全绿」是**假**的，正确说法是「0 失败、有几项因缺未入库数据而跳过」。
 - **本仓库没有接入托管 CI**：仅在 Gitee 托管，未开启 Gitee Go，所以不存在「每次 push 自动跑」的证据。
   上面这条命令是等价的本地门禁；作者不把「提供一个配置文件」说成「已接 CI」。
 
 分项说明如下。
 
 ```bash
-# Python 侧：反幻觉链 / 结果瘦身层 / MCP 超时层级 / stdin 守护
-python -m pytest tests -q              # 共 235 用例。硬指标是 0 failed。passed/skipped 的具体条数会随四个外部条件浮动，
+# Python 侧：反幻觉链 / 结果瘦身层 / MCP 超时层级 / stdin 守护 / 真值隔离 / 注入缓解 / 依赖锁
+python -m pytest tests -q              # 共 307 用例。硬指标是 0 failed。passed/skipped 的具体条数会随四个外部条件浮动，
 #   所以这里只给带日期的实测快照，不承诺固定数字：
 #   ① test_verify_papers_fallback —— CrossRef 限流或断网时返回 verify_pending 而跳过；
 #   ② test_mcp_timeout_hierarchy —— 解包目录里没有 gitignore 的 .coal_project_root 时跳过；
 #   ③ test_e2e_chain 的 3 条 —— 真实课题存档（output/documents）按设计不入库，无存档时跳过；
 #   ④ test_ablation_ingest 的 2 条 —— 外部煤项目按设计不入库，找不到时跳过；
 #   ⑤ test_fetch_tectonic 的联网安装 —— 要下载 20 MB，仅 GEWU_TEST_FETCH=1 时运行。
-#   用 `-rs` 可以看到每条跳过的原因。实测（2026-11-09 / 11-10）：
-#     仓库内（本机有存档）：233 passed / 2 skipped / 0 failed（36.81s）；复跑 234 passed / 1 skipped（37.95s）
-#       —— 差的正是 test_verify_papers_fallback，它要联网核 CrossRef，随网络通断浮动，非代码随机
-#     干净 clone（新建 venv，仅 pip install -r requirements.txt）：228 passed / 7 skipped /
-#       0 failed（35.29s）。233+2 = 228+7 = 235，总数对得上，差值全来自
-#       上面 ③④ 的 5 条「本机缺未入库数据」——不是失败。
+#   用 `-rs` 可以看到每条跳过的原因。实测（2026-11-10）：
+#     仓库内（本机有存档）：306 passed / 1 skipped / 0 failed（44.03s）
+#     干净 clone（新建 venv）：见 docs/verification/2026-11-04-clean-unpack-drill.md §13
 #   跳过全是「本机没有某个外部条件」，不是失败；若看到 failed 才是真问题。
 # 完整开箱演练记录见 docs/verification/2026-11-04-clean-unpack-drill.md。
 
@@ -572,6 +600,7 @@ A：替换 `gewu/domain_packs/` 下的领域包即可，通用内核与七阶段
 | [`docs/architecture.md`](docs/architecture.md) | 架构设计、配置要点与分阶段落地路线图 |
 | [`docs/value.md`](docs/value.md) | **价值 / 边界 / 成本**：谁会用（三类角色 + 触发场景）、比手工与通用 LLM 强在哪、**明确不如的地方**、一次 0.25–2.93 元的逐项算法与口径 |
 | [`docs/comparison.md`](docs/comparison.md) | **横向对照**：与 AI Scientist v2 / Kosmos / Robin / PaperQA2 的逐维对照（含我们落后的格子），公开资料来源与检索日期，声明未实测 |
+| [`docs/guardrails.md`](docs/guardrails.md) | **护栏清单**：14 条硬约束（有代码/有失败路径/有可复跑命令）与 7 条软约束（提示词，模型可以不听）逐条分栏；含「7-mode 判据已可执行但至今无日志，故仍是软约束」的自曝，以及这套护栏**明确拦不住什么**（手工改 labels、启发式漏报、图内读数、选择偏差、无托管 CI） |
 | [`docs/paper/README.md`](docs/paper/README.md) | **论文成品**：两篇 `.tex` 源 + 编译好的 PDF（9 页 / 3 页）、内容指纹与页数，说明为何用文本指纹而非文件哈希、以及 `214.57` 与 `73.03` 禁止并列比较 |
 | [`docs/verification/2026-11-10-domain-generality.md`](docs/verification/2026-11-10-domain-generality.md) | **第二真实领域取证**：442×10 临床表格回归（UCI Diabetes）只加注册表与脚本即被引擎重算复现，三条实验 `abs_diff` 均在 1e-5 量级；含「增广红利未跨域迁移」的**负面结论**与「只验机制、不验方法」的边界声明 |
 | [`docs/verification/2026-11-09-component-ablation.md`](docs/verification/2026-11-09-component-ablation.md) | **组件级消融取证**：最终配置下逐个关闭 FiLM / SupCon / huber，各重训完整 5 折（20 折，CPU 约 127 min）。结论是**阴性**：效应量 +11.69 / +10.55 / +2.39 kcal/kg，但 `p=0.294/0.393/0.580`、95% CI 全部跨 0、5 折方向不一致，且 83%–95% 的均值差由单一离群折贡献；含「同配置跨环境重训」噪声标尺（单折最大差 22.56）与分辨率上限估算 |

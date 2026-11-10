@@ -146,6 +146,17 @@ def build_steps(fast: bool = False, python: str | None = None) -> list[Step]:
                 note="有存档时校验数值/溯源/PDF 与论文自洽",
             )
         )
+        steps.append(
+            Step(
+                name="7-mode 失败自检门禁",
+                argv=[py, "scripts/failure_audit_gate.py"],
+                exit_notes={
+                    2: "不适用：仓库内没有任何 failure_audit_log.json —— 该审计从未留下记录，"
+                       "按 SKILL.md 它本该在 reproduction/improver/writer/distillation 各阶段末产出"
+                },
+                note="有日志时校验 7 条四态裁决；SUSPECTED / INSUFFICIENT 即阻断",
+            )
+        )
     return steps
 
 

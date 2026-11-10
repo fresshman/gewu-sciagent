@@ -39,6 +39,8 @@ from pathlib import Path
 
 import numpy as np
 
+from .truth_guard import truth_from_measured
+
 # 通道数（真实 LIBS 常见 2k-8k，这里取小值以保证秒级跑完；机制与通道数无关）
 N_CHANNELS = 384
 # 谱峰中心（以通道比例表示），对应 6 个特征谱线
@@ -246,3 +248,19 @@ def load_bags(root: Path) -> tuple[list[np.ndarray], np.ndarray, list[str], dict
 def split_folds(root: Path) -> list[list[str]]:
     data = json.loads((Path(root) / "split.json").read_text(encoding="utf-8"))
     return data["folds"]
+
+
+def load_truth(root: Path):
+    """读回 ``labels.json`` 并**声明来源** —— 真值隔离的唯一合法入口。
+
+    与 ``load_bags`` 返回的裸数组不同，这里返回 `TruthLabels`（带 source），
+    `run_cv` 只接受这种类型。这样「标签是从哪来的」在类型层面就留了痕，
+    而不是靠调用方自觉写对。
+    """
+    p = Path(root) / "labels.json"
+    labels = json.loads(p.read_text(encoding="utf-8"))
+    return truth_from_measured(
+        {k: float(v) for k, v in labels.items()},
+        source=str(p.resolve()),
+        unit="kcal/kg",
+    )

@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "method": "tiktoken 对真实落盘产物分词；输出侧实测，输入侧为重构下界（不含系统提示/工具 schema/重试/会话历史）",
-  "measured_at_local": "2026-11-10 09:07:02",
-  "gewu_commit": "ad2c6317f7e2b4ff32d1da60960fd3ad2dc218a5",
+  "measured_at_local": "2026-11-10 09:25:17",
+  "gewu_commit": "491c9982bb174ab13c08359401dc4d61c84b8ddb",
   "stages": [
     {
       "stage": 1,
@@ -10,8 +10,8 @@
       "label": "方向立项",
       "instruction_files": 4,
       "instruction_tokens": {
-        "o200k_base": 5259,
-        "cl100k_base": 6522
+        "o200k_base": 5806,
+        "cl100k_base": 7174
       },
       "context_tokens": {
         "o200k_base": 0,
@@ -30,8 +30,8 @@
       "label": "文献调研",
       "instruction_files": 5,
       "instruction_tokens": {
-        "o200k_base": 9380,
-        "cl100k_base": 11384
+        "o200k_base": 9927,
+        "cl100k_base": 12036
       },
       "context_tokens": {
         "o200k_base": 1051,
@@ -50,8 +50,8 @@
       "label": "复现基线",
       "instruction_files": 6,
       "instruction_tokens": {
-        "o200k_base": 8328,
-        "cl100k_base": 10190
+        "o200k_base": 8875,
+        "cl100k_base": 10842
       },
       "context_tokens": {
         "o200k_base": 1456,
@@ -70,8 +70,8 @@
       "label": "改进与消融",
       "instruction_files": 7,
       "instruction_tokens": {
-        "o200k_base": 9102,
-        "cl100k_base": 11118
+        "o200k_base": 9649,
+        "cl100k_base": 11770
       },
       "context_tokens": {
         "o200k_base": 783,
@@ -90,8 +90,8 @@
       "label": "撰写",
       "instruction_files": 6,
       "instruction_tokens": {
-        "o200k_base": 8810,
-        "cl100k_base": 10714
+        "o200k_base": 9357,
+        "cl100k_base": 11366
       },
       "context_tokens": {
         "o200k_base": 5825,
@@ -110,8 +110,8 @@
       "label": "投稿匹配",
       "instruction_files": 12,
       "instruction_tokens": {
-        "o200k_base": 17271,
-        "cl100k_base": 19505
+        "o200k_base": 17818,
+        "cl100k_base": 20157
       },
       "context_tokens": {
         "o200k_base": 2294,
@@ -130,8 +130,8 @@
       "label": "沉淀",
       "instruction_files": 6,
       "instruction_tokens": {
-        "o200k_base": 7986,
-        "cl100k_base": 9680
+        "o200k_base": 8533,
+        "cl100k_base": 10332
       },
       "context_tokens": {
         "o200k_base": 2762,
@@ -171,8 +171,8 @@
       "cl100k_base": 18873
     },
     "input_tokens_lower_bound": {
-      "o200k_base": 80307,
-      "cl100k_base": 94986
+      "o200k_base": 84136,
+      "cl100k_base": 99550
     },
     "deliverable_tokens": {
       "o200k_base": 13008,
@@ -218,21 +218,21 @@
       "model": "DeepSeek-V4-Flash（空闲时段）",
       "currency": "CNY",
       "cost_range": [
-        0.2546,
-        0.2928
+        0.2603,
+        0.2997
       ],
       "sensitivity_by_retry_multiplier": {
         "1": [
-          0.2546,
-          0.2928
+          0.2603,
+          0.2997
         ],
         "3": [
-          0.7638,
-          0.8784
+          0.781,
+          0.899
         ],
         "10": [
-          2.5459,
-          2.9281
+          2.6034,
+          2.9966
         ]
       },
       "source": "腾讯网转央视财经《DeepSeek调价，今日生效》(2026-08-17)：空闲 V4-Flash 输入 1.5 元、输出 4.5 元/百万 tokens",
@@ -242,21 +242,21 @@
       "model": "DeepSeek-V4-Flash（高峰时段）",
       "currency": "CNY",
       "cost_range": [
-        0.5092,
-        0.5856
+        0.5207,
+        0.5993
       ],
       "sensitivity_by_retry_multiplier": {
         "1": [
-          0.5092,
-          0.5856
+          0.5207,
+          0.5993
         ],
         "3": [
-          1.5276,
-          1.7569
+          1.562,
+          1.7979
         ],
         "10": [
-          5.0918,
-          5.8562
+          5.2067,
+          5.9931
         ]
       },
       "source": "同上（高峰为闲时两倍）",
@@ -266,21 +266,21 @@
       "model": "DeepSeek-V4-Pro（空闲时段）",
       "currency": "CNY",
       "cost_range": [
-        0.7638,
-        0.8784
+        0.781,
+        0.899
       ],
       "sensitivity_by_retry_multiplier": {
         "1": [
-          0.7638,
-          0.8784
+          0.781,
+          0.899
         ],
         "3": [
-          2.2913,
-          2.6353
+          2.343,
+          2.6969
         ],
         "10": [
-          7.6378,
-          8.7843
+          7.8101,
+          8.9897
         ]
       },
       "source": "同上：空闲 V4-Pro 输入 4.5 元、输出 13.5 元/百万 tokens",

@@ -54,6 +54,9 @@ from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 SEED = 42
 N_FOLDS = 5
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+from gewu.demo.truth_guard import assert_disjoint as _assert_disjoint  # noqa: E402
 
 
 # --------------------------------------------------------------------------
@@ -134,6 +137,9 @@ def cv_arm(build, X, y, folds):
     per_fold_rmse, per_fold_mae, per_fold_r2 = [], [], []
     preds = {}
     for k, (tr, te) in enumerate(folds):
+        # 真值隔离硬检查：第二个领域同样跑同一套 guard，不是只在合成域演示一次。
+        # KFold 本应天然不相交；这里断言的是「本应」不能替代「确实」。
+        _assert_disjoint([str(i) for i in tr], [str(i) for i in te])
         model = build()
         model.fit(X[tr], y[tr])
         p = np.asarray(model.predict(X[te]), dtype=float).ravel()

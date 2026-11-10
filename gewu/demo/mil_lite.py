@@ -38,6 +38,8 @@ import numpy as np
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.linear_model import RidgeCV
 
+from .truth_guard import assert_disjoint, check_cv_inputs
+
 N_BINS = 64
 N_COMPONENTS = 6
 BETA_GRID = (0.0, 0.25, 0.5, 1.0, 2.0, 4.0)
@@ -321,7 +323,14 @@ def run_cv(feats: dict, ys: dict, folds: list[list[str]]) -> dict:
 
     返回结构与真实课题的 ``summary.json`` 保持同构（``per_fold`` / ``mean`` /
     ``std`` / ``predictions``），便于下游沿用同一套校验逻辑，不必为演示另写一套。
+
+    **前置强制检查（真值隔离，不可跳过）**：``ys`` 必须是
+    `truth_guard.truth_from_measured()` 造出来的 `TruthLabels`（带来源声明），
+    折划分必须是分区。裸 dict 会抛 `LeakageError`——这是故意的，
+    因为「把上一轮预测当标签」在裸 dict 下无法被任何检查发现。
     """
+    folds = check_cv_inputs(ys, folds, feats)
+
     per_fold: list[dict] = []
     preds: list[dict] = []
     all_ids = [bid for fold in folds for bid in fold]
@@ -331,6 +340,7 @@ def run_cv(feats: dict, ys: dict, folds: list[list[str]]) -> dict:
         tr = [b for b in all_ids if b not in va_set]
         if not tr or not va:
             raise ValueError(f"第 {f} 折为空，划分文件损坏")
+        assert_disjoint(tr, va)
         model = fit_fold(tr, feats, ys)
         pr = predict_fold(model, va, feats)
         y_true = np.array([ys[b] for b in va], dtype=np.float64)

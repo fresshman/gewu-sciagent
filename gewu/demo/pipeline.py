@@ -745,7 +745,9 @@ def run(
     info = synth.materialise(ds, out / "data")
     mats, ys_arr, ids, card = synth.load_bags(out / "data")   # 真实读盘，验证 I/O
     folds = synth.split_folds(out / "data")
-    ys = {bid: float(v) for bid, v in zip(ids, ys_arr)}
+    # 标签必须带来源声明（真值隔离）：load_truth 读的就是落盘的 labels.json，
+    # 不允许在这里用 ys_arr 直接拼一个裸 dict——那正是「预测回填」能溜进来的缝。
+    ys = synth.load_truth(out / "data")
     feats = {bid: mil_lite.build_features(m) for bid, m in zip(ids, mats)}
     n_inst = sum(f["shape"].shape[0] for f in feats.values())
     log(f"    bag={info['n_bags']} 实例={n_inst} 文件={info['n_files']}")

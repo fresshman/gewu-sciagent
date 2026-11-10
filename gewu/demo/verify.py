@@ -276,7 +276,7 @@ def check_determinism(c: Checker, case: Path) -> None:
     try:
         mats, ys_arr, ids, _ = synth.load_bags(case / "data")
         folds = synth.split_folds(case / "data")
-        ys = {b: float(v) for b, v in zip(ids, ys_arr)}
+        ys = synth.load_truth(case / "data")   # 带来源声明，run_cv 才接受
         feats = {b: mil_lite.build_features(m) for b, m in zip(ids, mats)}
         res = mil_lite.run_cv(feats, ys, folds)
     except Exception as e:  # pragma: no cover - 环境问题需显式暴露
