@@ -27,7 +27,7 @@
 | H7 | 成稿里的数字必须能对上注册表真值（紧容忍 1%+0.01） | `gewu/mcp/claim_provenance.py`（D2） | 状态 `drift`，claim 审计不通过 | `pytest tests/test_claim_provenance.py` |
 | H8 | 幽灵引用（`\cite` 指向未核验文献）必须被查出 | `gewu/mcp/citation_lint.py`（D3） | 状态 `phantom` | `pytest tests/test_citation_lint.py` |
 | H9 | 声称「来自正文/表格文本层」的数字必须真在该页文本里 | `gewu/mcp/source_ground.py`（D4） | 状态 `value_not_in_text_layer` | `pytest tests/test_source_ground.py` |
-| H10 | 外部文本（PDF 页、视觉读数）返回时必须带注入风险标注 | `gewu/mcp/untrusted.py` + `sci_data` / `source_ground` | 返回体缺 `untrusted` / `page_text_untrusted` 即测试失败 | `pytest tests/test_untrusted.py tests/test_source_ground.py` |
+| H10 | 外部文本（PDF 页、视觉读数）返回时必须带注入风险标注 | `gewu/mcp/untrusted.py` + `sci_data.parse_figure` / `source_ground.verify_source_span` | `source_ground` 缺 `page_text_untrusted` 即测试失败；`parse_figure` 的 `untrusted` 字段只在真实调用（需 API Key、联网）时才产生，故仅由 `attach()` 单测覆盖，**未做端到端断言** | `pytest tests/test_untrusted.py tests/test_source_ground.py` |
 | H11 | 大结果压缩后 digest 里的数值必须逐字保真 | `gewu/mcp/context_compactor.py` | 数值被改写即测试失败 | `pytest tests/test_context_compactor.py` |
 | H12 | 最小课题十层校验（72 项） | `gewu/demo/verify.py` + `scripts/run_min_case.py` | 任一项失败则该命令非零退出 | `python scripts/run_min_case.py --offline` |
 | H13 | 7-mode 审计日志的**判据**：7 条四态、SUSPECTED/INSUFFICIENT 必阻断、自报 PASS 被识破、CLEAR 无证据算失败 | `scripts/failure_audit_gate.py` | `exit 1` | `python scripts/failure_audit_gate.py --self-test` |
