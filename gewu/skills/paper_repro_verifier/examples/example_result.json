@@ -1,0 +1,19 @@
+{
+  "_warning": "ILLUSTRATIVE OUTPUT ONLY — not a formal case result, not a prepared answer",
+  "case_id": "EXAMPLE-ONLY-0001",
+  "answer": "example: the declared lr is 0.001 (paper_excerpt.md, line 5)",
+  "evidence": [
+    {"source": "examples/fixture/paper_excerpt.md", "page": 1, "line": 5,
+     "quote": "We set the learning rate to 0.001 and the batch size to 32."}
+  ],
+  "uncertainty": [
+    {"item": "MAE", "reason": "explicitly not reported in the excerpt", "kind": "not_reported"},
+    {"item": "evaluation script", "reason": "stated as not released", "kind": "missing_input"},
+    {"item": "lr", "reason": "paper 0.001 vs config.yaml 0.002", "kind": "conflict"}
+  ],
+  "status": "partial",
+  "sources": [],
+  "change_records": [],
+  "limits": ["no real model was run in this example"],
+  "reproduction": {"grade": "partially_reproduced", "basis": "illustrative only"}
+}

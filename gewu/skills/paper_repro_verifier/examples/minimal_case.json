@@ -1,0 +1,11 @@
+{
+  "_warning": "SYNTHETIC INTERFACE EXAMPLE ONLY - not a real case, not a prepared answer",
+  "case_id": "EXAMPLE-ONLY-0001",
+  "task": "Read the provided paper excerpt, report the declared hyperparameters and the main metric, and give page/line evidence for each. State anything not reported.",
+  "output_contract": {
+    "answer": "the requested answer, grounded in the actual material",
+    "evidence": "list of {source,page,line,quote} locators",
+    "uncertainty": "items that are not reported, unreadable, conflicting or missing",
+    "status": "success | partial | failed | indeterminate"
+  }
+}

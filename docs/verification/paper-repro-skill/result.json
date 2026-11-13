@@ -1,0 +1,112 @@
+{
+  "case_id": "GEWU-COAL-MIL-5FOLD",
+  "answer": "从 metrics_recomputed.json 的 5 组逐折值独立重算：hybrid RMSE 均值 214.569911、总体标准差 25.709373 kcal/kg；PLSR 均值 233.952124；ΔRMSE -19.382213；hybrid R2 0.896267。与 main.tex 表格/摘要声明值逐项比较，7/7 落在事前声明的 0.01 绝对容差内；论文表格聚合块与重算值 6/6 一致（1e-9）。",
+  "evidence": [
+    {
+      "source": "docs/paper/coal_report/main.pdf",
+      "page": 1,
+      "line": 10,
+      "quote": "5 折hybrid RMSE 均值214.57±25.71 kcal/kg"
+    },
+    {
+      "source": "docs/paper/coal_report/main.tex",
+      "line": 122,
+      "section": "5 折交叉验证汇总表 均值行",
+      "quote": "均值 & --- & 233.9521 & 214.5699 & -19.3822 & 0.8803 & 0.8963"
+    },
+    {
+      "source": "output/scratch/bohrium_challenge/coal_out/recompute_check.json",
+      "json_path": "comparison.rows",
+      "quote": "7 rows, 7 PASS / 0 FAIL"
+    },
+    {
+      "source": "output/documents/coal_report/metrics_recomputed.json",
+      "json_path": "per_fold",
+      "quote": "5 组逐折 hybrid/plsr 指标，重算唯一输入"
+    }
+  ],
+  "uncertainty": [
+    {
+      "item": "原始 LIBS 光谱与模型权重",
+      "kind": "missing_input",
+      "reason": "docs/paper/README.md 明确数据/权重留在本机外部项目、不入库不上云；因此无法独立重跑训练，只能从落盘逐折指标重算聚合值"
+    },
+    {
+      "item": "依赖清单与许可证",
+      "kind": "missing_input",
+      "reason": "本次提供的材料目录内未发现 requirements/pyproject/LICENSE"
+    },
+    {
+      "item": "参数来源",
+      "kind": "not_reported",
+      "reason": "材料内未提供独立配置文件，正文仅报告 seed=42、5 折、每折 14 bag；超参无法三源对齐"
+    },
+    {
+      "item": "逐折表格行",
+      "kind": "conflict",
+      "reason": "10 条叙述/逐折声明保留证据但标 NEEDS_REVIEW，口径需人工确认，未自动判定"
+    }
+  ],
+  "status": "partial",
+  "reproduction_grade": "partially_reproduced",
+  "sources": [
+    {
+      "source": "docs/paper/coal_report/main.pdf",
+      "page": 1,
+      "line": 10,
+      "quote": "5 折hybrid RMSE 均值214.57±25.71 kcal/kg"
+    },
+    {
+      "source": "docs/paper/coal_report/main.tex",
+      "line": 122,
+      "section": "5 折交叉验证汇总表 均值行",
+      "quote": "均值 & --- & 233.9521 & 214.5699 & -19.3822 & 0.8803 & 0.8963"
+    },
+    {
+      "source": "output/scratch/bohrium_challenge/coal_out/recompute_check.json",
+      "json_path": "comparison.rows",
+      "quote": "7 rows, 7 PASS / 0 FAIL"
+    },
+    {
+      "source": "output/documents/coal_report/metrics_recomputed.json",
+      "json_path": "per_fold",
+      "quote": "5 组逐折 hybrid/plsr 指标，重算唯一输入"
+    }
+  ],
+  "change_records": [
+    {
+      "step": "论文声明抽取",
+      "before": "77 条含大量误报",
+      "after": "1 条聚合自动判定 + 10 条 NEEDS_REVIEW + 3 条 DISCARDED",
+      "why": "扩展名定大类分类 + 跨 scope 去重 + 只自动判定口径明确的聚合声明，避免假 FAIL"
+    },
+    {
+      "step": "数值结论",
+      "before": "正则启发式",
+      "after": "采信 verify_paper_recompute.py 实跑的 7/7 PASS",
+      "why": "真实验证脚本知道指标定义与聚合口径，优先于文本正则"
+    }
+  ],
+  "reproduction": {
+    "grade": "partially_reproduced",
+    "basis": "数值 7/7 PASS 且聚合块 6/6 一致，但原始数据与权重未公开，第三方不能独立重跑训练"
+  },
+  "limits": [
+    "原始光谱/权重未公开，第三方无法独立重跑训练；本结论限于聚合指标可复算",
+    "未发现依赖清单与许可证，环境快照仅覆盖本机",
+    "自动比较仅 1 条聚合声明，其余需人工按折号/口径确认"
+  ],
+  "_contract": {
+    "fields": [
+      "answer",
+      "evidence",
+      "uncertainty",
+      "status",
+      "reproduction_grade"
+    ],
+    "shape": "list:output_contract",
+    "case_id": "GEWU-COAL-MIL-5FOLD",
+    "note": "field names are read from the actual case.json, never hardcoded"
+  },
+  "_snapshot_note": "本地演练产物快照，路径已脱敏；非平台正式测试案例答案。"
+}

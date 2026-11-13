@@ -1,0 +1,197 @@
+{
+  "inputs": {
+    "metrics": "output/documents/coal_report/metrics_recomputed.json",
+    "tex": "docs/paper/coal_report/main.tex"
+  },
+  "tolerance": {
+    "abs": 0.01,
+    "rel": 0.0,
+    "declared_before_comparison": true,
+    "reason": "paper table keeps 4 decimals and abstract 2 decimals; recomputed values are full precision, so 0.01 absolute is the tightest tolerance that does not punish rounding"
+  },
+  "recomputed": {
+    "hybrid.mean_rmse": 214.5699114652832,
+    "hybrid.std_rmse_pop": 25.709373219912326,
+    "hybrid.std_rmse_sample": 28.743953089318307,
+    "hybrid.mean_mae": 177.7835038275356,
+    "hybrid.mean_r2": 0.8962665091153782,
+    "plsr.mean_rmse": 233.95212436560473,
+    "plsr.std_rmse_pop": 17.949411814332286,
+    "plsr.mean_r2": 0.8803248995032569,
+    "delta_rmse": -19.382212900321527,
+    "hybrid.mean_rmse_abstract": 214.5699114652832,
+    "hybrid.std_rmse_pop_abstract": 25.709373219912326,
+    "n_folds": 5
+  },
+  "comparison": {
+    "counts": {
+      "total": 7,
+      "pass": 7,
+      "fail": 0
+    },
+    "rows": [
+      {
+        "metric": "plsr.mean_rmse",
+        "declared": 233.9521,
+        "evidence": {
+          "source": "docs/paper/coal_report/main.tex",
+          "line": 122,
+          "section": "5-fold summary table",
+          "quote": "均值 & --- & 233.9521 & 214.5699 & $-$19.3822 & 0.8803 & 0.8963 //"
+        },
+        "column": "plsr rmse",
+        "recomputed": 233.9521243656,
+        "abs_diff": 2.43656e-05,
+        "tolerance_effective": 0.01,
+        "verdict": "PASS",
+        "difference_kind": "numerical_variation"
+      },
+      {
+        "metric": "hybrid.mean_rmse",
+        "declared": 214.5699,
+        "evidence": {
+          "source": "docs/paper/coal_report/main.tex",
+          "line": 122,
+          "section": "5-fold summary table",
+          "quote": "均值 & --- & 233.9521 & 214.5699 & $-$19.3822 & 0.8803 & 0.8963 //"
+        },
+        "column": "hybrid rmse",
+        "recomputed": 214.5699114653,
+        "abs_diff": 1.14653e-05,
+        "tolerance_effective": 0.01,
+        "verdict": "PASS",
+        "difference_kind": "numerical_variation"
+      },
+      {
+        "metric": "delta_rmse",
+        "declared": -19.3822,
+        "evidence": {
+          "source": "docs/paper/coal_report/main.tex",
+          "line": 122,
+          "section": "5-fold summary table",
+          "quote": "均值 & --- & 233.9521 & 214.5699 & $-$19.3822 & 0.8803 & 0.8963 //"
+        },
+        "column": "delta rmse",
+        "recomputed": -19.3822129003,
+        "abs_diff": 1.29003e-05,
+        "tolerance_effective": 0.01,
+        "verdict": "PASS",
+        "difference_kind": "numerical_variation"
+      },
+      {
+        "metric": "plsr.mean_r2",
+        "declared": 0.8803,
+        "evidence": {
+          "source": "docs/paper/coal_report/main.tex",
+          "line": 122,
+          "section": "5-fold summary table",
+          "quote": "均值 & --- & 233.9521 & 214.5699 & $-$19.3822 & 0.8803 & 0.8963 //"
+        },
+        "column": "plsr r2",
+        "recomputed": 0.8803248995,
+        "abs_diff": 2.48995e-05,
+        "tolerance_effective": 0.01,
+        "verdict": "PASS",
+        "difference_kind": "numerical_variation"
+      },
+      {
+        "metric": "hybrid.mean_r2",
+        "declared": 0.8963,
+        "evidence": {
+          "source": "docs/paper/coal_report/main.tex",
+          "line": 122,
+          "section": "5-fold summary table",
+          "quote": "均值 & --- & 233.9521 & 214.5699 & $-$19.3822 & 0.8803 & 0.8963 //"
+        },
+        "column": "hybrid r2",
+        "recomputed": 0.8962665091,
+        "abs_diff": 3.34909e-05,
+        "tolerance_effective": 0.01,
+        "verdict": "PASS",
+        "difference_kind": "numerical_variation"
+      },
+      {
+        "metric": "hybrid.mean_rmse_abstract",
+        "declared": 214.57,
+        "evidence": {
+          "source": "docs/paper/coal_report/main.tex",
+          "line": 21,
+          "section": "abstract",
+          "quote": "真实推理结果：5 折 hybrid RMSE 均值 $214.57 /pm 25.71$ kcal/kg（$0.8978 /pm 0.1076$ MJ/kg），"
+        },
+        "column": "abstract mean",
+        "recomputed": 214.5699114653,
+        "abs_diff": 8.85347e-05,
+        "tolerance_effective": 0.01,
+        "verdict": "PASS",
+        "difference_kind": "numerical_variation"
+      },
+      {
+        "metric": "hybrid.std_rmse_pop_abstract",
+        "declared": 25.71,
+        "evidence": {
+          "source": "docs/paper/coal_report/main.tex",
+          "line": 21,
+          "section": "abstract",
+          "quote": "真实推理结果：5 折 hybrid RMSE 均值 $214.57 /pm 25.71$ kcal/kg（$0.8978 /pm 0.1076$ MJ/kg），"
+        },
+        "column": "abstract spread",
+        "recomputed": 25.7093732199,
+        "abs_diff": 0.0006267801,
+        "tolerance_effective": 0.01,
+        "verdict": "PASS",
+        "difference_kind": "numerical_variation"
+      }
+    ],
+    "grade": "reproduced"
+  },
+  "stored_aggregate_cross_check": {
+    "n_pass": 6,
+    "n_fail": 0,
+    "checks": [
+      {
+        "item": "hybrid.mean_rmse",
+        "stored": 214.5699114652832,
+        "recomputed": 214.5699114652832,
+        "abs_diff": 0.0,
+        "status": "PASS"
+      },
+      {
+        "item": "hybrid.std_rmse_pop",
+        "stored": 25.709373219912326,
+        "recomputed": 25.709373219912326,
+        "abs_diff": 0.0,
+        "status": "PASS"
+      },
+      {
+        "item": "hybrid.mean_r2",
+        "stored": 0.8962665091153781,
+        "recomputed": 0.8962665091153782,
+        "abs_diff": 1.1102230246251565e-16,
+        "status": "PASS"
+      },
+      {
+        "item": "plsr.mean_rmse",
+        "stored": 233.95212436560473,
+        "recomputed": 233.95212436560473,
+        "abs_diff": 0.0,
+        "status": "PASS"
+      },
+      {
+        "item": "plsr.std_rmse_pop",
+        "stored": 17.949411814332283,
+        "recomputed": 17.949411814332286,
+        "abs_diff": 3.552713678800501e-15,
+        "status": "PASS"
+      },
+      {
+        "item": "plsr.mean_r2",
+        "stored": 0.8803248995032569,
+        "recomputed": 0.8803248995032569,
+        "abs_diff": 0.0,
+        "status": "PASS"
+      }
+    ]
+  },
+  "note": "declared values parsed from the actual .tex; recomputed values derived only from per_fold entries. Nothing is hardcoded."
+}

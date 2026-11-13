@@ -1,0 +1,12 @@
+{
+  "_warning": "SYNTHETIC numbers for interface testing only",
+  "metrics": {"rmse": 0.1235, "r2": 0.8888, "mae": 0.0987},
+  "per_fold": [
+    {"fold": 0, "rmse": 0.1310, "r2": 0.8710},
+    {"fold": 1, "rmse": 0.1190, "r2": 0.8990},
+    {"fold": 2, "rmse": 0.1250, "r2": 0.8850},
+    {"fold": 3, "rmse": 0.1180, "r2": 0.9010},
+    {"fold": 4, "rmse": 0.1245, "r2": 0.8880}
+  ],
+  "n_folds": 5
+}

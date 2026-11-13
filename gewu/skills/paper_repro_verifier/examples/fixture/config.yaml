@@ -1,0 +1,7 @@
+# SYNTHETIC example config. lr deliberately disagrees with paper_excerpt.md
+# to exercise three-source conflict detection.
+lr: 0.002
+batch_size: 32
+weight_decay: 0.0005
+seed: 2026
+n_folds: 5
