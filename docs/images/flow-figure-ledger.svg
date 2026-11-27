@@ -1,0 +1,81 @@
+<svg viewBox="0 0 720 620" width="100%" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>图纸台账内容寻址流程</title>
+<desc>出图时写旁文件记录 fig_id，台账按内容合并副本，annotateFigLeaves 注入写作台图谱，UI 显示图纸 id 与复用提示</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+
+<rect x="40" y="30" width="4" height="42" rx="2" fill="#5DCAA5"/>
+<text x="56" y="44" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="18" font-weight="500" fill="#EEEDFE" dominant-baseline="central">图纸台账 · 一张图一个 id，一份出处</text>
+<text x="56" y="66" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#AFA9EC" dominant-baseline="central">Figure provenance · 内容寻址，不靠文件名猜</text>
+<rect x="536" y="34" width="144" height="34" rx="17" fill="#26215C" stroke="#7F77DD" stroke-width="0.5"/>
+<text x="608" y="51" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#CECBF6" text-anchor="middle" dominant-baseline="central">16 文件 → 3 张图</text>
+
+<rect x="40" y="92" width="640" height="126" rx="12" fill="#1A1B3A" stroke="#3C3489" stroke-width="0.5"/>
+<text x="56" y="112" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#AFA9EC" dominant-baseline="central">阶段一 · 出图时顺手写旁文件（sci_plot._save → fig_meta.py）</text>
+
+<rect x="56" y="124" width="186" height="80" rx="10" fill="#312C6E" stroke="#7F77DD" stroke-width="0.5"/>
+<circle cx="82" cy="152" r="13" fill="#534AB7"/>
+<text x="82" y="152" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="13" font-weight="500" fill="#EEEDFE" text-anchor="middle" dominant-baseline="central">1</text>
+<text x="104" y="152" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="14" font-weight="500" fill="#EEEDFE" dominant-baseline="central">内容寻址</text>
+<text x="76" y="180" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#CECBF6" dominant-baseline="central">fig_id = pdf sha256 前 8 位</text>
+
+<rect x="266" y="124" width="186" height="80" rx="10" fill="#312C6E" stroke="#7F77DD" stroke-width="0.5"/>
+<circle cx="292" cy="152" r="13" fill="#534AB7"/>
+<text x="292" y="152" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="13" font-weight="500" fill="#EEEDFE" text-anchor="middle" dominant-baseline="central">2</text>
+<text x="314" y="152" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="14" font-weight="500" fill="#EEEDFE" dominant-baseline="central">数值只留指纹</text>
+<text x="286" y="180" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#CECBF6" dominant-baseline="central">shape + sha256 + 极值</text>
+
+<rect x="476" y="124" width="186" height="80" rx="10" fill="#312C6E" stroke="#7F77DD" stroke-width="0.5"/>
+<circle cx="502" cy="152" r="13" fill="#534AB7"/>
+<text x="502" y="152" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="13" font-weight="500" fill="#EEEDFE" text-anchor="middle" dominant-baseline="central">3</text>
+<text x="524" y="152" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="14" font-weight="500" fill="#EEEDFE" dominant-baseline="central">渲染后反读</text>
+<text x="496" y="180" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#CECBF6" dominant-baseline="central">draw.series 不动绘图函数</text>
+
+<line x1="360" y1="218" x2="360" y2="232" stroke="#7F77DD" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<rect x="40" y="234" width="640" height="126" rx="12" fill="#1A1B3A" stroke="#3C3489" stroke-width="0.5"/>
+<text x="56" y="254" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#AFA9EC" dominant-baseline="central">阶段二 · 台账按内容合并（figure_index.mjs 扫 4 个目录）</text>
+
+<rect x="56" y="266" width="186" height="80" rx="10" fill="#3D3685" stroke="#AFA9EC" stroke-width="0.5"/>
+<circle cx="82" cy="294" r="13" fill="#7F77DD"/>
+<text x="82" y="294" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="13" font-weight="500" fill="#EEEDFE" text-anchor="middle" dominant-baseline="central">4</text>
+<text x="104" y="294" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="14" font-weight="500" fill="#EEEDFE" dominant-baseline="central">字节相同必合并</text>
+<text x="76" y="322" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#CECBF6" dominant-baseline="central">同图副本归一到同 id</text>
+
+<rect x="266" y="266" width="186" height="80" rx="10" fill="#3D3685" stroke="#AFA9EC" stroke-width="0.5"/>
+<circle cx="292" cy="294" r="13" fill="#7F77DD"/>
+<text x="292" y="294" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="13" font-weight="500" fill="#EEEDFE" text-anchor="middle" dominant-baseline="central">5</text>
+<text x="314" y="294" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="14" font-weight="500" fill="#EEEDFE" dominant-baseline="central">对齐先内容后名字</text>
+<text x="286" y="322" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#CECBF6" dominant-baseline="central">改名副本也能指回母版</text>
+
+<rect x="476" y="266" width="186" height="80" rx="10" fill="#3D3685" stroke="#AFA9EC" stroke-width="0.5"/>
+<circle cx="502" cy="294" r="13" fill="#7F77DD"/>
+<text x="502" y="294" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="13" font-weight="500" fill="#EEEDFE" text-anchor="middle" dominant-baseline="central">6</text>
+<text x="524" y="294" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="14" font-weight="500" fill="#EEEDFE" dominant-baseline="central">不猜不编</text>
+<text x="496" y="322" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#CECBF6" dominant-baseline="central">无旁文件不编 tool</text>
+
+<line x1="360" y1="360" x2="360" y2="374" stroke="#5DCAA5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<rect x="40" y="376" width="640" height="96" rx="12" fill="#04342C" stroke="#1D9E75" stroke-width="0.5"/>
+<text x="56" y="396" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#5DCAA5" dominant-baseline="central">阶段三 · 注入写作台图谱（annotateFigLeaves，5s 缓存不重复扫盘）</text>
+<rect x="56" y="408" width="608" height="52" rx="10" fill="#0F6E56" stroke="#5DCAA5" stroke-width="0.5"/>
+<text x="76" y="434" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#E1F5EE" dominant-baseline="central">fig_id · fig_copies / fig_dirs · fig_provenance · fig_reused（图 1、图 3 改图需两处同核）</text>
+
+<rect x="40" y="488" width="640" height="112" rx="12" fill="#042C53" stroke="#185FA5" stroke-width="0.5"/>
+<text x="56" y="508" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#85B7EB" dominant-baseline="central">三条不变量</text>
+
+<rect x="56" y="522" width="194" height="62" rx="8" fill="#0C447C" stroke="#378ADD" stroke-width="0.5"/>
+<text x="153" y="542" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="13" font-weight="500" fill="#E6F1FB" text-anchor="middle" dominant-baseline="central">PDF 不写 CreationDate</text>
+<text x="153" y="564" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#B5D4F4" text-anchor="middle" dominant-baseline="central">同数据重画 id 不变</text>
+
+<rect x="263" y="522" width="194" height="62" rx="8" fill="#0C447C" stroke="#378ADD" stroke-width="0.5"/>
+<text x="360" y="542" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="13" font-weight="500" fill="#E6F1FB" text-anchor="middle" dominant-baseline="central">读不出就不写</text>
+<text x="360" y="564" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#B5D4F4" text-anchor="middle" dominant-baseline="central">draw 留空不拿零值占位</text>
+
+<rect x="470" y="522" width="194" height="62" rx="8" fill="#0C447C" stroke="#378ADD" stroke-width="0.5"/>
+<text x="567" y="542" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="13" font-weight="500" fill="#E6F1FB" text-anchor="middle" dominant-baseline="central">旁文件失败不拖垮出图</text>
+<text x="567" y="564" font-family="Segoe UI, Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#B5D4F4" text-anchor="middle" dominant-baseline="central">provenance:false 明示</text>
+</svg>
